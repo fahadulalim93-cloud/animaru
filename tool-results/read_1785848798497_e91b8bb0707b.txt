@@ -1,0 +1,372 @@
+     1→2026-Aug-04 12:51:51.340804 Docker 29.7.1 with BuildKit and Buildx detected on deployment server (localhost).
+     2→2026-Aug-04 12:51:51.386628 Starting deployment of fahadulalim93-cloud/luffytv-fahad:main to localhost.
+     3→2026-Aug-04 12:51:51.906925 Preparing container with helper image: docker.io/coollabsio/coolify-helper:1.0.14
+     4→2026-Aug-04 12:51:52.106227 [CMD]: docker stop --time=30 ldnr9mg9yzotahsaykefblui
+     5→2026-Aug-04 12:51:52.106227 Flag --time has been deprecated, use --timeout instead
+     6→2026-Aug-04 12:51:52.127497 Error response from daemon: No such container: ldnr9mg9yzotahsaykefblui
+     7→2026-Aug-04 12:51:52.523693 [CMD]: docker run -d --network 'coolify' --name ldnr9mg9yzotahsaykefblui --rm -v /root/.docker/buildx:/root/.docker/buildx -v /var/run/docker.sock:/var/run/docker.sock docker.io/coollabsio/coolify-helper:1.0.14
+     8→2026-Aug-04 12:51:52.523693 deff2a4f12df6272c74a5e87b236388b93640782a9ab04f188a54954626d163d
+     9→2026-Aug-04 12:51:55.852257 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'GIT_SSH_COMMAND="ssh -o ConnectTimeout=30 -p 22 -o Port=22 -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote '\''https://x-access-token:<REDACTED>@github.com/fahadulalim93-cloud/luffytv-fahad.git'\'' '\''refs/heads/main'\'''
+    10→2026-Aug-04 12:51:55.852257 64d246d953d5957245be2132a3600b5715b4d69a refs/heads/main
+    11→2026-Aug-04 12:51:56.113600 Image not found (c9j1dmgzxt3z8hjg7cs0pz1s:64d246d953d5957245be2132a3600b5715b4d69a). Building new image.
+    12→2026-Aug-04 12:51:56.425026 ----------------------------------------
+    13→2026-Aug-04 12:51:56.492533 Importing fahadulalim93-cloud/luffytv-fahad:main (commit sha 64d246d953d5957245be2132a3600b5715b4d69a) to /artifacts/ldnr9mg9yzotahsaykefblui.
+    14→2026-Aug-04 12:51:56.748386 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'git -c '\''url.https://x-access-token:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 clone --depth=1 --recurse-submodules --shallow-submodules -b '\''main'\'' '\''https:<REDACTED>@github.com/fahadulalim93-cloud/luffytv-fahad.git'\'' '\''/artifacts/ldnr9mg9yzotahsaykefblui'\'' && cd '\''/artifacts/ldnr9mg9yzotahsaykefblui'\'' && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git -c '\''url.https://x-access-token:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 fetch --depth=1 origin '\''64d246d953d5957245be2132a3600b5715b4d69a'\'' && git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 -c advice.detachedHead=false checkout '\''64d246d953d5957245be2132a3600b5715b4d69a'\'' >/dev/null 2>&1 && cd '\''/artifacts/ldnr9mg9yzotahsaykefblui'\'' && if [ -f .gitmodules ]; then git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 submodule sync && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 submodule update --init --recursive --depth=1; fi && cd '\''/artifacts/ldnr9mg9yzotahsaykefblui'\'' && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 lfs pull'
+    15→2026-Aug-04 12:51:56.748386 Cloning into '/artifacts/ldnr9mg9yzotahsaykefblui'...
+    16→2026-Aug-04 12:52:08.941997 From https://github.com/fahadulalim93-cloud/luffytv-fahad
+    17→2026-Aug-04 12:52:08.941997 * branch 64d246d953d5957245be2132a3600b5715b4d69a -> FETCH_HEAD
+    18→2026-Aug-04 12:52:10.077190 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'cd /artifacts/ldnr9mg9yzotahsaykefblui && git log -1 '\''64d246d953d5957245be2132a3600b5715b4d69a'\'' --pretty=%B'
+    19→2026-Aug-04 12:52:10.077190 fix: convert hash routing to path-based routing for proper URLs and SEO
+    20→2026-Aug-04 12:52:10.077190
+    21→2026-Aug-04 12:52:10.077190 - navigate() now uses history.pushState with real paths (/browse, /anime/21, etc.)
+    22→2026-Aug-04 12:52:10.077190 - setSectionSubPage() now syncs URL bar via replaceState
+    23→2026-Aug-04 12:52:10.077190 - parsePath() reads from pathname, returns both route and subPage
+    24→2026-Aug-04 12:52:10.077190 - page.tsx moved to [[...slug]] catch-all route for all paths
+    25→2026-Aug-04 12:52:10.077190 - popstate listener replaces hashchange
+    26→2026-Aug-04 12:52:10.077190 - sitemap.ts expanded with 20+ crawlable URLs
+    27→2026-Aug-04 12:52:10.077190 - Google can now index /browse, /schedule, /genres, /manga, etc.
+    28→2026-Aug-04 12:52:11.510771 Generating nixpacks configuration with: nixpacks plan -f json --env 'NIXPACKS_NODE_VERSION=22' --env 'COOLIFY_URL=https://luffytv.live' --env 'COOLIFY_FQDN=luffytv.live' --env 'COOLIFY_BRANCH=main' --env 'COOLIFY_RESOURCE_UUID=c9j1dmgzxt3z8hjg7cs0pz1s' --build-cmd 'npm run build' --start-cmd 'npm run start' --install-cmd 'npm install' /artifacts/ldnr9mg9yzotahsaykefblui
+    29→2026-Aug-04 12:52:12.109249 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'nixpacks plan -f json --env '\''NIXPACKS_NODE_VERSION=22'\'' --env '\''COOLIFY_URL=https://luffytv.live'\'' --env '\''COOLIFY_FQDN=luffytv.live'\'' --env '\''COOLIFY_BRANCH=main'\'' --env '\''COOLIFY_RESOURCE_UUID=c9j1dmgzxt3z8hjg7cs0pz1s'\'' --build-cmd '\''npm run build'\'' --start-cmd '\''npm run start'\'' --install-cmd '\''npm install'\'' /artifacts/ldnr9mg9yzotahsaykefblui'
+    30→2026-Aug-04 12:52:12.109249 {
+    31→2026-Aug-04 12:52:12.109249 "providers": [],
+    32→2026-Aug-04 12:52:12.109249 "buildImage": "ghcr.io/railwayapp/nixpacks:ubuntu-1745885067",
+    33→2026-Aug-04 12:52:12.109249 "variables": {
+    34→2026-Aug-04 12:52:12.109249 "CI": "true",
+    35→2026-Aug-04 12:52:12.109249 "COOLIFY_BRANCH": "main",
+    36→2026-Aug-04 12:52:12.109249 "COOLIFY_FQDN": "luffytv.live",
+    37→2026-Aug-04 12:52:12.109249 "COOLIFY_RESOURCE_UUID": "c9j1dmgzxt3z8hjg7cs0pz1s",
+    38→2026-Aug-04 12:52:12.109249 "COOLIFY_URL": "https://luffytv.live",
+    39→2026-Aug-04 12:52:12.109249 "NIXPACKS_METADATA": "node",
+    40→2026-Aug-04 12:52:12.109249 "NIXPACKS_NODE_VERSION": "22",
+    41→2026-Aug-04 12:52:12.109249 "NODE_ENV": "production",
+    42→2026-Aug-04 12:52:12.109249 "NPM_CONFIG_PRODUCTION": "false"
+    43→2026-Aug-04 12:52:12.109249 },
+    44→2026-Aug-04 12:52:12.109249 "phases": {
+    45→2026-Aug-04 12:52:12.109249 "build": {
+    46→2026-Aug-04 12:52:12.109249 "dependsOn": [
+    47→2026-Aug-04 12:52:12.109249 "install"
+    48→2026-Aug-04 12:52:12.109249 ],
+    49→2026-Aug-04 12:52:12.109249 "cmds": [
+    50→2026-Aug-04 12:52:12.109249 "npm run build"
+    51→2026-Aug-04 12:52:12.109249 ],
+    52→2026-Aug-04 12:52:12.109249 "cacheDirectories": [
+    53→2026-Aug-04 12:52:12.109249 ".next/cache",
+    54→2026-Aug-04 12:52:12.109249 "node_modules/.cache"
+    55→2026-Aug-04 12:52:12.109249 ]
+    56→2026-Aug-04 12:52:12.109249 },
+    57→2026-Aug-04 12:52:12.109249 "install": {
+    58→2026-Aug-04 12:52:12.109249 "dependsOn": [
+    59→2026-Aug-04 12:52:12.109249 "setup"
+    60→2026-Aug-04 12:52:12.109249 ],
+    61→2026-Aug-04 12:52:12.109249 "cmds": [
+    62→2026-Aug-04 12:52:12.109249 "npm install"
+    63→2026-Aug-04 12:52:12.109249 ],
+    64→2026-Aug-04 12:52:12.109249 "cacheDirectories": [
+    65→2026-Aug-04 12:52:12.109249 "/root/.bun"
+    66→2026-Aug-04 12:52:12.109249 ],
+    67→2026-Aug-04 12:52:12.109249 "paths": [
+    68→2026-Aug-04 12:52:12.109249 "/app/node_modules/.bin"
+    69→2026-Aug-04 12:52:12.109249 ]
+    70→2026-Aug-04 12:52:12.109249 },
+    71→2026-Aug-04 12:52:12.109249 "setup": {
+    72→2026-Aug-04 12:52:12.109249 "nixPkgs": [
+    73→2026-Aug-04 12:52:12.109249 "nodejs_22"
+    74→2026-Aug-04 12:52:12.109249 ],
+    75→2026-Aug-04 12:52:12.109249 "nixLibs": [
+    76→2026-Aug-04 12:52:12.109249 "gcc-unwrapped"
+    77→2026-Aug-04 12:52:12.109249 ],
+    78→2026-Aug-04 12:52:12.109249 "nixOverlays": [
+    79→2026-Aug-04 12:52:12.109249 "https://github.com/railwayapp/nix-npm-overlay/archive/main.tar.gz"
+    80→2026-Aug-04 12:52:12.109249 ],
+    81→2026-Aug-04 12:52:12.109249 "nixpkgsArchive": "31fb21469e34b6b5c7be77b9a35bae43d0c598e9"
+    82→2026-Aug-04 12:52:12.109249 }
+    83→2026-Aug-04 12:52:12.109249 },
+    84→2026-Aug-04 12:52:12.109249 "start": {
+    85→2026-Aug-04 12:52:12.109249 "cmd": "npm run start"
+    86→2026-Aug-04 12:52:12.109249 }
+    87→2026-Aug-04 12:52:12.109249 }
+    88→2026-Aug-04 12:52:12.778541 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'nixpacks detect /artifacts/ldnr9mg9yzotahsaykefblui'
+    89→2026-Aug-04 12:52:12.778541 node
+    90→2026-Aug-04 12:52:12.795110 Found application type: node.
+    91→2026-Aug-04 12:52:12.817532 If you need further customization, please check the documentation of Nixpacks: https://nixpacks.com/docs/providers/node
+    92→2026-Aug-04 12:52:12.966081 Final Nixpacks plan: {
+    93→2026-Aug-04 12:52:12.966081 "providers": [],
+    94→2026-Aug-04 12:52:12.966081 "buildImage": "ghcr.io\/railwayapp\/nixpacks:ubuntu-1745885067",
+    95→2026-Aug-04 12:52:12.966081 "phases": {
+    96→2026-Aug-04 12:52:12.966081 "build": {
+    97→2026-Aug-04 12:52:12.966081 "dependsOn": [
+    98→2026-Aug-04 12:52:12.966081 "install"
+    99→2026-Aug-04 12:52:12.966081 ],
+   100→2026-Aug-04 12:52:12.966081 "cmds": [
+   101→2026-Aug-04 12:52:12.966081 "npm run build"
+   102→2026-Aug-04 12:52:12.966081 ],
+   103→2026-Aug-04 12:52:12.966081 "cacheDirectories": [
+   104→2026-Aug-04 12:52:12.966081 ".next\/cache",
+   105→2026-Aug-04 12:52:12.966081 "node_modules\/.cache"
+   106→2026-Aug-04 12:52:12.966081 ]
+   107→2026-Aug-04 12:52:12.966081 },
+   108→2026-Aug-04 12:52:12.966081 "install": {
+   109→2026-Aug-04 12:52:12.966081 "dependsOn": [
+   110→2026-Aug-04 12:52:12.966081 "setup"
+   111→2026-Aug-04 12:52:12.966081 ],
+   112→2026-Aug-04 12:52:12.966081 "cmds": [
+   113→2026-Aug-04 12:52:12.966081 "npm install"
+   114→2026-Aug-04 12:52:12.966081 ],
+   115→2026-Aug-04 12:52:12.966081 "cacheDirectories": [
+   116→2026-Aug-04 12:52:12.966081 "\/root\/.bun"
+   117→2026-Aug-04 12:52:12.966081 ],
+   118→2026-Aug-04 12:52:12.966081 "paths": [
+   119→2026-Aug-04 12:52:12.966081 "\/app\/node_modules\/.bin"
+   120→2026-Aug-04 12:52:12.966081 ]
+   121→2026-Aug-04 12:52:12.966081 },
+   122→2026-Aug-04 12:52:12.966081 "setup": {
+   123→2026-Aug-04 12:52:12.966081 "nixPkgs": [
+   124→2026-Aug-04 12:52:12.966081 "nodejs_22"
+   125→2026-Aug-04 12:52:12.966081 ],
+   126→2026-Aug-04 12:52:12.966081 "nixLibs": [
+   127→2026-Aug-04 12:52:12.966081 "gcc-unwrapped"
+   128→2026-Aug-04 12:52:12.966081 ],
+   129→2026-Aug-04 12:52:12.966081 "nixOverlays": [
+   130→2026-Aug-04 12:52:12.966081 "https:\/\/github.com\/railwayapp\/nix-npm-overlay\/archive\/main.tar.gz"
+   131→2026-Aug-04 12:52:12.966081 ],
+   132→2026-Aug-04 12:52:12.966081 "nixpkgsArchive": "31fb21469e34b6b5c7be77b9a35bae43d0c598e9",
+   133→2026-Aug-04 12:52:12.966081 "aptPkgs": [
+   134→2026-Aug-04 12:52:12.966081 "curl",
+   135→2026-Aug-04 12:52:12.966081 "wget"
+   136→2026-Aug-04 12:52:12.966081 ]
+   137→2026-Aug-04 12:52:12.966081 }
+   138→2026-Aug-04 12:52:12.966081 },
+   139→2026-Aug-04 12:52:12.966081 "start": {
+   140→2026-Aug-04 12:52:12.966081 "cmd": "npm run start"
+   141→2026-Aug-04 12:52:12.966081 }
+   142→2026-Aug-04 12:52:12.966081 }
+   143→2026-Aug-04 12:52:14.052771 Creating build-time .env file in /artifacts (outside Docker context).
+   144→2026-Aug-04 12:52:14.314202 ----------------------------------------
+   145→2026-Aug-04 12:52:14.344974 Building docker image started.
+   146→2026-Aug-04 12:52:14.363304 To check the current progress, click on Show Debug Logs.
+   147→2026-Aug-04 12:52:14.969167 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'nixpacks build -c /artifacts/thegameplan.json --cache-key '\''c9j1dmgzxt3z8hjg7cs0pz1s'\'' --no-error-without-start -n c9j1dmgzxt3z8hjg7cs0pz1s:64d246d953d5957245be2132a3600b5715b4d69a /artifacts/ldnr9mg9yzotahsaykefblui -o /artifacts/ldnr9mg9yzotahsaykefblui'
+   148→2026-Aug-04 12:52:14.969167
+   149→2026-Aug-04 12:52:14.969167 ╔═════════ Nixpacks v1.41.0 ═════════╗
+   150→2026-Aug-04 12:52:14.969167 ║ setup │ nodejs_22, curl, wget ║
+   151→2026-Aug-04 12:52:14.969167 ║────────────────────────────────────║
+   152→2026-Aug-04 12:52:14.969167 ║ install │ npm install ║
+   153→2026-Aug-04 12:52:14.969167 ║────────────────────────────────────║
+   154→2026-Aug-04 12:52:14.969167 ║ build │ npm run build ║
+   155→2026-Aug-04 12:52:14.969167 ║────────────────────────────────────║
+   156→2026-Aug-04 12:52:14.969167 ║ start │ npm run start ║
+   157→2026-Aug-04 12:52:14.969167 ╚════════════════════════════════════╝
+   158→2026-Aug-04 12:52:14.975063 Saved output to:
+   159→2026-Aug-04 12:52:14.975063 /artifacts/ldnr9mg9yzotahsaykefblui
+   160→2026-Aug-04 12:52:15.399317 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'cat /artifacts/ldnr9mg9yzotahsaykefblui/.nixpacks/Dockerfile'
+   161→2026-Aug-04 12:52:15.399317 FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+   162→2026-Aug-04 12:52:15.399317
+   163→2026-Aug-04 12:52:15.399317 ENTRYPOINT ["/bin/bash", "-l", "-c"]
+   164→2026-Aug-04 12:52:15.399317 WORKDIR /app/
+   165→2026-Aug-04 12:52:15.399317
+   166→2026-Aug-04 12:52:15.399317
+   167→2026-Aug-04 12:52:15.399317 COPY .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix
+   168→2026-Aug-04 12:52:15.399317 RUN nix-env -if .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix && nix-collect-garbage -d
+   169→2026-Aug-04 12:52:15.399317 RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends curl wget
+   170→2026-Aug-04 12:52:15.399317
+   171→2026-Aug-04 12:52:15.399317 ARG CI COOLIFY_BRANCH COOLIFY_FQDN COOLIFY_RESOURCE_UUID COOLIFY_URL DATABASE_URL KLIPY_API_KEY NEXT_PUBLIC_ANILIST_CLIENT_ID NEXT_PUBLIC_GOOGLE_CLIENT_ID NEXT_PUBLIC_PROXY_BASE NEXT_PUBLIC_SUBS_PROXY_BASE NIXPACKS_METADATA NIXPACKS_NODE_VERSION NODE_ENV NPM_CONFIG_PRODUCTION TMDB_API_KEY TMDB_READ_ACCESS_TOKEN XOR_KEY
+   172→2026-Aug-04 12:52:15.399317 ENV CI=$CI COOLIFY_BRANCH=$COOLIFY_BRANCH COOLIFY_FQDN=$COOLIFY_FQDN COOLIFY_RESOURCE_UUID=$COOLIFY_RESOURCE_UUID COOLIFY_URL=$COOLIFY_URL DATABASE_URL=$DATABASE_URL KLIPY_API_KEY=$KLIPY_API_KEY NEXT_PUBLIC_ANILIST_CLIENT_ID=$NEXT_PUBLIC_ANILIST_CLIENT_ID NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID NEXT_PUBLIC_PROXY_BASE=$NEXT_PUBLIC_PROXY_BASE NEXT_PUBLIC_SUBS_PROXY_BASE=$NEXT_PUBLIC_SUBS_PROXY_BASE NIXPACKS_METADATA=$NIXPACKS_METADATA NIXPACKS_NODE_VERSION=$NIXPACKS_NODE_VERSION NODE_ENV=$NODE_ENV NPM_CONFIG_PRODUCTION=$NPM_CONFIG_PRODUCTION TMDB_API_KEY=$TMDB_API_KEY TMDB_READ_ACCESS_TOKEN=$TMDB_READ_ACCESS_TOKEN XOR_KEY=$XOR_KEY
+   173→2026-Aug-04 12:52:15.399317
+   174→2026-Aug-04 12:52:15.399317 # setup phase
+   175→2026-Aug-04 12:52:15.399317 # noop
+   176→2026-Aug-04 12:52:15.399317
+   177→2026-Aug-04 12:52:15.399317 # install phase
+   178→2026-Aug-04 12:52:15.399317 ENV NIXPACKS_PATH=/app/node_modules/.bin:$NIXPACKS_PATH
+   179→2026-Aug-04 12:52:15.399317 COPY . /app/.
+   180→2026-Aug-04 12:52:15.399317 RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-/root/bun,target=/root/.bun npm install
+   181→2026-Aug-04 12:52:15.399317
+   182→2026-Aug-04 12:52:15.399317 # build phase
+   183→2026-Aug-04 12:52:15.399317 COPY . /app/.
+   184→2026-Aug-04 12:52:15.399317 RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-next/cache,target=/app/.next/cache --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-node_modules/cache,target=/app/node_modules/.cache npm run build
+   185→2026-Aug-04 12:52:15.399317
+   186→2026-Aug-04 12:52:15.399317
+   187→2026-Aug-04 12:52:15.399317 RUN printf '\nPATH=/app/node_modules/.bin:$PATH' >> /root/.profile
+   188→2026-Aug-04 12:52:15.399317
+   189→2026-Aug-04 12:52:15.399317
+   190→2026-Aug-04 12:52:15.399317 # start
+   191→2026-Aug-04 12:52:15.399317 COPY . /app
+   192→2026-Aug-04 12:52:15.399317
+   193→2026-Aug-04 12:52:15.399317 CMD ["npm run start"]
+   194→2026-Aug-04 12:52:15.928185 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'cat /artifacts/build.sh'
+   195→2026-Aug-04 12:52:15.928185 cd /artifacts/ldnr9mg9yzotahsaykefblui && set -a && source /artifacts/build-time.env && set +a && DOCKER_BUILDKIT=1 docker build --add-host a4iejxxvxrs9pfb2af1gg73n:10.0.1.7 --add-host coolify:10.0.1.5 --add-host coolify-db:10.0.1.4 --add-host coolify-realtime:10.0.1.2 --add-host coolify-redis:10.0.1.3 --network host -f /artifacts/ldnr9mg9yzotahsaykefblui/.nixpacks/Dockerfile --progress plain -t c9j1dmgzxt3z8hjg7cs0pz1s:64d246d953d5957245be2132a3600b5715b4d69a --build-arg CI --build-arg COOLIFY_BRANCH --build-arg COOLIFY_FQDN --build-arg COOLIFY_RESOURCE_UUID --build-arg COOLIFY_URL --build-arg NIXPACKS_METADATA --build-arg NIXPACKS_NODE_VERSION --build-arg NODE_ENV --build-arg NPM_CONFIG_PRODUCTION --build-arg KLIPY_API_KEY --build-arg TMDB_API_KEY --build-arg TMDB_READ_ACCESS_TOKEN --build-arg NEXT_PUBLIC_SUBS_PROXY_BASE --build-arg NEXT_PUBLIC_PROXY_BASE --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID --build-arg NEXT_PUBLIC_ANILIST_CLIENT_ID --build-arg XOR_KEY --build-arg DATABASE_URL --build-arg COOLIFY_BUILD_SECRETS_HASH=54bde71f5359b9b349fb10443300684286c9f569b4eeb47184a63da391a5564d --build-arg 'COOLIFY_URL' --build-arg 'COOLIFY_FQDN' --build-arg 'COOLIFY_BRANCH' --build-arg 'COOLIFY_RESOURCE_UUID' /artifacts/ldnr9mg9yzotahsaykefblui
+   196→2026-Aug-04 12:52:17.789288 [CMD]: docker exec ldnr9mg9yzotahsaykefblui bash -c 'bash /artifacts/build.sh'
+   197→2026-Aug-04 12:52:17.789288 #0 building with "default" instance using docker driver
+   198→2026-Aug-04 12:52:17.789288
+   199→2026-Aug-04 12:52:17.789288 #1 [internal] load build definition from Dockerfile
+   200→2026-Aug-04 12:52:17.789288 #1 transferring dockerfile: 1.99kB done
+   201→2026-Aug-04 12:52:17.789288 #1 DONE 0.1s
+   202→2026-Aug-04 12:52:17.954088 #2 [internal] load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+   203→2026-Aug-04 12:52:18.771571 #2 DONE 0.9s
+   204→2026-Aug-04 12:52:18.899170 #3 [internal] load .dockerignore
+   205→2026-Aug-04 12:52:18.926811 #3 transferring context:
+   206→2026-Aug-04 12:52:19.080054 #3 transferring context: 2B done
+   207→2026-Aug-04 12:52:19.090412 #3 DONE 0.3s
+   208→2026-Aug-04 12:52:19.195098 #4 [stage-0 1/11] FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+   209→2026-Aug-04 12:52:19.195098 #4 resolve ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de 0.1s done
+   210→2026-Aug-04 12:52:19.195098 #4 DONE 0.1s
+   211→2026-Aug-04 12:52:19.195098
+   212→2026-Aug-04 12:52:19.195098 #5 [internal] load build context
+   213→2026-Aug-04 12:52:20.949758 #5 transferring context: 105.69MB 1.8s done
+   214→2026-Aug-04 12:52:21.184068 #5 DONE 1.9s
+   215→2026-Aug-04 12:52:21.184068
+   216→2026-Aug-04 12:52:21.184068 #6 [stage-0 4/11] RUN nix-env -if .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix && nix-collect-garbage -d
+   217→2026-Aug-04 12:52:21.184068 #6 CACHED
+   218→2026-Aug-04 12:52:21.184068
+   219→2026-Aug-04 12:52:21.184068 #7 [stage-0 2/11] WORKDIR /app/
+   220→2026-Aug-04 12:52:21.184068 #7 CACHED
+   221→2026-Aug-04 12:52:21.184068
+   222→2026-Aug-04 12:52:21.184068 #8 [stage-0 3/11] COPY .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix
+   223→2026-Aug-04 12:52:21.184068 #8 CACHED
+   224→2026-Aug-04 12:52:21.184068
+   225→2026-Aug-04 12:52:21.184068 #9 [stage-0 5/11] RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends curl wget
+   226→2026-Aug-04 12:52:21.184068 #9 CACHED
+   227→2026-Aug-04 12:52:21.184068
+   228→2026-Aug-04 12:52:21.184068 #10 [stage-0 6/11] COPY . /app/.
+   229→2026-Aug-04 12:52:21.967255 #10 DONE 0.9s
+   230→2026-Aug-04 12:52:22.116527 #11 [stage-0 7/11] RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-/root/bun,target=/root/.bun npm install
+   231→2026-Aug-04 12:52:23.552419 #11 1.587 npm warn config production Use `--omit=dev` instead.
+   232→2026-Aug-04 12:53:40.310690 #11 78.34 npm error code ECONNRESET
+   233→2026-Aug-04 12:53:40.310690 #11 78.34 npm error network aborted
+   234→2026-Aug-04 12:53:40.310690 #11 78.34 npm error network This is a problem related to network connectivity.
+   235→2026-Aug-04 12:53:40.310690 #11 78.34 npm error network In most cases you are behind a proxy or have bad network settings.
+   236→2026-Aug-04 12:53:40.310690 #11 78.34 npm error network
+   237→2026-Aug-04 12:53:40.310690 #11 78.34 npm error network If you are behind a proxy, please make sure that the
+   238→2026-Aug-04 12:53:40.310690 #11 78.34 npm error network 'proxy' config is set properly. See: 'npm help config'
+   239→2026-Aug-04 12:53:40.461390 #11 78.35 npm error A complete log of this run can be found in: /root/.npm/_logs/2026-08-04T12_52_23_460Z-debug-0.log
+   240→2026-Aug-04 12:53:40.466588
+   241→2026-Aug-04 12:53:41.246310 #11 ERROR: process "/bin/bash -ol pipefail -c npm install" did not complete successfully: exit code: 1
+   242→2026-Aug-04 12:53:41.627769 ------
+   243→2026-Aug-04 12:53:41.627769 > [stage-0 7/11] RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-/root/bun,target=/root/.bun npm install:
+   244→2026-Aug-04 12:53:41.627769 1.587 npm warn config production Use `--omit=dev` instead.
+   245→2026-Aug-04 12:53:41.627769 78.34 npm error code ECONNRESET
+   246→2026-Aug-04 12:53:41.627769 78.34 npm error network aborted
+   247→2026-Aug-04 12:53:41.627769 78.34 npm error network This is a problem related to network connectivity.
+   248→2026-Aug-04 12:53:41.627769 78.34 npm error network In most cases you are behind a proxy or have bad network settings.
+   249→2026-Aug-04 12:53:41.627769 78.34 npm error network
+   250→2026-Aug-04 12:53:41.627769 78.34 npm error network If you are behind a proxy, please make sure that the
+   251→2026-Aug-04 12:53:41.627769 78.34 npm error network 'proxy' config is set properly. See: 'npm help config'
+   252→2026-Aug-04 12:53:41.627769 78.35 npm error A complete log of this run can be found in: /root/.npm/_logs/2026-08-04T12_52_23_460Z-debug-0.log
+   253→2026-Aug-04 12:53:41.627769 ------
+   254→2026-Aug-04 12:53:41.638256 9 warnings found (use docker --debug to expand):
+   255→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_API_KEY") (line 11)
+   256→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_READ_ACCESS_TOKEN") (line 11)
+   257→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "KLIPY_API_KEY") (line 12)
+   258→2026-Aug-04 12:53:41.638256 - UndefinedVar: Usage of undefined variable '$NIXPACKS_PATH' (line 18)
+   259→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "KLIPY_API_KEY") (line 11)
+   260→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "XOR_KEY") (line 11)
+   261→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_API_KEY") (line 12)
+   262→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_READ_ACCESS_TOKEN") (line 12)
+   263→2026-Aug-04 12:53:41.638256 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "XOR_KEY") (line 12)
+   264→2026-Aug-04 12:53:41.638256 Dockerfile:20
+   265→2026-Aug-04 12:53:41.638256 --------------------
+   266→2026-Aug-04 12:53:41.638256 18 | ENV NIXPACKS_PATH=/app/node_modules/.bin:$NIXPACKS_PATH
+   267→2026-Aug-04 12:53:41.638256 19 | COPY . /app/.
+   268→2026-Aug-04 12:53:41.638256 20 | >>> RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-/root/bun,target=/root/.bun npm install
+   269→2026-Aug-04 12:53:41.638256 21 |
+   270→2026-Aug-04 12:53:41.638256 22 | # build phase
+   271→2026-Aug-04 12:53:41.638256 --------------------
+   272→2026-Aug-04 12:53:41.638256 ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm install" did not complete successfully: exit code: 1
+   273→2026-Aug-04 12:53:41.654647 exit status 1
+   274→2026-Aug-04 12:53:41.820469 ========================================
+   275→2026-Aug-04 12:53:41.849576 Deployment failed: Command execution failed (exit code 1): docker exec ldnr9mg9yzotahsaykefblui bash -c 'bash /artifacts/build.sh'
+   276→2026-Aug-04 12:53:41.849576 Error: #0 building with "default" instance using docker driver
+   277→2026-Aug-04 12:53:41.849576
+   278→2026-Aug-04 12:53:41.849576 #1 [internal] load build definition from Dockerfile
+   279→2026-Aug-04 12:53:41.849576 #1 transferring dockerfile: 1.99kB done
+   280→2026-Aug-04 12:53:41.849576 #1 DONE 0.1s
+   281→2026-Aug-04 12:53:41.849576
+   282→2026-Aug-04 12:53:41.849576 #2 [internal] load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+   283→2026-Aug-04 12:53:41.849576 #2 DONE 0.9s
+   284→2026-Aug-04 12:53:41.849576
+   285→2026-Aug-04 12:53:41.849576 #3 [internal] load .dockerignore
+   286→2026-Aug-04 12:53:41.849576 #3 transferring context:
+   287→2026-Aug-04 12:53:41.849576 #3 transferring context: 2B done
+   288→2026-Aug-04 12:53:41.849576 #3 DONE 0.3s
+   289→2026-Aug-04 12:53:41.849576
+   290→2026-Aug-04 12:53:41.849576 #4 [stage-0 1/11] FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+   291→2026-Aug-04 12:53:41.849576 #4 resolve ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de 0.1s done
+   292→2026-Aug-04 12:53:41.849576 #4 DONE 0.1s
+   293→2026-Aug-04 12:53:41.849576
+   294→2026-Aug-04 12:53:41.849576 #5 [internal] load build context
+   295→2026-Aug-04 12:53:41.849576 #5 transferring context: 105.69MB 1.8s done
+   296→2026-Aug-04 12:53:41.849576 #5 DONE 1.9s
+   297→2026-Aug-04 12:53:41.849576
+   298→2026-Aug-04 12:53:41.849576 #6 [stage-0 4/11] RUN nix-env -if .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix && nix-collect-garbage -d
+   299→2026-Aug-04 12:53:41.849576 #6 CACHED
+   300→2026-Aug-04 12:53:41.849576
+   301→2026-Aug-04 12:53:41.849576 #7 [stage-0 2/11] WORKDIR /app/
+   302→2026-Aug-04 12:53:41.849576 #7 CACHED
+   303→2026-Aug-04 12:53:41.849576
+   304→2026-Aug-04 12:53:41.849576 #8 [stage-0 3/11] COPY .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix
+   305→2026-Aug-04 12:53:41.849576 #8 CACHED
+   306→2026-Aug-04 12:53:41.849576
+   307→2026-Aug-04 12:53:41.849576 #9 [stage-0 5/11] RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends curl wget
+   308→2026-Aug-04 12:53:41.849576 #9 CACHED
+   309→2026-Aug-04 12:53:41.849576
+   310→2026-Aug-04 12:53:41.849576 #10 [stage-0 6/11] COPY . /app/.
+   311→2026-Aug-04 12:53:41.849576 #10 DONE 0.9s
+   312→2026-Aug-04 12:53:41.849576
+   313→2026-Aug-04 12:53:41.849576 #11 [stage-0 7/11] RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-/root/bun,target=/root/.bun npm install
+   314→2026-Aug-04 12:53:41.849576 #11 1.587 npm warn config production Use `--omit=dev` instead.
+   315→2026-Aug-04 12:53:41.849576 #11 78.34 npm error code ECONNRESET
+   316→2026-Aug-04 12:53:41.849576 #11 78.34 npm error network aborted
+   317→2026-Aug-04 12:53:41.849576 #11 78.34 npm error network This is a problem related to network connectivity.
+   318→2026-Aug-04 12:53:41.849576 #11 78.34 npm error network In most cases you are behind a proxy or have bad network settings.
+   319→2026-Aug-04 12:53:41.849576 #11 78.34 npm error network
+   320→2026-Aug-04 12:53:41.849576 #11 78.34 npm error network If you are behind a proxy, please make sure that the
+   321→2026-Aug-04 12:53:41.849576 #11 78.34 npm error network 'proxy' config is set properly. See: 'npm help config'
+   322→2026-Aug-04 12:53:41.849576 #11 78.35 npm error A complete log of this run can be found in: /root/.npm/_logs/2026-08-04T12_52_23_460Z-debug-0.log
+   323→2026-Aug-04 12:53:41.849576 #11 ERROR: process "/bin/bash -ol pipefail -c npm install" did not complete successfully: exit code: 1
+   324→2026-Aug-04 12:53:41.849576 ------
+   325→2026-Aug-04 12:53:41.849576 > [stage-0 7/11] RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-/root/bun,target=/root/.bun npm install:
+   326→2026-Aug-04 12:53:41.849576 1.587 npm warn config production Use `--omit=dev` instead.
+   327→2026-Aug-04 12:53:41.849576 78.34 npm error code ECONNRESET
+   328→2026-Aug-04 12:53:41.849576 78.34 npm error network aborted
+   329→2026-Aug-04 12:53:41.849576 78.34 npm error network This is a problem related to network connectivity.
+   330→2026-Aug-04 12:53:41.849576 78.34 npm error network In most cases you are behind a proxy or have bad network settings.
+   331→2026-Aug-04 12:53:41.849576 78.34 npm error network
+   332→2026-Aug-04 12:53:41.849576 78.34 npm error network If you are behind a proxy, please make sure that the
+   333→2026-Aug-04 12:53:41.849576 78.34 npm error network 'proxy' config is set properly. See: 'npm help config'
+   334→2026-Aug-04 12:53:41.849576 78.35 npm error A complete log of this run can be found in: /root/.npm/_logs/2026-08-04T12_52_23_460Z-debug-0.log
+   335→2026-Aug-04 12:53:41.849576 ------
+   336→2026-Aug-04 12:53:41.849576
+   337→2026-Aug-04 12:53:41.849576 9 warnings found (use docker --debug to expand):
+   338→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_API_KEY") (line 11)
+   339→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_READ_ACCESS_TOKEN") (line 11)
+   340→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "KLIPY_API_KEY") (line 12)
+   341→2026-Aug-04 12:53:41.849576 - UndefinedVar: Usage of undefined variable '$NIXPACKS_PATH' (line 18)
+   342→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "KLIPY_API_KEY") (line 11)
+   343→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "XOR_KEY") (line 11)
+   344→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_API_KEY") (line 12)
+   345→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_READ_ACCESS_TOKEN") (line 12)
+   346→2026-Aug-04 12:53:41.849576 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "XOR_KEY") (line 12)
+   347→2026-Aug-04 12:53:41.849576 Dockerfile:20
+   348→2026-Aug-04 12:53:41.849576 --------------------
+   349→2026-Aug-04 12:53:41.849576 18 | ENV NIXPACKS_PATH=/app/node_modules/.bin:$NIXPACKS_PATH
+   350→2026-Aug-04 12:53:41.849576 19 | COPY . /app/.
+   351→2026-Aug-04 12:53:41.849576 20 | >>> RUN --mount=type=cache,id=c9j1dmgzxt3z8hjg7cs0pz1s-/root/bun,target=/root/.bun npm install
+   352→2026-Aug-04 12:53:41.849576 21 |
+   353→2026-Aug-04 12:53:41.849576 22 | # build phase
+   354→2026-Aug-04 12:53:41.849576 --------------------
+   355→2026-Aug-04 12:53:41.849576 ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm install" did not complete successfully: exit code: 1
+   356→2026-Aug-04 12:53:41.849576 exit status 1
+   357→2026-Aug-04 12:53:41.863493 Error type: App\Exceptions\DeploymentException
+   358→2026-Aug-04 12:53:41.905040 Error code: 0
+   359→2026-Aug-04 12:53:41.932248 Location: /var/www/html/app/Traits/ExecuteRemoteCommand.php:242
+   360→2026-Aug-04 12:53:41.972321 Stack trace (first 5 lines):
+   361→2026-Aug-04 12:53:42.012733 #0 /var/www/html/app/Traits/ExecuteRemoteCommand.php(106): App\Jobs\ApplicationDeploymentJob->executeCommandWithProcess()
+   362→2026-Aug-04 12:53:42.028346 #1 /var/www/html/vendor/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php(275): App\Jobs\ApplicationDeploymentJob->{closure:App\Traits\ExecuteRemoteCommand::execute_remote_command():72}()
+   363→2026-Aug-04 12:53:42.042487 #2 /var/www/html/app/Traits/ExecuteRemoteCommand.php(72): Illuminate\Support\Collection->each()
+   364→2026-Aug-04 12:53:42.070397 #3 /var/www/html/app/Jobs/ApplicationDeploymentJob.php(3778): App\Jobs\ApplicationDeploymentJob->execute_remote_command()
+   365→2026-Aug-04 12:53:42.084692 #4 /var/www/html/app/Jobs/ApplicationDeploymentJob.php(946): App\Jobs\ApplicationDeploymentJob->build_image()
+   366→2026-Aug-04 12:53:42.106998 ========================================
+   367→2026-Aug-04 12:53:42.140879 Deployment failed. Removing the new version of your application.
+   368→2026-Aug-04 12:53:43.191554 Gracefully shutting down build container: ldnr9mg9yzotahsaykefblui
+   369→2026-Aug-04 12:53:43.435122 [CMD]: docker stop --time=30 ldnr9mg9yzotahsaykefblui
+   370→2026-Aug-04 12:53:43.435122 Flag --time has been deprecated, use --timeout instead
+   371→2026-Aug-04 12:53:43.941148 ldnr9mg9yzotahsaykefblui
+   372→
