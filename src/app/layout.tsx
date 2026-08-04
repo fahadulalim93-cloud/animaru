@@ -54,10 +54,13 @@ export const metadata: Metadata = {
     "Watch anime online free in HD on LuffyTV. Stream 10,000+ anime episodes with Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub. No signup, no ads, instant playback. LuffyTV is the #1 free anime streaming site for dubbed & subbed anime in India.",
   applicationName: "LuffyTV",
   keywords: [
-    // Primary brand
+    // Primary brand — CRITICAL for branded search ("luffyTV", "luffy", "luffytv")
+    "LuffyTV", "luffytv", "Luffy TV", "luffy tv", "luffy",
+    "luffytv.live", "luffy tv anime", "luffy anime", "luffy tv streaming",
+    // Watch anime
     "watch anime online free", "free anime streaming", "anime online free",
-    "LuffyTV", "luffytv.live",
-    // Tamil dub — HIGHEST PRIORITY
+    "watch anime free", "anime streaming free", "free anime",
+    // Tamil dub — HIGHEST PRIORITY for "anime in tamil"
     "anime in tamil", "tamil dubbed anime", "anime tamil dub",
     "tamil dub anime", "watch tamil dubbed anime", "tamil dubbed anime online",
     "anime tamil dub free", "tamil anime watch online", "tamil anime streaming",
@@ -66,6 +69,7 @@ export const metadata: Metadata = {
     "\u0C85\u0CA8\u0CBF\u0CAE\u0BC7 \u0BA4\u0BAE\u0BBF\u0BB4\u0BCD", "\u0BA4\u0BAE\u0BBF\u0BB4\u0BCD \u0B9F\u0AAA\u0BCD \u0C85\u0CA8\u0CBF\u0CAE\u0BC7",
     // Hindi dub
     "hindi dubbed anime", "anime hindi dub", "hindi dub anime online",
+    "watch anime in hindi", "hindi anime",
     // Telugu & Bengali dub
     "telugu dubbed anime", "anime telugu dub", "bengali dubbed anime", "anime bengali dub",
     // General
@@ -129,18 +133,21 @@ const JSON_LD = {
       "@type": ["Organization", "WebApplication"],
       "@id": `${SITE_URL}/#org`,
       name: "LuffyTV",
+      alternateName: ["Luffy TV", "luffyTV", "luffytv", "luffy", "LuffyTV.live"],
       url: SITE_URL,
       logo: { "@type": "ImageObject", url: `${SITE_URL}/logo-transparent.png` },
-      description: "Watch anime online free in HD with Tamil, Hindi, Telugu, Bengali dub & English sub on LuffyTV.",
+      description: "Watch anime online free in HD with Tamil, Hindi, Telugu, Bengali dub & English sub on LuffyTV. #1 free anime streaming site in India.",
       sameAs: [
         "https://x.com/TheLuffyTV",
         "https://twitch.tv/theluffytv",
         "https://discord.gg/luffytv",
+        "https://discord.gg/GEVes3uhtM",
         "https://youtube.com/@LuffyTV",
         "https://instagram.com/luffytv",
         "https://kick.com/luffytv",
         "https://facebook.com/LuffyTV.ca",
         "https://linktr.ee/luffytv",
+        "https://github.com/fahadulalim93-cloud/luffytv-fahad",
       ],
       applicationCategory: "EntertainmentApplication",
       operatingSystem: "Web",
@@ -161,6 +168,7 @@ const JSON_LD = {
       "@id": `${SITE_URL}/#website`,
       url: SITE_URL,
       name: "LuffyTV",
+      alternateName: ["Luffy TV", "luffyTV", "luffytv", "luffy"],
       inLanguage: ["en", "ta", "hi", "te", "bn", "ja"],
       publisher: { "@id": `${SITE_URL}/#org` },
       potentialAction: {
@@ -181,7 +189,11 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <meta name="referrer" content="no-referrer" />
+        <meta name="google" content="notranslate" />
         <link rel="canonical" href={SITE_URL} />
+        <link rel="home" href={SITE_URL} />
+        {/* Hidden H1 for brand recognition — Google reads H1 to understand the site brand */}
+        <h1 className="sr-only">LuffyTV — Watch Anime Online Free in HD — Tamil Hindi Telugu Bengali Dub & English Sub</h1>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
