@@ -343,62 +343,84 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
   route: { page: "home" },
   sectionSubPage: "home",
-  setSectionSubPage: (subPage) => set({ sectionSubPage: subPage }),
+  setSectionSubPage: (subPage) => {
+    set({ sectionSubPage: subPage });
+    // Sync the URL bar when sub-page changes (e.g. Browse, Schedule, Genres)
+    if (typeof window !== "undefined") {
+      const currentRoute = get().route;
+      if (currentRoute.page === "home") {
+        const subPagePath: Record<string, string> = {
+          "home": "/",
+          "browse": "/browse",
+          "schedule": "/schedule",
+          "genres": "/genres",
+          "sub": "/sub",
+          "dub": "/dub",
+          "trending": "/trending",
+          "top-rated": "/top-rated",
+        };
+        const path = subPagePath[subPage] || `/${subPage}`;
+        history.replaceState(null, "", path);
+      }
+    }
+  },
   navigate: (route) => {
     // Reset section sub-page when navigating to a new section
     const subPage = "home";
     set({ route, sectionSubPage: subPage });
     if (typeof window !== "undefined") {
-      if (route.page === "landing") window.location.hash = "";
-      else if (route.page === "hub") window.location.hash = "hub";
-      else if (route.page === "home") window.location.hash = "home";
-      else if (route.page === "discover") window.location.hash = "discover";
+      let path = "/";
+      if (route.page === "landing") path = "/";
+      else if (route.page === "hub") path = "/hub";
+      else if (route.page === "home") path = "/";
+      else if (route.page === "discover") path = "/discover";
       else if (route.page === "search" && route.query)
-        window.location.hash = `search/${encodeURIComponent(route.query)}`;
-      else if (route.page === "search") window.location.hash = "search";
+        path = `/search/${encodeURIComponent(route.query)}`;
+      else if (route.page === "search") path = "/search";
       else if (route.page === "anime")
-        window.location.hash = `anime/${route.id}`;
+        path = `/anime/${route.id}`;
       else if (route.page === "watch")
-        window.location.hash = `watch/${route.id}/${route.episode}`;
+        path = `/watch/${route.id}/${route.episode}`;
       else if (route.page === "genre")
-        window.location.hash = `genre/${encodeURIComponent(route.genre)}`;
-      else if (route.page === "bookmarks") window.location.hash = "bookmarks";
-      else if (route.page === "watchlist") window.location.hash = "watchlist";
-      else if (route.page === "history") window.location.hash = "history";
-      else if (route.page === "movies") window.location.hash = "movies";
-      else if (route.page === "tv") window.location.hash = "tv";
-      else if (route.page === "manga") window.location.hash = "manga";
+        path = `/genre/${encodeURIComponent(route.genre)}`;
+      else if (route.page === "bookmarks") path = "/bookmarks";
+      else if (route.page === "watchlist") path = "/watchlist";
+      else if (route.page === "history") path = "/history";
+      else if (route.page === "movies") path = "/movies";
+      else if (route.page === "tv") path = "/tv";
+      else if (route.page === "manga") path = "/manga";
       else if (route.page === "manga-detail")
-        window.location.hash = `manga/${route.id}`;
+        path = `/manga/${route.id}`;
       else if (route.page === "manga-read")
-        window.location.hash = `read-manga/${route.id}/${route.chapterId}`;
+        path = `/read-manga/${route.id}/${route.chapterId}`;
       else if (route.page === "movie-detail")
-        window.location.hash = `movie/${route.id}`;
+        path = `/movie/${route.id}`;
       else if (route.page === "tv-detail")
-        window.location.hash = `tvshow/${route.id}`;
+        path = `/tvshow/${route.id}`;
       else if (route.page === "movie-watch")
-        window.location.hash = `watch-movie/${route.id}`;
+        path = `/watch-movie/${route.id}`;
       else if (route.page === "tv-watch")
-        window.location.hash = `watch-tv/${route.id}/${route.season}/${route.episode}`;
-      else if (route.page === "watchnow") window.location.hash = "watchnow";
-      else if (route.page === "contact") window.location.hash = "contact";
-      else if (route.page === "donate") window.location.hash = "donate";
-      else if (route.page === "updates") window.location.hash = "updates";
-      else if (route.page === "donate-crypto") window.location.hash = "donate/crypto";
-      else if (route.page === "features") window.location.hash = "features";
-      else if (route.page === "novel") window.location.hash = "novel";
-      else if (route.page === "novel-detail") window.location.hash = `novel/${encodeURIComponent(route.novelId)}`;
-      else if (route.page === "novel-read") window.location.hash = `read-novel/${encodeURIComponent(route.novelId)}/${route.chapterNum}`;
-      else if (route.page === "signin") window.location.hash = "signin";
-      else if (route.page === "signup") window.location.hash = "signup";
-      else if (route.page === "profile") window.location.hash = "profile";
-      else if (route.page === "settings") window.location.hash = "settings";
-      else if (route.page === "music") window.location.hash = "music";
-      else if (route.page === "torrent") window.location.hash = "torrent";
-      else if (route.page === "download") window.location.hash = "download";
-      else if (route.page === "scraper") window.location.hash = "scraper";
-      else if (route.page === "scraper-anime") window.location.hash = `scraper/anime/${route.id}`;
-      else if (route.page === "scraper-watch") window.location.hash = `scraper/watch/${route.site}/${route.id}/${encodeURIComponent(route.episode)}`;
+        path = `/watch-tv/${route.id}/${route.season}/${route.episode}`;
+      else if (route.page === "watchnow") path = "/watchnow";
+      else if (route.page === "contact") path = "/contact";
+      else if (route.page === "donate") path = "/donate";
+      else if (route.page === "updates") path = "/updates";
+      else if (route.page === "donate-crypto") path = "/donate/crypto";
+      else if (route.page === "features") path = "/features";
+      else if (route.page === "novel") path = "/novel";
+      else if (route.page === "novel-detail") path = `/novel/${encodeURIComponent(route.novelId)}`;
+      else if (route.page === "novel-read") path = `/read-novel/${encodeURIComponent(route.novelId)}/${route.chapterNum}`;
+      else if (route.page === "signin") path = "/signin";
+      else if (route.page === "signup") path = "/signup";
+      else if (route.page === "profile") path = "/profile";
+      else if (route.page === "settings") path = "/settings";
+      else if (route.page === "music") path = "/music";
+      else if (route.page === "torrent") path = "/torrent";
+      else if (route.page === "download") path = "/download";
+      else if (route.page === "scraper") path = "/scraper";
+      else if (route.page === "scraper-anime") path = `/scraper/anime/${route.id}`;
+      else if (route.page === "scraper-watch") path = `/scraper/watch/${route.site}/${route.id}/${encodeURIComponent(route.episode)}`;
+      history.pushState(null, "", path);
       window.scrollTo(0, 0);
     }
   },
@@ -557,67 +579,83 @@ export function getSectionNavLinks(route: Route): { id: SectionSubPage; label: s
   return [];
 }
 
+export function parsePath(pathname: string): { route: Route; subPage: SectionSubPage } {
+  // Remove leading slash
+  const p = pathname.startsWith("/") ? pathname.slice(1) : pathname;
+  // Root path → anime home
+  if (!p) return { route: { page: "home" }, subPage: "home" };
+  const parts = p.split("/");
+
+  // ── First-class sub-page paths (SEO-friendly URLs) ──
+  if (parts[0] === "browse") return { route: { page: "home" }, subPage: "browse" };
+  if (parts[0] === "schedule") return { route: { page: "home" }, subPage: "schedule" };
+  if (parts[0] === "genres") return { route: { page: "home" }, subPage: "genres" };
+  if (parts[0] === "sub") return { route: { page: "home" }, subPage: "sub" };
+  if (parts[0] === "dub") return { route: { page: "home" }, subPage: "dub" };
+  if (parts[0] === "trending") return { route: { page: "home" }, subPage: "trending" };
+  if (parts[0] === "top-rated") return { route: { page: "home" }, subPage: "top-rated" };
+
+  if (parts[0] === "hub") return { route: { page: "hub" }, subPage: "home" };
+  if (parts[0] === "home") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "discover") return { route: { page: "discover" }, subPage: "home" };
+  if (parts[0] === "search") return { route: { page: "search", query: decodeURIComponent(parts[1] || "") }, subPage: "home" };
+  if (parts[0] === "anime" && parts[1]) return { route: { page: "anime", id: parts[1] }, subPage: "home" };
+  if (parts[0] === "watch" && parts[1] && parts[2])
+    return { route: { page: "watch", id: parts[1], episode: parseInt(parts[2], 10) || 1 }, subPage: "home" };
+  if (parts[0] === "bookmarks") return { route: { page: "bookmarks" }, subPage: "home" };
+  if (parts[0] === "watchlist") return { route: { page: "watchlist" }, subPage: "home" };
+  if (parts[0] === "history") return { route: { page: "history" }, subPage: "home" };
+  // Retired sections — redirect to anime home
+  if (parts[0] === "movies") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "tv") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "live") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "watchnow") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "genre") return { route: { page: "home" }, subPage: "genres" };
+  if (parts[0] === "movie" && parts[1]) return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "tvshow" && parts[1]) return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "watch-movie" && parts[1]) return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "watch-tv") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "live-watch") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "live-tv-watch") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "manga" && parts[1]) return { route: { page: "manga-detail", id: parts[1] }, subPage: "home" };
+  if (parts[0] === "manga") return { route: { page: "manga" }, subPage: "home" };
+  if (parts[0] === "read-manga" && parts[1] && parts[2])
+    return { route: { page: "manga-read", id: parts[1], chapterId: parts[2] }, subPage: "home" };
+  if (parts[0] === "contact") return { route: { page: "contact" }, subPage: "home" };
+  if (parts[0] === "donate" && parts[1] === "crypto") return { route: { page: "donate-crypto" }, subPage: "home" };
+  if (parts[0] === "donate") return { route: { page: "donate" }, subPage: "home" };
+  if (parts[0] === "updates") return { route: { page: "updates" }, subPage: "home" };
+  if (parts[0] === "guide") return { route: { page: "guide" }, subPage: "home" };
+  if (parts[0] === "features") return { route: { page: "features" }, subPage: "home" };
+  if (parts[0] === "novel" && parts[1]) return { route: { page: "novel-detail", novelId: decodeURIComponent(parts[1]), novelTitle: "", novelCover: "", novelAuthor: "", novelSource: "readlightnovel" }, subPage: "home" };
+  if (parts[0] === "novel") return { route: { page: "novel" }, subPage: "home" };
+  if (parts[0] === "read-novel" && parts[1] && parts[2]) return { route: { page: "novel-read", novelId: decodeURIComponent(parts[1]), novelTitle: "", chapterId: `chapter-${parts[2]}`, chapterNum: parseInt(parts[2]), chapterTitle: "", totalChapters: 0, novelSource: "readlightnovel" }, subPage: "home" };
+  if (parts[0] === "signin") return { route: { page: "signin" }, subPage: "home" };
+  if (parts[0] === "signup") return { route: { page: "signup" }, subPage: "home" };
+  if (parts[0] === "profile") return { route: { page: "profile" }, subPage: "home" };
+  if (parts[0] === "leaderboard") return { route: { page: "leaderboard" }, subPage: "home" };
+  if (parts[0] === "mod") return { route: { page: "mod" }, subPage: "home" };
+  if (parts[0] === "settings") return { route: { page: "settings" }, subPage: "home" };
+  if (parts[0] === "scraper" && parts[1] === "anime" && parts[2])
+    return { route: { page: "scraper-anime", id: parts[2] }, subPage: "home" };
+  if (parts[0] === "scraper" && parts[1] === "watch" && parts[2] && parts[3] && parts[4])
+    return { route: { page: "scraper-watch", site: parts[2], id: parts[3], episode: decodeURIComponent(parts[4]) }, subPage: "home" };
+  if (parts[0] === "scraper") return { route: { page: "scraper" }, subPage: "home" };
+  if (parts[0] === "music") return { route: { page: "music" }, subPage: "home" };
+  if (parts[0] === "torrent") return { route: { page: "torrent" }, subPage: "home" };
+  if (parts[0] === "download") return { route: { page: "download" }, subPage: "home" };
+  // Fallback
+  return { route: { page: "home" }, subPage: "home" };
+}
+
+// Legacy hash-based parser (kept for AniList/MAL OAuth redirect handling)
 export function parseHash(hash: string): Route {
   const h = hash.replace("#", "");
-  // Landing page removed — the site opens straight to the anime home.
   if (!h) return { page: "home" };
   const parts = h.split("/");
-  if (parts[0] === "hub") return { page: "hub" };
-  if (parts[0] === "home") return { page: "home" };
-  if (parts[0] === "discover") return { page: "discover" };
-  if (parts[0] === "search") return { page: "search", query: decodeURIComponent(parts[1] || "") };
   if (parts[0] === "anime" && parts[1]) return { page: "anime", id: parts[1] };
   if (parts[0] === "watch" && parts[1] && parts[2])
     return { page: "watch", id: parts[1], episode: parseInt(parts[2], 10) || 1 };
-  // NOTE: "#genre/X" is handled below in the retired-sections block — it now
-  // redirects to home (with sectionSubPage="genres" set in page.tsx handleHash).
-  if (parts[0] === "bookmarks") return { page: "bookmarks" };
-  if (parts[0] === "watchlist") return { page: "watchlist" };
-  if (parts[0] === "history") return { page: "history" };
-  // Legacy "#dub" links normalize to the single canonical anime home.
-  if (parts[0] === "dub") return { page: "home" };
-  // ── Retired sections — redirect ALL legacy Movies / TV / Live / WatchNow / Genre
-  // hashes to the canonical anime home so old bookmarks and shared links don't
-  // 404. (Genre also flips sectionSubPage → "genres" — handled in page.tsx
-  // handleHash, since parseHash only returns a Route.)
-  if (parts[0] === "movies") return { page: "home" };
-  if (parts[0] === "tv") return { page: "home" };
-  if (parts[0] === "live") return { page: "home" };
-  if (parts[0] === "watchnow") return { page: "home" };
-  if (parts[0] === "genre") return { page: "home" };
-  if (parts[0] === "movie" && parts[1]) return { page: "home" };
-  if (parts[0] === "tvshow" && parts[1]) return { page: "home" };
-  if (parts[0] === "watch-movie" && parts[1]) return { page: "home" };
-  if (parts[0] === "watch-tv") return { page: "home" };
-  if (parts[0] === "live-watch") return { page: "home" };
-  if (parts[0] === "live-tv-watch") return { page: "home" };
-  if (parts[0] === "manga" && parts[1]) return { page: "manga-detail", id: parts[1] };
-  if (parts[0] === "manga") return { page: "manga" };
-  if (parts[0] === "read-manga" && parts[1] && parts[2])
-    return { page: "manga-read", id: parts[1], chapterId: parts[2] };
-  if (parts[0] === "contact") return { page: "contact" };
-  if (parts[0] === "donate") return { page: "donate" };
-  if (parts[0] === "donate" && parts[1] === "crypto") return { page: "donate-crypto" };
-  if (parts[0] === "updates") return { page: "updates" };
-  if (parts[0] === "guide") return { page: "guide" };
-  if (parts[0] === "features") return { page: "features" };
-  if (parts[0] === "novel" && parts[1]) return { page: "novel-detail", novelId: decodeURIComponent(parts[1]), novelTitle: "", novelCover: "", novelAuthor: "", novelSource: "readlightnovel" };
-  if (parts[0] === "novel") return { page: "novel" };
-  if (parts[0] === "read-novel" && parts[1] && parts[2]) return { page: "novel-read", novelId: decodeURIComponent(parts[1]), novelTitle: "", chapterId: `chapter-${parts[2]}`, chapterNum: parseInt(parts[2]), chapterTitle: "", totalChapters: 0, novelSource: "readlightnovel" };
-  if (parts[0] === "signin") return { page: "signin" };
-  if (parts[0] === "signup") return { page: "signup" };
-  if (parts[0] === "profile") return { page: "profile" };
-  if (parts[0] === "leaderboard") return { page: "leaderboard" };
-  if (parts[0] === "mod") return { page: "mod" };
-  if (parts[0] === "settings") return { page: "settings" };
-  if (parts[0] === "scraper" && parts[1] === "anime" && parts[2])
-    return { page: "scraper-anime", id: parts[2] };
-  if (parts[0] === "scraper" && parts[1] === "watch" && parts[2] && parts[3] && parts[4])
-    return { page: "scraper-watch", site: parts[2], id: parts[3], episode: decodeURIComponent(parts[4]) };
-  if (parts[0] === "scraper") return { page: "scraper" };
-  if (parts[0] === "music") return { page: "music" };
-  if (parts[0] === "torrent") return { page: "torrent" };
-  if (parts[0] === "download") return { page: "download" };
   return { page: "home" };
 }
 

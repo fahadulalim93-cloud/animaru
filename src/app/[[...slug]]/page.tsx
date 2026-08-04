@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, useMemo, Component, ReactNode } from "react";
-import { useAppStore, parseHash, getSectionNavLinks } from "@/components/anime/store";
+import { useAppStore, parsePath, parseHash, getSectionNavLinks } from "@/components/anime/store";
 import { extractAniListTokenFromHash, fetchAniListViewerAndList } from "@/lib/anilist-auth";
 import { extractMalCodeFromSearch, consumeStoredVerifier, exchangeMalCode } from "@/lib/mal-auth";
 import { checkAccountStatus } from "@/lib/auth-local";
@@ -88,61 +88,42 @@ export default function MainPage() {
   const mounted = useMounted();
   const sectionSubPage = useAppStore(s => s.sectionSubPage);  // for isBrowseFullBleed below
 
-  // Hash-based routing
+  // Path-based routing with popstate listener
   useEffect(() => {
-    const handleHash = () => {
+    const handleRoute = () => {
       // MAL's OAuth redirects back here with "?code=...&state=..." in the
-      // query string (not the hash, unlike AniList's implicit grant) —
-      // exchange it for a token via our server route before anything else.
+      // query string — exchange it for a token via our server route.
       const malCode = extractMalCodeFromSearch(window.location.search);
       if (malCode) {
-        history.replaceState(null, "", window.location.pathname + window.location.hash);
+        history.replaceState(null, "", window.location.pathname);
         const verifier = consumeStoredVerifier();
         if (verifier) {
           exchangeMalCode(malCode, verifier)
             .then(({ viewer, accessToken }) => useAppStore.getState().setMalAuth(accessToken, viewer))
-            .catch(() => { /* code was invalid/expired — leave the account unlinked */ });
+            .catch(() => { /* code was invalid/expired */ });
         }
         return;
       }
-      // AniList's OAuth implicit grant redirects back here with
-      // "#access_token=...&expires_in=..." — intercept it before the SPA
-      // router tries to parse it as a normal route hash.
+      // AniList's OAuth implicit grant redirects back with "#access_token=..."
       const anilistToken = extractAniListTokenFromHash(window.location.hash);
       if (anilistToken) {
-        history.replaceState(null, "", window.location.pathname + window.location.search);
+        history.replaceState(null, "", window.location.pathname);
         fetchAniListViewerAndList(anilistToken.token)
           .then(({ viewer, entries }) => useAppStore.getState().setAnilistAuth(anilistToken.token, viewer, entries))
-          .catch(() => { /* token was invalid/expired — leave the account unlinked */ });
+          .catch(() => { /* token was invalid/expired */ });
         return;
       }
-      const newRoute = parseHash(window.location.hash);
-      // Legacy "#dub" links resolve to the canonical anime home — rewrite the
-      // URL bar so the retired hash never lingers (replaceState: no history
-      // entry, no hashchange loop).
-      const rawFirst = window.location.hash.replace("#", "").split("/")[0];
-      if (rawFirst === "dub" && newRoute.page === "home") {
-        history.replaceState(null, "", "#home");
-      }
-      // "#genre/<name>" now lands on the anime Browse → Genres sub-page
-      // (the old genre-page was removed). parseHash already returned home;
-      // we additionally flip sectionSubPage so the user sees the genre grid
-      // instead of the home hero carousel.
-      const isLegacyGenreRedirect = rawFirst === "genre" && newRoute.page === "home";
+      // Parse the current pathname into route + subPage
+      const { route: newRoute, subPage: newSubPage } = parsePath(window.location.pathname);
       const current = useAppStore.getState().route;
-      if (JSON.stringify(current) !== JSON.stringify(newRoute)) {
-        useAppStore.setState({
-          route: newRoute,
-          ...(isLegacyGenreRedirect ? { sectionSubPage: "genres" as const } : {}),
-        });
-      } else if (isLegacyGenreRedirect) {
-        // Route is already home — but make sure the sub-page still flips.
-        useAppStore.setState({ sectionSubPage: "genres" });
+      const currentSub = useAppStore.getState().sectionSubPage;
+      if (JSON.stringify(current) !== JSON.stringify(newRoute) || currentSub !== newSubPage) {
+        useAppStore.setState({ route: newRoute, sectionSubPage: newSubPage });
       }
     };
-    handleHash();
-    window.addEventListener("hashchange", handleHash);
-    return () => window.removeEventListener("hashchange", handleHash);
+    handleRoute();
+    window.addEventListener("popstate", handleRoute);
+    return () => window.removeEventListener("popstate", handleRoute);
   }, []);
 
   // Analytics — record a page view whenever the route changes.
@@ -161,7 +142,7 @@ export default function MainPage() {
       if (status.blocked) {
         useAppStore.getState().logout();
         useAppStore.getState().openAuthModal("signin", status.message);
-        history.replaceState(null, "", "#home");
+        history.replaceState(null, "", "/");
         useAppStore.setState({ route: { page: "home" }, sectionSubPage: "home" });
       }
     };
@@ -180,7 +161,7 @@ export default function MainPage() {
       const mode = route.page as "signin" | "signup";
       useAppStore.getState().openAuthModal(mode);
       // Replace hash without triggering another hashchange event
-      history.replaceState(null, "", "#home");
+      history.replaceState(null, "", "/");
       useAppStore.setState({ route: { page: "home" }, sectionSubPage: "home" });
     }
   }, [route]);
