@@ -213,6 +213,8 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
+  const isMalId = id.startsWith("mal_");
+  const isMiruroId = id.startsWith("miruro_");
   const cleanId = id.replace(/^miruro_/, "").replace(/^mal_/, "");
   const numericId = /^\d+$/.test(cleanId) ? parseInt(cleanId) : null;
 
@@ -226,18 +228,31 @@ export async function GET(request: NextRequest) {
   // cached so the next request retries fresh.
   const CACHE_OK = { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" };
 
-  // 3-layer cascade: AniList → Miruro → Official MAL API
-  // Layer 1: Try AniList first
-  const anilistResult = await fetchAniList(numericId);
-  if (anilistResult) return NextResponse.json(anilistResult, { headers: CACHE_OK });
+  // When the ID is explicitly prefixed with "mal_", skip AniList/Miruro
+  // and go straight to MAL — AniList IDs ≠ MAL IDs, so trying AniList
+  // with a MAL numeric ID always 404s and wastes time.
+  if (isMalId) {
+    const malResult = await fetchMAL(numericId);
+    if (malResult) return NextResponse.json(malResult, { headers: CACHE_OK });
+    // MAL failed — try AniList as a long-shot fallback (maybe same ID by coincidence)
+    const anilistResult = await fetchAniList(numericId);
+    if (anilistResult) return NextResponse.json(anilistResult, { headers: CACHE_OK });
+    const miruroResult = await fetchMiruro(numericId);
+    if (miruroResult) return NextResponse.json(miruroResult, { headers: CACHE_OK });
+  } else {
+    // 3-layer cascade: AniList → Miruro → Official MAL API
+    // Layer 1: Try AniList first
+    const anilistResult = await fetchAniList(numericId);
+    if (anilistResult) return NextResponse.json(anilistResult, { headers: CACHE_OK });
 
-  // Layer 2: Try Miruro
-  const miruroResult = await fetchMiruro(numericId);
-  if (miruroResult) return NextResponse.json(miruroResult, { headers: CACHE_OK });
+    // Layer 2: Try Miruro
+    const miruroResult = await fetchMiruro(numericId);
+    if (miruroResult) return NextResponse.json(miruroResult, { headers: CACHE_OK });
 
-  // Layer 3: Try Official MAL API v2
-  const malResult = await fetchMAL(numericId);
-  if (malResult) return NextResponse.json(malResult, { headers: CACHE_OK });
+    // Layer 3: Try Official MAL API v2
+    const malResult = await fetchMAL(numericId);
+    if (malResult) return NextResponse.json(malResult, { headers: CACHE_OK });
+  }
 
   // All 3 failed — never cache failures
   return NextResponse.json({

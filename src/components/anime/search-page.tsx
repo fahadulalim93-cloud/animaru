@@ -9,7 +9,7 @@ interface SearchPageProps {
 
 // ── Unified search result type ──
 interface SearchResult {
-  id: number;
+  id: number | string;  // number for AniList, "mal_XXX" for MAL fallback, negative for TMDB
   title: string;
   subTitle?: string;   // romaji/native title
   image: string;
@@ -21,7 +21,7 @@ interface SearchResult {
   genres?: string[];
   averageScore?: number;
   description?: string;
-  source: "anilist" | "tmdb";
+  source: "anilist" | "tmdb" | "mal";
   mediaType?: "anime" | "movie" | "tv";
   tmdbId?: number;
 }
@@ -82,9 +82,10 @@ export default function SearchPage({ initialQuery }: SearchPageProps) {
             .then(r => r.ok ? r.json() : null)
             .then(data => {
               if (data?.results) {
+                const isMal = data._source === "mal";
                 for (const item of data.results) {
                   searchResults.push({
-                    id: item.id,
+                    id: item.id,  // may be "mal_XXX" if MAL fallback
                     title: item.title?.english || item.title?.romaji || "Unknown",
                     subTitle: item.title?.native || item.title?.romaji,
                     image: item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || "",
@@ -96,7 +97,7 @@ export default function SearchPage({ initialQuery }: SearchPageProps) {
                     genres: item.genres,
                     averageScore: item.averageScore,
                     description: item.description,
-                    source: "anilist",
+                    source: isMal ? "mal" : "anilist",
                     mediaType: "anime",
                   });
                 }
@@ -206,8 +207,8 @@ export default function SearchPage({ initialQuery }: SearchPageProps) {
   }, [selectedGenres, selectedFormats]);
 
   const handleResultClick = (result: SearchResult) => {
-    if (result.source === "anilist") {
-      navigate({ page: "anime", id: String(result.id) });
+    if (result.source === "anilist" || result.source === "mal") {
+      navigate({ page: "anime", id: String(result.id) });  // "mal_XXX" prefix routes to MAL in info API
     } else if (result.mediaType === "movie") {
       navigate({ page: "movie-detail", id: result.tmdbId! });
     } else {
@@ -217,7 +218,7 @@ export default function SearchPage({ initialQuery }: SearchPageProps) {
 
   const handlePlayClick = (e: React.MouseEvent, result: SearchResult) => {
     e.stopPropagation();
-    if (result.source === "anilist") {
+    if (result.source === "anilist" || result.source === "mal") {
       navigate({ page: "watch", id: String(result.id), episode: 1 });
     } else if (result.mediaType === "movie") {
       navigate({ page: "movie-watch", id: result.tmdbId! });

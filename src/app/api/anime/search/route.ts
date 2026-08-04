@@ -79,11 +79,14 @@ export async function GET(request: NextRequest) {
   }
 
   // Layer 3: Official MAL API v2 (backup 2)
+  // CRITICAL: MAL IDs are different from AniList IDs. Prefix with "mal_"
+  // so the detail page (/api/anime/info) knows to query MAL directly
+  // instead of trying AniList first (which would 404 with a MAL ID).
   try {
     const data = await malSearch(q, page, 25);
     if (data && data.results && data.results.length > 0) {
       const results = data.results.map(m => ({
-        id: m.id,
+        id: `mal_${m.id}`,   // prefix so info API routes to MAL first
         title: m.title,
         coverImage: m.coverImage,
         bannerImage: m.bannerImage,

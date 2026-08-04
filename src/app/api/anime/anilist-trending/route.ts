@@ -103,7 +103,14 @@ export async function GET(request: NextRequest) {
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
       const result = resolved[i];
-      results[key] = result.data || [];
+      const items: any[] = result.data || [];
+      // Prefix MAL IDs with "mal_" so the detail page routes to MAL directly
+      // (AniList IDs ≠ MAL IDs, so AniList always 404s with a MAL numeric ID)
+      if (result.source === "mal") {
+        results[key] = items.map((item: any) => ({ ...item, id: `mal_${item.id}` }));
+      } else {
+        results[key] = items;
+      }
       results[`_${key}Source`] = result.source;
     }
 

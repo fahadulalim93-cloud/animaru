@@ -8,8 +8,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * Normalize any anime item to a consistent MiruroAnimeResult shape.
+ * When the item came from MAL, prefix the ID with "mal_" so the detail
+ * page routes to MAL directly instead of trying AniList first (which 404s
+ * with a MAL numeric ID because AniList IDs ≠ MAL IDs).
  */
-function normalizeItem(item: any): Record<string, any> {
+function normalizeItem(item: any, source?: string): Record<string, any> {
   let title: { romaji?: string; english?: string; native?: string };
   if (item.title && typeof item.title === "object") {
     title = {
@@ -40,7 +43,7 @@ function normalizeItem(item: any): Record<string, any> {
   }
 
   return {
-    id: item.id || item._id || 0,
+    id: source === "mal" ? `mal_${item.id || item._id || 0}` : (item.id || item._id || 0),
     title,
     coverImage,
     bannerImage: item.bannerImage || undefined,
@@ -98,10 +101,10 @@ export async function GET(request: NextRequest) {
       malTopAnime(1, 20, "all").then(d => d && d.length > 0 ? { data: d, source: "mal" } : Promise.reject("mal empty")),
     ]).catch(() => ({ data: [], source: "none" }));
 
-    const trendingData = (trendingRace.data || []).map(normalizeItem);
-    const popularData = (popularRace.data || []).map(normalizeItem);
-    const recentData = (recentRace.data || []).map(normalizeItem);
-    const topRatedData = (topRatedRace.data || []).map(normalizeItem);
+    const trendingData = (trendingRace.data || []).map((item: any) => normalizeItem(item, trendingRace.source));
+    const popularData = (popularRace.data || []).map((item: any) => normalizeItem(item, popularRace.source));
+    const recentData = (recentRace.data || []).map((item: any) => normalizeItem(item, recentRace.source));
+    const topRatedData = (topRatedRace.data || []).map((item: any) => normalizeItem(item, topRatedRace.source));
 
     return NextResponse.json({
       trending: trendingData,

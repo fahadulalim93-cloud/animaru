@@ -9,8 +9,8 @@ export async function GET(
   try {
     const { id: rawId } = await params;
 
-    // Strip miruro_ prefix
-    const cleanId = rawId.replace(/^miruro_/, "");
+    // Strip miruro_ and mal_ prefixes
+    const cleanId = rawId.replace(/^miruro_/, "").replace(/^mal_/, "");
     const isNumeric = /^\d+$/.test(cleanId);
 
     // For numeric IDs, try Miruro first, then cross-reference to AllAnime

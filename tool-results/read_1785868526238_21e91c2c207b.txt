@@ -1,0 +1,594 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useRef, useState } from "react";
+     4→import { createPortal } from "react-dom";
+     5→import { motion, useInView, AnimatePresence } from "framer-motion";
+     6→import { useAppStore } from "./store";
+     7→import { proxifyMangaImage } from "@/lib/proxy";
+     8→import { useCountUp } from "@/hooks/use-count-up";
+     9→import { getAniListAuthUrl, isAniListConfigured } from "@/lib/anilist-auth";
+    10→
+    11→/**
+    12→ * LandingPage — "The Zoetrope"
+    13→ *
+    14→ * You land inside a slowly rotating 3D ring of real covers — a carousel
+    15→ * you're standing in the middle of — with the headline floating at its
+    16→ * center. Below, three tall "doors" (one per world) swing open in 3D on
+    17→ * hover, an inline stat line counts up, and a final CTA stops the spin.
+    18→ * The ring pauses when hovered, like reaching out and touching it.
+    19→ */
+    20→
+    21→const FONT = "var(--font-space-grotesk), 'Space Grotesk', sans-serif";
+    22→const ANIME = "#48A6FF";
+    23→const MANGA = "#F472B6";
+    24→const NOVEL = "#34D399";
+    25→
+    26→interface AnimeItem {
+    27→  id: number;
+    28→  title: { english?: string; romaji?: string };
+    29→  coverImage?: { extraLarge?: string; large?: string };
+    30→  bannerImage?: string;
+    31→}
+    32→interface MangaItem {
+    33→  id: string;
+    34→  title: string;
+    35→  poster?: string;
+    36→  posterMedium?: string;
+    37→  posterSmall?: string;
+    38→  cover?: string;
+    39→}
+    40→const aCover = (a: AnimeItem) => a.coverImage?.extraLarge || a.coverImage?.large || "";
+    41→const mCover = (m: MangaItem) => proxifyMangaImage(m.posterMedium || m.poster || m.posterSmall || m.cover || "");
+    42→
+    43→const RING_SIZE = 14;
+    44→
+    45→function Icon({ path, size = 18 }: { path: string; size?: number }) {
+    46→  return (
+    47→    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    48→      <path d={path} />
+    49→    </svg>
+    50→  );
+    51→}
+    52→
+    53→function Planet({ value, suffix, label, color, moonDur }: { value: number; suffix: string; label: string; color: string; moonDur: string }) {
+    54→  const ref = useRef(null);
+    55→  const inView = useInView(ref, { once: true, margin: "-40px" });
+    56→  const n = useCountUp(value, 1700, inView);
+    57→  return (
+    58→    <div ref={ref} className="relative flex flex-col items-center">
+    59→      <div
+    60→        className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full flex items-center justify-center"
+    61→        style={{
+    62→          background: `radial-gradient(circle at 34% 28%, ${color}3d, #070a12 72%)`,
+    63→          boxShadow: `0 0 50px ${color}26, inset 0 0 34px ${color}1f`,
+    64→          border: `1px solid ${color}55`,
+    65→        }}
+    66→      >
+    67→        <span className="font-black text-2xl sm:text-4xl tabular-nums" style={{ fontFamily: FONT, color }}>{n.toLocaleString()}{suffix}</span>
+    68→        {/* orbiting moon */}
+    69→        <span className="ltv-orbit absolute inset-0 rounded-full" style={{ ["--odur" as string]: moonDur }} aria-hidden>
+    70→          <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 10px ${color}` }} />
+    71→        </span>
+    72→      </div>
+    73→      <span className="text-white/45 text-[10px] sm:text-xs uppercase tracking-[0.25em] mt-4">{label}</span>
+    74→    </div>
+    75→  );
+    76→}
+    77→
+    78→export default function LandingPage() {
+    79→  const navigate = useAppStore(s => s.navigate);
+    80→  const openAuthModal = useAppStore(s => s.openAuthModal);
+    81→  const [ringCovers, setRingCovers] = useState<string[]>([]);
+    82→  const [animeCovers, setAnimeCovers] = useState<string[]>([]);
+    83→  const [mangaCovers, setMangaCovers] = useState<string[]>([]);
+    84→  const [openFaq, setOpenFaq] = useState<number | null>(0);
+    85→  const anilistUser = useAppStore(s => s.anilistUser);
+    86→  const anilistEntries = useAppStore(s => s.anilistEntries);
+    87→  const clearAnilistAuth = useAppStore(s => s.clearAnilistAuth);
+    88→  const anilistReady = isAniListConfigured();
+    89→
+    90→  useEffect(() => {
+    91→    let cancelled = false;
+    92→    (async () => {
+    93→      const anime: string[] = [];
+    94→      const manga: string[] = [];
+    95→      try {
+    96→        const res = await fetch("/api/anime/anilist-trending?section=trending");
+    97→        if (res.ok) {
+    98→          const data = await res.json();
+    99→          const list: AnimeItem[] = (data.trending || data.all || data.media || []).filter((a: AnimeItem) => a?.id);
+   100→          for (const a of list) { const c = aCover(a); if (c) anime.push(c); }
+   101→        }
+   102→      } catch { /* ring renders with what loaded */ }
+   103→      try {
+   104→        const res = await fetch("/api/manga/home");
+   105→        if (res.ok) {
+   106→          const data = await res.json();
+   107→          const sections: { items?: MangaItem[] }[] = data.sections || [];
+   108→          for (const s of sections) for (const it of s.items || []) { const c = it?.id ? mCover(it) : ""; if (c) manga.push(c); }
+   109→        }
+   110→      } catch { /* ring renders with what loaded */ }
+   111→      if (cancelled) return;
+   112→      const mixed: string[] = [];
+   113→      for (let i = 0; i < RING_SIZE; i++) {
+   114→        const src = i % 2 === 0 ? anime[Math.floor(i / 2)] : manga[Math.floor(i / 2)];
+   115→        mixed.push(src || anime[i] || manga[i] || "");
+   116→      }
+   117→      setRingCovers(mixed);
+   118→      setAnimeCovers(anime.slice(0, 3));
+   119→      setMangaCovers(manga.slice(0, 3));
+   120→    })();
+   121→    return () => { cancelled = true; };
+   122→  }, []);
+   123→
+   124→  const navLinks = [
+   125→    { label: "Anime", onClick: () => navigate({ page: "home" }) },
+   126→    { label: "Manga", onClick: () => navigate({ page: "manga" }) },
+   127→    { label: "Novels", onClick: () => navigate({ page: "novel" }) },
+   128→    { label: "Contact", onClick: () => navigate({ page: "contact" }) },
+   129→  ];
+   130→
+   131→  const [portalReady, setPortalReady] = useState(false);
+   132→  useEffect(() => { const t = setTimeout(() => setPortalReady(true), 0); return () => clearTimeout(t); }, []);
+   133→
+   134→  const chrome = (
+   135→    <>
+   136→      <button className="ltv-nav-logo" onClick={() => navigate({ page: "landing" })} aria-label="LuffyTV">
+   137→        <img src="/logo.svg" alt="LuffyTV" className="ltv-nav-logo-img" />
+   138→      </button>
+   139→      <nav className="ltv-nav-pill">
+   140→        <div className="ltv-nav-links">
+   141→          {navLinks.map(l => <button key={l.label} className="ltv-nav-link" onClick={l.onClick}>{l.label}</button>)}
+   142→        </div>
+   143→      </nav>
+   144→      <div className="ltv-nav-right-icons">
+   145→        <button className="ltv-nav-icon-btn" onClick={() => openAuthModal("signin")} aria-label="Sign in" title="Sign in">
+   146→          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+   147→            <path d="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+   148→          </svg>
+   149→        </button>
+   150→        <button onClick={() => navigate({ page: "hub" })} className="ltv-cine-btn-primary h-[38px] px-4 rounded-full text-xs font-bold whitespace-nowrap">Enter</button>
+   151→      </div>
+   152→    </>
+   153→  );
+   154→
+   155→  const novelSpines = ["#0c3d2c", "#14664a", "#0a2e22"];
+   156→  const doors = [
+   157→    { title: "Anime", color: ANIME, desc: "12,000+ series in HD. Subbed, dubbed, airing now.", meta: "New episodes daily", page: "home" as const, covers: animeCovers },
+   158→    { title: "Manga", color: MANGA, desc: "70,000+ titles. New chapters every single day.", meta: "Fresh chapters hourly", page: "manga" as const, covers: mangaCovers },
+   159→    { title: "Novels", color: NOVEL, desc: "The source material, in a reader made for it.", meta: "Built for long nights", page: "novel" as const, covers: [] as string[] },
+   160→  ];
+   161→
+   162→  // Cursor-tracked 3D tilt for the door cards.
+   163→  const tiltMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+   164→    const el = e.currentTarget;
+   165→    const r = el.getBoundingClientRect();
+   166→    const px = (e.clientX - r.left) / r.width - 0.5;
+   167→    const py = (e.clientY - r.top) / r.height - 0.5;
+   168→    el.style.transform = `perspective(900px) rotateY(${(px * 9).toFixed(2)}deg) rotateX(${(-py * 7).toFixed(2)}deg) translateZ(6px)`;
+   169→  };
+   170→  const tiltReset = (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = ""; };
+   171→
+   172→  const ICONS = {
+   173→    library: "M4 19V6a1 1 0 0 1 1-1h3v15H5a1 1 0 0 1-1-1zM10 5h4v15h-4zM16 6.5l3.2-1 3 14-3.2 1z",
+   174→    layers: "M12 3 2 8l10 5 10-5-10-5zM2 16l10 5 10-5M2 12l10 5 10-5",
+   175→    device: "M5 3h9a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM19 8h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-1M8 19h3",
+   176→    palette: "M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-.9.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-4.4-3.6-8-8-8zM7 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM9 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM14 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM17 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2z",
+   177→    sync: "M4 4v6h6M20 20v-6h-6M4.5 15a8 8 0 0 0 14.9 3M19.5 9A8 8 0 0 0 4.6 6",
+   178→    chat: "M21 11.5a8.5 8.5 0 0 1-8.5 8.5H12l-5 2 1-4.5A8.5 8.5 0 1 1 21 11.5z",
+   179→    plus: "M12 5v14M5 12h14",
+   180→    search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35",
+   181→    bookmark: "M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z",
+   182→    history: "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l4 2",
+   183→    compass: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15 9l-2 6-6 2 2-6 6-2z",
+   184→    userPlus: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6",
+   185→    play2: "M8 5v14l11-7L8 5z",
+   186→    mail: "M4 4h16v16H4V4zM22 6l-10 7L2 6",
+   187→  };
+   188→
+   189→  const features = [
+   190→    { icon: ICONS.library, title: "One library, three formats", desc: "Anime, manga and novels live in the same account — no juggling separate sites or apps." },
+   191→    { icon: ICONS.layers, title: "Pick up anywhere", desc: "Your last episode, chapter and page are saved automatically and follow you across devices." },
+   192→    { icon: ICONS.device, title: "Every screen", desc: "Phone, tablet or desktop — the player and reader adapt without losing your place." },
+   193→    { icon: ICONS.palette, title: "A profile that's yours", desc: "Custom accent color, banner and tagline, plus a favorites shelf for what you're into." },
+   194→    { icon: ICONS.sync, title: "Real AniList linking", desc: "Connect your AniList account and see what you're currently watching, live, on your profile." },
+   195→    { icon: ICONS.chat, title: "Comment as you watch", desc: "Episode discussion sits right where you're already looking — no tab switching." },
+   196→  ];
+   197→
+   198→  const steps = [
+   199→    { n: "01", title: "Search or browse", desc: "Look up a title, or explore anime, manga and novels by genre and trend.", icon: ICONS.search },
+   200→    { n: "02", title: "Press play or read", desc: "No sign-up wall — start watching or reading immediately as a guest.", icon: ICONS.play2 },
+   201→    { n: "03", title: "Come back anytime", desc: "Make an account to save progress, link AniList, and build a profile.", icon: ICONS.userPlus },
+   202→  ];
+   203→
+   204→  const resources = [
+   205→    { label: "Anime Home", icon: ICONS.play2, color: ANIME, page: "home" as const },
+   206→    { label: "Manga Library", icon: ICONS.library, color: MANGA, page: "manga" as const },
+   207→    { label: "Novels", icon: ICONS.layers, color: NOVEL, page: "novel" as const },
+   208→    { label: "Search", icon: ICONS.search, color: ANIME, page: "search" as const },
+   209→    { label: "Bookmarks", icon: ICONS.bookmark, color: MANGA, page: "bookmarks" as const },
+   210→    { label: "Watch History", icon: ICONS.history, color: NOVEL, page: "history" as const },
+   211→    { label: "Guide", icon: ICONS.compass, color: ANIME, page: "guide" as const },
+   212→    { label: "Contact Us", icon: ICONS.mail, color: MANGA, page: "contact" as const },
+   213→  ];
+   214→
+   215→  const faqs = [
+   216→    { q: "Is LuffyTV really free?", a: "Yes — every episode, chapter and novel is free with no subscription, no paywalled chapters, and no premium tier." },
+   217→    { q: "Do I need an account to start?", a: "No. Browsing, watching and reading all work as a guest. Creating an account just adds saved progress and a customizable profile." },
+   218→    { q: "Can I connect my AniList account?", a: "Yes — link your AniList account from your profile and LuffyTV pulls in what you're currently watching. MyAnimeList linking isn't available yet." },
+   219→    { q: "Does LuffyTV host the video or manga files?", a: "No. Content is sourced from third-party providers — LuffyTV is a player and reader shell, not a host." },
+   220→    { q: "How often is new content added?", a: "Anime episodes and manga chapters are pulled in as they release; novels update as new chapters go up on their sources." },
+   221→    { q: "Can I read manga and novels on mobile?", a: "Yes — the reader and player are both fully responsive and work the same way on phone, tablet or desktop." },
+   222→    { q: "What happens to my watch history if I don't have an account?", a: "It stays saved locally in your browser. Creating an account lets that history follow you across devices instead." },
+   223→  ];
+   224→
+   225→  return (
+   226→    <div className="w-full text-white bg-[#04060c] overflow-x-clip" style={{ fontFamily: "var(--font-inter), Inter, sans-serif" }}>
+   227→      {portalReady ? createPortal(chrome, document.body) : chrome}
+   228→
+   229→      {/* ═══ HERO — inside the zoetrope ═══ */}
+   230→      <section className="relative w-full min-h-[100svh] flex items-center justify-center overflow-hidden">
+   231→        <div className="absolute inset-0" style={{ background: "radial-gradient(55% 50% at 50% 45%, rgba(72,166,255,0.08), transparent 65%), #04060c" }} />
+   232→
+   233→        {/* Rotating ring */}
+   234→        <div className="ltv-ring-stage absolute inset-0 flex items-center justify-center scale-[0.52] sm:scale-75 lg:scale-100" aria-hidden>
+   235→          <div className="ltv-ring relative w-0 h-0">
+   236→            {Array.from({ length: RING_SIZE }, (_, i) => {
+   237→              const src = ringCovers[i] || "";
+   238→              return (
+   239→                <div
+   240→                  key={i}
+   241→                  className="absolute rounded-xl overflow-hidden bg-white/[0.04]"
+   242→                  style={{
+   243→                    width: 190,
+   244→                    height: 285,
+   245→                    left: -95,
+   246→                    top: -142,
+   247→                    transform: `rotateY(${(360 / RING_SIZE) * i}deg) translateZ(520px)`,
+   248→                    backfaceVisibility: "hidden",
+   249→                    boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
+   250→                  }}
+   251→                >
+   252→                  {src && <img src={src} alt="" className="w-full h-full object-cover" style={{ filter: "brightness(0.62)" }} loading={i < 6 ? "eager" : "lazy"} />}
+   253→                  <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, transparent 55%, rgba(4,6,12,0.75))" }} />
+   254→                </div>
+   255→              );
+   256→            })}
+   257→          </div>
+   258→        </div>
+   259→
+   260→        {/* Depth fog so far side of the ring recedes */}
+   261→        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(62% 58% at 50% 46%, rgba(4,6,12,0.88) 0%, rgba(4,6,12,0.35) 46%, transparent 72%)" }} aria-hidden />
+   262→        <div className="absolute inset-x-0 top-0 h-32 pointer-events-none" style={{ background: "linear-gradient(180deg, #04060c, transparent)" }} aria-hidden />
+   263→        <div className="absolute inset-x-0 bottom-0 h-40 pointer-events-none" style={{ background: "linear-gradient(0deg, #04060c, transparent)" }} aria-hidden />
+   264→
+   265→        {/* Center copy */}
+   266→        <div className="relative z-10 text-center px-6 max-w-3xl">
+   267→          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7, duration: 0.8 }} className="text-[11px] font-bold uppercase tracking-[0.45em] text-white/50 mb-6">
+   268→            Luffy TV
+   269→          </motion.p>
+   270→          <div className="overflow-hidden">
+   271→            <motion.h1 initial={{ y: "105%" }} animate={{ y: 0 }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.15 }} className="font-black leading-[0.96] text-5xl sm:text-7xl" style={{ fontFamily: FONT }}>
+   272→              12,000 WORLDS
+   273→            </motion.h1>
+   274→          </div>
+   275→          <div className="overflow-hidden">
+   276→            <motion.h1 initial={{ y: "105%" }} animate={{ y: 0 }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.3 }} className="font-black leading-[0.96] text-5xl sm:text-7xl" style={{ fontFamily: FONT, color: ANIME, textShadow: `0 0 50px ${ANIME}55` }}>
+   277→              ORBIT HERE.
+   278→            </motion.h1>
+   279→          </div>
+   280→          <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.7 }} className="text-white/55 text-sm sm:text-lg mt-6 max-w-md mx-auto">
+   281→            Anime, manga and novels circling one free library. Reach out and stop one.
+   282→          </motion.p>
+   283→          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1, duration: 0.7 }} className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-9">
+   284→            <button onClick={() => navigate({ page: "hub" })} className="ltv-cine-btn-primary px-8 py-3.5 rounded-full font-bold text-sm w-full sm:w-auto">
+   285→              Step inside
+   286→            </button>
+   287→            <button onClick={() => navigate({ page: "search" })} className="px-8 py-3.5 rounded-full font-bold text-sm w-full sm:w-auto border border-white/15 hover:border-white/35 hover:bg-white/5 transition-colors">
+   288→              Search a title
+   289→            </button>
+   290→          </motion.div>
+   291→        </div>
+   292→      </section>
+   293→
+   294→      {/* ═══ DOORS — fanned cover stacks with cursor tilt ═══ */}
+   295→      <section className="relative px-6 lg:px-16 py-20 sm:py-28">
+   296→        <div className="max-w-6xl mx-auto">
+   297→          <div className="text-center max-w-xl mx-auto mb-16">
+   298→            <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Pick a door</p>
+   299→            <h2 className="font-black leading-[1.05] text-3xl sm:text-5xl" style={{ fontFamily: FONT }}>Three ways in.</h2>
+   300→          </div>
+   301→          <div className="grid sm:grid-cols-3 gap-6">
+   302→            {doors.map((d, i) => (
+   303→              <motion.div key={d.title} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.65, delay: i * 0.1 }}>
+   304→                <button
+   305→                  onClick={() => navigate({ page: d.page })}
+   306→                  onMouseMove={tiltMove}
+   307→                  onMouseLeave={tiltReset}
+   308→                  className="group relative block w-full rounded-2xl overflow-hidden border border-white/[0.08] text-left bg-white/[0.015] hover:border-white/[0.18]"
+   309→                  style={{ transition: "transform 0.18s ease-out, border-color 0.4s ease" }}
+   310→                >
+   311→                  {/* ambient wash */}
+   312→                  <div className="absolute inset-0 opacity-60 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(85% 60% at 50% 0%, ${d.color}1f, transparent 65%)` }} aria-hidden />
+   313→
+   314→                  {/* fanned cover stack */}
+   315→                  <div className="relative h-60 sm:h-64 flex items-end justify-center pb-2 pointer-events-none">
+   316→                    {(d.covers.length ? d.covers : novelSpines).slice(0, 3).map((c, ci) => {
+   317→                      const mid = ci === 1;
+   318→                      const left = ci === 0;
+   319→                      return (
+   320→                        <div
+   321→                          key={ci}
+   322→                          className={`absolute bottom-4 w-[124px] sm:w-[136px] aspect-[2/3] rounded-lg overflow-hidden transition-transform duration-500 ${
+   323→                            mid
+   324→                              ? "z-20 group-hover:-translate-y-3"
+   325→                              : left
+   326→                                ? "z-10 -rotate-[11deg] -translate-x-[74px] translate-y-3 group-hover:-rotate-[15deg] group-hover:-translate-x-[92px]"
+   327→                                : "z-10 rotate-[11deg] translate-x-[74px] translate-y-3 group-hover:rotate-[15deg] group-hover:translate-x-[92px]"
+   328→                          }`}
+   329→                          style={{ boxShadow: "0 18px 40px rgba(0,0,0,0.55)" }}
+   330→                        >
+   331→                          {d.covers.length ? (
+   332→                            <img src={c} alt="" className="w-full h-full object-cover" loading="lazy" />
+   333→                          ) : (
+   334→                            <div className="w-full h-full flex items-end p-3" style={{ background: `linear-gradient(160deg, ${c}, #04060c 130%)` }}>
+   335→                              <span className="text-white/25 font-black text-lg leading-none" style={{ fontFamily: FONT }}>{["VOL.1", "VOL.2", "VOL.3"][ci]}</span>
+   336→                            </div>
+   337→                          )}
+   338→                          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, transparent 60%, rgba(4,6,12,0.55))" }} />
+   339→                        </div>
+   340→                      );
+   341→                    })}
+   342→                  </div>
+   343→
+   344→                  <div className="relative z-10 px-7 pb-7 pt-2 text-center">
+   345→                    <span className="text-[11px] font-bold uppercase tracking-[0.3em]" style={{ color: d.color }}>{`0${i + 1} — ${d.meta}`}</span>
+   346→                    <h3 className="font-black text-3xl mt-2 mb-2" style={{ fontFamily: FONT }}>{d.title}</h3>
+   347→                    <p className="text-white/55 text-sm leading-relaxed">{d.desc}</p>
+   348→                    <span className="inline-flex items-center gap-2 text-xs font-bold mt-5 opacity-60 group-hover:opacity-100 transition-opacity" style={{ color: d.color }}>
+   349→                      Open the door
+   350→                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+   351→                    </span>
+   352→                  </div>
+   353→
+   354→                  {/* bottom glow line */}
+   355→                  <div className="absolute bottom-0 inset-x-8 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `linear-gradient(90deg, transparent, ${d.color}, transparent)`, boxShadow: `0 0 18px 1px ${d.color}` }} aria-hidden />
+   356→                </button>
+   357→              </motion.div>
+   358→            ))}
+   359→          </div>
+   360→        </div>
+   361→      </section>
+   362→
+   363→      {/* ═══ STAYS CONNECTED — real progress/profile system, honestly described ═══ */}
+   364→      <section className="relative border-t border-white/[0.06] px-6 lg:px-16 py-20 sm:py-24">
+   365→        <div className="max-w-5xl mx-auto">
+   366→          <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Everything stays connected</p>
+   367→          <h2 className="font-black leading-[1.1] text-3xl sm:text-5xl max-w-lg" style={{ fontFamily: FONT }}>
+   368→            One place for every <span style={{ color: ANIME }}>kind of story.</span>
+   369→          </h2>
+   370→          <p className="text-white/50 text-sm sm:text-base mt-4 max-w-lg">
+   371→            Jump between a weekly episode, a manga chapter, or a novel arc — without rebuilding your library each time.
+   372→          </p>
+   373→
+   374→          <div className="grid lg:grid-cols-[1fr_1fr] gap-5 mt-10">
+   375→            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 flex flex-col justify-between">
+   376→              <div>
+   377→                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: `${ANIME}1A`, color: ANIME }}><Icon path={ICONS.sync} size={17} /></div>
+   378→                <h3 className="font-bold text-base mb-1.5">Connect AniList</h3>
+   379→                <p className="text-white/45 text-xs leading-relaxed">Link your real AniList account to pull in what you&apos;re currently watching — right here on your profile.</p>
+   380→              </div>
+   381→              {anilistUser ? (
+   382→                <div className="rounded-xl border border-white/[0.08] bg-black/30 p-4 mt-6">
+   383→                  <div className="flex items-center justify-between mb-3">
+   384→                    <div className="flex items-center gap-2.5">
+   385→                      {anilistUser.avatar ? (
+   386→                        <img src={anilistUser.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
+   387→                      ) : (
+   388→                        <div className="w-7 h-7 rounded-full" style={{ background: `${ANIME}33` }} />
+   389→                      )}
+   390→                      <span className="text-xs font-bold">{anilistUser.name}</span>
+   391→                    </div>
+   392→                    <span className="text-[11px] flex items-center gap-1" style={{ color: NOVEL }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: NOVEL }} /> Connected</span>
+   393→                  </div>
+   394→                  {anilistEntries.length > 0 ? (
+   395→                    <ul className="space-y-1.5">
+   396→                      {anilistEntries.slice(0, 3).map(e => (
+   397→                        <li key={e.mediaId} className="flex items-center justify-between text-[11px] text-white/55">
+   398→                          <span className="truncate pr-3">{e.title}</span>
+   399→                          <span className="shrink-0 text-white/35">Ep {e.progress}</span>
+   400→                        </li>
+   401→                      ))}
+   402→                    </ul>
+   403→                  ) : (
+   404→                    <p className="text-[11px] text-white/40">No titles currently watching on AniList.</p>
+   405→                  )}
+   406→                  <button onClick={clearAnilistAuth} className="text-[11px] font-bold text-white/40 hover:text-white/70 transition-colors mt-3">Disconnect</button>
+   407→                </div>
+   408→              ) : anilistReady ? (
+   409→                <a href={getAniListAuthUrl()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-black/30 hover:bg-black/45 transition-colors p-4 mt-6 text-xs font-bold" style={{ color: ANIME }}>
+   410→                  <Icon path={ICONS.sync} size={15} /> Connect your AniList account
+   411→                </a>
+   412→              ) : (
+   413→                <div className="rounded-xl border border-white/[0.08] bg-black/30 p-4 mt-6">
+   414→                  <p className="text-[11px] text-white/40">AniList connection coming soon.</p>
+   415→                </div>
+   416→              )}
+   417→            </div>
+   418→
+   419→            <div className="grid grid-rows-2 gap-5">
+   420→              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 flex items-center gap-4">
+   421→                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${MANGA}1A`, color: MANGA }}><Icon path={ICONS.chat} size={18} /></div>
+   422→                <div>
+   423→                  <h3 className="font-bold text-sm mb-1">Episode Discussion</h3>
+   424→                  <p className="text-white/45 text-xs leading-relaxed">Comment on episodes right next to what you&apos;re watching.</p>
+   425→                </div>
+   426→              </div>
+   427→              <div className="rounded-2xl border border-white/[0.08] p-6 flex items-center gap-4" style={{ background: `linear-gradient(135deg, ${ANIME}14, ${MANGA}14)` }}>
+   428→                <div className="w-10 h-10 rounded-full shrink-0" style={{ background: `linear-gradient(135deg, ${ANIME}, ${MANGA}, ${NOVEL})` }} />
+   429→                <div>
+   430→                  <h3 className="font-bold text-sm mb-1">A Profile With Character</h3>
+   431→                  <p className="text-white/45 text-xs leading-relaxed">Pick an accent color, banner and tagline, plus a favorites shelf.</p>
+   432→                </div>
+   433→              </div>
+   434→            </div>
+   435→          </div>
+   436→        </div>
+   437→      </section>
+   438→
+   439→      {/* ═══ FEATURES — what you actually get ═══ */}
+   440→      <section className="relative border-t border-white/[0.06] px-6 lg:px-16 py-20">
+   441→        <div className="max-w-5xl mx-auto">
+   442→          <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">What you get</p>
+   443→          <h2 className="font-black leading-[1.1] text-3xl sm:text-5xl max-w-lg mb-12" style={{ fontFamily: FONT }}>
+   444→            Built to remove <span style={{ color: MANGA }}>friction.</span>
+   445→          </h2>
+   446→          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+   447→            {features.map((f, i) => (
+   448→              <motion.div key={f.title} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-40px" }} transition={{ duration: 0.5, delay: i * 0.07 }} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
+   449→                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: `${ANIME}1A`, color: ANIME }}>
+   450→                  <Icon path={f.icon} size={17} />
+   451→                </div>
+   452→                <h3 className="font-bold text-sm mb-1.5">{f.title}</h3>
+   453→                <p className="text-white/45 text-xs leading-relaxed">{f.desc}</p>
+   454→              </motion.div>
+   455→            ))}
+   456→          </div>
+   457→        </div>
+   458→      </section>
+   459→
+   460→      {/* ═══ HOW IT WORKS ═══ */}
+   461→      <section className="relative border-t border-white/[0.06] px-6 lg:px-16 py-20">
+   462→        <div className="max-w-5xl mx-auto">
+   463→          <div className="text-center max-w-xl mx-auto mb-14">
+   464→            <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">How it works</p>
+   465→            <h2 className="font-black leading-[1.1] text-3xl sm:text-5xl" style={{ fontFamily: FONT }}>Three steps. That&apos;s it.</h2>
+   466→          </div>
+   467→          <div className="grid sm:grid-cols-3 gap-10">
+   468→            {steps.map((s, i) => (
+   469→              <motion.div key={s.n} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.6, delay: i * 0.12 }} className="text-center sm:text-left">
+   470→                <div className="flex items-center gap-3 justify-center sm:justify-start mb-4">
+   471→                  <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${ANIME}1A`, color: ANIME }}><Icon path={s.icon} size={17} /></span>
+   472→                  <span className="text-4xl font-black text-white/10" style={{ fontFamily: FONT }}>{s.n}</span>
+   473→                </div>
+   474→                <h3 className="font-black text-lg mb-2" style={{ fontFamily: FONT }}>{s.title}</h3>
+   475→                <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
+   476→              </motion.div>
+   477→            ))}
+   478→          </div>
+   479→        </div>
+   480→      </section>
+   481→
+   482→      {/* ═══ RESOURCES — quick links to every real destination on the site ═══ */}
+   483→      <section className="relative border-t border-white/[0.06] px-6 lg:px-16 py-20">
+   484→        <div className="max-w-5xl mx-auto">
+   485→          <div className="text-center max-w-xl mx-auto mb-12">
+   486→            <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Jump straight in</p>
+   487→            <h2 className="font-black leading-[1.1] text-3xl sm:text-5xl" style={{ fontFamily: FONT }}>Everything, one click away.</h2>
+   488→          </div>
+   489→          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   490→            {resources.map((r, i) => (
+   491→              <motion.button
+   492→                key={r.label}
+   493→                initial={{ opacity: 0, y: 16 }}
+   494→                whileInView={{ opacity: 1, y: 0 }}
+   495→                viewport={{ once: true, margin: "-40px" }}
+   496→                transition={{ duration: 0.45, delay: i * 0.05 }}
+   497→                onClick={() => navigate({ page: r.page })}
+   498→                className="group flex flex-col items-center text-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:border-white/[0.18] hover:bg-white/[0.04] transition-colors p-5"
+   499→              >
+   500→                <span className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: `${r.color}1A`, color: r.color }}>
+   501→                  <Icon path={r.icon} size={18} />
+   502→                </span>
+   503→                <span className="text-xs font-bold">{r.label}</span>
+   504→              </motion.button>
+   505→            ))}
+   506→          </div>
+   507→        </div>
+   508→      </section>
+   509→
+   510→      {/* ═══ FAQ ═══ */}
+   511→      <section className="relative border-t border-white/[0.06] px-6 py-20">
+   512→        <div className="max-w-2xl mx-auto text-center mb-10">
+   513→          <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Before you settle in</p>
+   514→          <h2 className="font-black leading-[1.1] text-3xl sm:text-4xl" style={{ fontFamily: FONT }}>A few useful answers.</h2>
+   515→        </div>
+   516→        <div className="max-w-2xl mx-auto space-y-3">
+   517→          {faqs.map((f, i) => (
+   518→            <div key={f.q} className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+   519→              <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between px-5 py-4 text-left">
+   520→                <span className="font-bold text-sm">{f.q}</span>
+   521→                <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 ml-4" style={{ background: `${ANIME}22`, color: ANIME, transform: openFaq === i ? "rotate(45deg)" : "none", transition: "transform 0.25s" }}>
+   522→                  <Icon path={ICONS.plus} size={13} />
+   523→                </span>
+   524→              </button>
+   525→              <AnimatePresence initial={false}>
+   526→                {openFaq === i && (
+   527→                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+   528→                    <p className="text-white/50 text-xs leading-relaxed px-5 pb-4">{f.a}</p>
+   529→                  </motion.div>
+   530→                )}
+   531→              </AnimatePresence>
+   532→            </div>
+   533→          ))}
+   534→        </div>
+   535→      </section>
+   536→
+   537→      {/* ═══ ORBIT STATS — planets on a trajectory ═══ */}
+   538→      <section className="relative px-6 py-20 sm:py-24 overflow-hidden">
+   539→        <div className="text-center mb-14">
+   540→          <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40">The system at a glance</p>
+   541→        </div>
+   542→        <div className="relative max-w-4xl mx-auto">
+   543→          {/* orbit line */}
+   544→          <div className="absolute left-0 right-0 top-14 sm:top-[4.5rem] h-px -rotate-2" style={{ background: `linear-gradient(90deg, transparent, ${ANIME}55 20%, ${MANGA}55 50%, ${NOVEL}55 80%, transparent)` }} aria-hidden />
+   545→          <div className="relative flex flex-wrap items-start justify-center sm:justify-between gap-x-10 gap-y-12">
+   546→            <Planet value={12} suffix="k+" label="Anime series" color={ANIME} moonDur="9s" />
+   547→            <Planet value={70} suffix="k+" label="Manga titles" color={MANGA} moonDur="12s" />
+   548→            <Planet value={0} suffix="" label="Ads, ever" color={NOVEL} moonDur="15s" />
+   549→          </div>
+   550→        </div>
+   551→      </section>
+   552→
+   553→      {/* ═══ CLOSING — satellites orbit the button ═══ */}
+   554→      <section className="relative text-center px-6 py-28 sm:py-36 overflow-hidden">
+   555→        <div className="absolute inset-0" style={{ background: "radial-gradient(50% 55% at 50% 50%, rgba(72,166,255,0.10), transparent 70%)" }} aria-hidden />
+   556→        <div className="relative z-10 max-w-2xl mx-auto">
+   557→          <h2 className="font-black leading-[1.02] text-4xl sm:text-6xl" style={{ fontFamily: FONT }}>
+   558→            Stop the spin.<br /><span style={{ color: ANIME }}>Pick a world.</span>
+   559→          </h2>
+   560→          <p className="text-white/50 text-sm sm:text-base mt-5">Free forever. No ads. No account needed to press play.</p>
+   561→          <div className="relative inline-block mt-20">
+   562→            {/* orbit rings + satellites */}
+   563→            <span className="absolute -inset-9 rounded-full border border-white/[0.07]" aria-hidden />
+   564→            <span className="ltv-orbit absolute -inset-9 rounded-full" style={{ ["--odur" as string]: "10s" }} aria-hidden>
+   565→              <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full" style={{ background: ANIME, boxShadow: `0 0 10px ${ANIME}` }} />
+   566→            </span>
+   567→            <span className="absolute -inset-14 rounded-full border border-white/[0.05]" aria-hidden />
+   568→            <span className="ltv-orbit absolute -inset-14 rounded-full" style={{ ["--odur" as string]: "17s", animationDirection: "reverse" }} aria-hidden>
+   569→              <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full" style={{ background: MANGA, boxShadow: `0 0 8px ${MANGA}` }} />
+   570→            </span>
+   571→            <button onClick={() => navigate({ page: "hub" })} className="ltv-cine-btn-primary relative inline-flex items-center gap-2 px-9 py-4 rounded-full font-bold text-sm">
+   572→              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+   573→              Enter LuffyTV
+   574→            </button>
+   575→          </div>
+   576→        </div>
+   577→      </section>
+   578→
+   579→      {/* ═══ FOOTER ═══ */}
+   580→      <footer className="relative border-t border-white/[0.06] px-6 py-10">
+   581→        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+   582→          <p className="text-white/40 text-xs">&copy; {new Date().getFullYear()} Luffy TV — fan-made, not affiliated with any studio.</p>
+   583→          <div className="flex items-center gap-6 text-xs text-white/45">
+   584→            <button onClick={() => navigate({ page: "home" })} className="hover:text-white transition-colors">Anime</button>
+   585→            <button onClick={() => navigate({ page: "manga" })} className="hover:text-white transition-colors">Manga</button>
+   586→            <button onClick={() => navigate({ page: "novel" })} className="hover:text-white transition-colors">Novels</button>
+   587→            <button onClick={() => navigate({ page: "contact" })} className="hover:text-white transition-colors">Contact</button>
+   588→          </div>
+   589→        </div>
+   590→      </footer>
+   591→    </div>
+   592→  );
+   593→}
+   594→
