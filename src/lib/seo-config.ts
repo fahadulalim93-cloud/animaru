@@ -22,15 +22,15 @@ export interface SeoSettings {
 }
 
 export const DEFAULT_SEO: SeoSettings = {
-  siteName: "Luffy TV",
-  title: "Luffy TV — Watch Anime, Movies & TV Shows Free in HD",
+  siteName: "LuffyTV",
+  title: "LuffyTV — Watch Anime Online Free in HD — Tamil, Hindi, Telugu, Bengali Dub & English Sub",
   description:
-    "Stream anime, movies, TV shows, manga & novels free in HD. Subbed & dubbed anime, trending movies and popular series — no signup required.",
+    "Watch anime online free in HD on LuffyTV. Stream 10,000+ anime episodes with Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub. No signup, no ads, instant playback.",
   keywords:
-    "anime, watch anime online, free anime streaming, movies, tv shows, manga, light novels, subbed anime, dubbed anime, hd streaming, luffy tv",
+    "anime in tamil, tamil dubbed anime, anime tamil dub, watch anime online, free anime streaming, hindi dubbed anime, telugu dubbed anime, bengali dubbed anime, subbed anime, dubbed anime, hd streaming, luffytv, luffytv.live",
   ogImage: "/og.png",
   twitterHandle: "@luffytv",
-  canonicalUrl: "https://luffytv.app",
+  canonicalUrl: "https://luffytv.live",
   robotsIndex: true,
 };
 

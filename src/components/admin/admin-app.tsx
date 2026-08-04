@@ -1161,7 +1161,7 @@ function SeoTab({ accent }: { accent: string }) {
         <Card className="p-5"><PanelHead title="Google preview" />
           <div className="rounded-lg bg-white p-3">
             <p className="text-[#1a0dab] text-[15px] leading-snug truncate">{s.title || "Page title"}</p>
-            <p className="text-[#006621] text-xs truncate">{s.canonicalUrl || "https://luffytv.app"}</p>
+            <p className="text-[#006621] text-xs truncate">{s.canonicalUrl || "https://luffytv.live"}</p>
             <p className="text-[#545454] text-xs leading-snug line-clamp-2 mt-0.5">{s.description || "Meta description…"}</p>
           </div>
           <p className="text-[10px] text-white/40 mt-2">sitemap.xml, robots.txt & structured data ship automatically.</p>

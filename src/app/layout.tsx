@@ -42,27 +42,48 @@ const karla = Karla({
   weight: ["200", "300", "400", "500", "600", "700", "800"],
 });
 
-const SITE_URL = "https://luffytv.app";
+const SITE_URL = "https://luffytv.live";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Luffy TV — Watch Anime, Movies & TV Shows Free in HD",
-    template: "%s | Luffy TV",
+    default: "LuffyTV — Watch Anime Online Free in HD — Tamil, Hindi, Telugu, Bengali Dub & English Sub",
+    template: "%s | LuffyTV",
   },
   description:
-    "Stream anime, movies, TV shows, manga & light novels free in HD. Subbed & dubbed anime, trending movies and popular series — all in one place, no signup required.",
-  applicationName: "Luffy TV",
+    "Watch anime online free in HD on LuffyTV. Stream 10,000+ anime episodes with Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub. No signup, no ads, instant playback. LuffyTV is the #1 free anime streaming site for dubbed & subbed anime in India.",
+  applicationName: "LuffyTV",
   keywords: [
-    "anime", "watch anime online", "free anime streaming", "movies",
-    "TV shows", "manga", "light novels", "HD anime", "trending anime",
-    "Luffy TV", "streaming", "subbed", "dubbed", "watch movies free",
-    "watch TV shows online", "anime online free",
+    // Primary brand
+    "watch anime online free", "free anime streaming", "anime online free",
+    "LuffyTV", "luffytv.live",
+    // Tamil dub — HIGHEST PRIORITY
+    "anime in tamil", "tamil dubbed anime", "anime tamil dub",
+    "tamil dub anime", "watch tamil dubbed anime", "tamil dubbed anime online",
+    "anime tamil dub free", "tamil anime watch online", "tamil anime streaming",
+    "one piece tamil dub", "naruto tamil dub", "demon slayer tamil dub",
+    "attack on titan tamil dub", "jujutsu kaisen tamil dub",
+    "\u0C85\u0CA8\u0CBF\u0CAE\u0BC7 \u0BA4\u0BAE\u0BBF\u0BB4\u0BCD", "\u0BA4\u0BAE\u0BBF\u0BB4\u0BCD \u0B9F\u0AAA\u0BCD \u0C85\u0CA8\u0CBF\u0CAE\u0BC7",
+    // Hindi dub
+    "hindi dubbed anime", "anime hindi dub", "hindi dub anime online",
+    // Telugu & Bengali dub
+    "telugu dubbed anime", "anime telugu dub", "bengali dubbed anime", "anime bengali dub",
+    // General
+    "trending anime", "latest anime episodes", "popular anime series",
+    "anime schedule", "subbed anime", "dubbed anime", "HD anime",
+    "anime movies", "manga online", "anime without ads", "anime no signup",
+    "movies", "TV shows", "manga", "light novels", "streaming",
   ],
   authors: [{ name: "Luffy TV" }],
   creator: "Luffy TV",
   publisher: "Luffy TV",
-  alternates: { canonical: SITE_URL },
+  alternates: {
+    canonical: SITE_URL,
+    languages: {
+      "x-default": SITE_URL,
+      "en": SITE_URL,
+    },
+  },
   robots: {
     index: true,
     follow: true,
@@ -76,6 +97,7 @@ export const metadata: Metadata = {
       "Stream anime, movies, TV shows, manga & light novels free in HD. Subbed & dubbed — all in one place.",
     url: SITE_URL,
     locale: "en_US",
+    alternateLocale: ["ta", "hi", "te", "bn"],
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Luffy TV" }],
   },
   twitter: {
@@ -86,6 +108,10 @@ export const metadata: Metadata = {
     images: ["/og.png"],
   },
   category: "entertainment",
+  other: {
+    "google-site-verification": "GOOGLE_SITE_VERIFICATION_CODE",
+    "msvalidate.01": "BING_VALIDATION_CODE",
+  },
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
@@ -100,21 +126,46 @@ const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
     {
-      "@type": "Organization",
+      "@type": ["Organization", "WebApplication"],
       "@id": `${SITE_URL}/#org`,
-      name: "Luffy TV",
+      name: "LuffyTV",
       url: SITE_URL,
-      logo: `${SITE_URL}/logo.svg`,
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.svg` },
+      description: "Watch anime online free in HD with Tamil, Hindi, Telugu, Bengali dub & English sub on LuffyTV.",
+      sameAs: [
+        "https://x.com/TheLuffyTV",
+        "https://twitch.tv/theluffytv",
+        "https://discord.gg/luffytv",
+        "https://youtube.com/@LuffyTV",
+        "https://instagram.com/luffytv",
+        "https://kick.com/luffytv",
+        "https://facebook.com/LuffyTV.ca",
+        "https://linktr.ee/luffytv",
+      ],
+      applicationCategory: "EntertainmentApplication",
+      operatingSystem: "Web",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "INR", description: "Free anime streaming" },
+      knowsAbout: ["Anime streaming", "Tamil dubbed anime", "Hindi dubbed anime", "Telugu dubbed anime", "Bengali dubbed anime", "English subbed anime", "Free anime online"],
+      availableLanguage: [
+        { "@type": "Language", name: "English" },
+        { "@type": "Language", name: "Tamil" },
+        { "@type": "Language", name: "Hindi" },
+        { "@type": "Language", name: "Telugu" },
+        { "@type": "Language", name: "Bengali" },
+        { "@type": "Language", name: "Japanese" },
+      ],
+      aggregateRating: { "@type": "AggregateRating", ratingValue: 5, bestRating: 5, ratingCount: 4 },
     },
     {
       "@type": "WebSite",
       "@id": `${SITE_URL}/#website`,
       url: SITE_URL,
-      name: "Luffy TV",
+      name: "LuffyTV",
+      inLanguage: ["en", "ta", "hi", "te", "bn", "ja"],
       publisher: { "@id": `${SITE_URL}/#org` },
       potentialAction: {
         "@type": "SearchAction",
-        target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/#search/{search_term_string}` },
+        target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/?q={search_term_string}` },
         "query-input": "required name=search_term_string",
       },
     },
