@@ -1,0 +1,374 @@
+[
+  {
+    "file": "1.png",
+    "thumb": "thumbs/1.webp"
+  },
+  {
+    "file": "2.png",
+    "thumb": "thumbs/2.webp"
+  },
+  {
+    "file": "3.png",
+    "thumb": "thumbs/3.webp"
+  },
+  {
+    "file": "4.png",
+    "thumb": "thumbs/4.webp"
+  },
+  {
+    "file": "5.png",
+    "thumb": "thumbs/5.webp"
+  },
+  {
+    "file": "6.png",
+    "thumb": "thumbs/6.webp"
+  },
+  {
+    "file": "7.png",
+    "thumb": "thumbs/7.webp"
+  },
+  {
+    "file": "8.png",
+    "thumb": "thumbs/8.webp"
+  },
+  {
+    "file": "9.png",
+    "thumb": "thumbs/9.webp"
+  },
+  {
+    "file": "10.png",
+    "thumb": "thumbs/10.webp"
+  },
+  {
+    "file": "11.png",
+    "thumb": "thumbs/11.webp"
+  },
+  {
+    "file": "12.png",
+    "thumb": "thumbs/12.webp"
+  },
+  {
+    "file": "13.png",
+    "thumb": "thumbs/13.webp"
+  },
+  {
+    "file": "14.png",
+    "thumb": "thumbs/14.webp"
+  },
+  {
+    "file": "15.png",
+    "thumb": "thumbs/15.webp"
+  },
+  {
+    "file": "16.png",
+    "thumb": "thumbs/16.webp"
+  },
+  {
+    "file": "17.png",
+    "thumb": "thumbs/17.webp"
+  },
+  {
+    "file": "18.png",
+    "thumb": "thumbs/18.webp"
+  },
+  {
+    "file": "19.png",
+    "thumb": "thumbs/19.webp"
+  },
+  {
+    "file": "20.png",
+    "thumb": "thumbs/20.webp"
+  },
+  {
+    "file": "21.png",
+    "thumb": "thumbs/21.webp"
+  },
+  {
+    "file": "22.png",
+    "thumb": "thumbs/22.webp"
+  },
+  {
+    "file": "23.png",
+    "thumb": "thumbs/23.webp"
+  },
+  {
+    "file": "24.png",
+    "thumb": "thumbs/24.webp"
+  },
+  {
+    "file": "25.png",
+    "thumb": "thumbs/25.webp"
+  },
+  {
+    "file": "26.png",
+    "thumb": "thumbs/26.webp"
+  },
+  {
+    "file": "27.png",
+    "thumb": "thumbs/27.webp"
+  },
+  {
+    "file": "28.png",
+    "thumb": "thumbs/28.webp"
+  },
+  {
+    "file": "29.png",
+    "thumb": "thumbs/29.webp"
+  },
+  {
+    "file": "30.png",
+    "thumb": "thumbs/30.webp"
+  },
+  {
+    "file": "31.png",
+    "thumb": "thumbs/31.webp"
+  },
+  {
+    "file": "collectible_1.png",
+    "thumb": "thumbs/collectible_1.webp"
+  },
+  {
+    "file": "collectible_2.png",
+    "thumb": "thumbs/collectible_2.webp"
+  },
+  {
+    "file": "collectible_3.png",
+    "thumb": "thumbs/collectible_3.webp"
+  },
+  {
+    "file": "collectible_4.png",
+    "thumb": "thumbs/collectible_4.webp"
+  },
+  {
+    "file": "collectible_5.png",
+    "thumb": "thumbs/collectible_5.webp"
+  },
+  {
+    "file": "collectible_6.png",
+    "thumb": "thumbs/collectible_6.webp"
+  },
+  {
+    "file": "collectible_7.png",
+    "thumb": "thumbs/collectible_7.webp"
+  },
+  {
+    "file": "collectible_8.png",
+    "thumb": "thumbs/collectible_8.webp"
+  },
+  {
+    "file": "collectible_9.png",
+    "thumb": "thumbs/collectible_9.webp"
+  },
+  {
+    "file": "collectible_10.png",
+    "thumb": "thumbs/collectible_10.webp"
+  },
+  {
+    "file": "collectible_11.png",
+    "thumb": "thumbs/collectible_11.webp"
+  },
+  {
+    "file": "collectible_12.png",
+    "thumb": "thumbs/collectible_12.webp"
+  },
+  {
+    "file": "collectible_13.png",
+    "thumb": "thumbs/collectible_13.webp"
+  },
+  {
+    "file": "collectible_14.png",
+    "thumb": "thumbs/collectible_14.webp"
+  },
+  {
+    "file": "collectible_15.png",
+    "thumb": "thumbs/collectible_15.webp"
+  },
+  {
+    "file": "collectible_16.png",
+    "thumb": "thumbs/collectible_16.webp"
+  },
+  {
+    "file": "collectible_17.png",
+    "thumb": "thumbs/collectible_17.webp"
+  },
+  {
+    "file": "collectible_18.png",
+    "thumb": "thumbs/collectible_18.webp"
+  },
+  {
+    "file": "collectible_19.png",
+    "thumb": "thumbs/collectible_19.webp"
+  },
+  {
+    "file": "collectible_20.png",
+    "thumb": "thumbs/collectible_20.webp"
+  },
+  {
+    "file": "collectible_21.png",
+    "thumb": "thumbs/collectible_21.webp"
+  },
+  {
+    "file": "collectible_22.png",
+    "thumb": "thumbs/collectible_22.webp"
+  },
+  {
+    "file": "collectible_23.png",
+    "thumb": "thumbs/collectible_23.webp"
+  },
+  {
+    "file": "collectible_24.png",
+    "thumb": "thumbs/collectible_24.webp"
+  },
+  {
+    "file": "collectible_25.png",
+    "thumb": "thumbs/collectible_25.webp"
+  },
+  {
+    "file": "collectible_26.png",
+    "thumb": "thumbs/collectible_26.webp"
+  },
+  {
+    "file": "collectible_27.png",
+    "thumb": "thumbs/collectible_27.webp"
+  },
+  {
+    "file": "collectible_28.png",
+    "thumb": "thumbs/collectible_28.webp"
+  },
+  {
+    "file": "collectible_29.png",
+    "thumb": "thumbs/collectible_29.webp"
+  },
+  {
+    "file": "collectible_30.png",
+    "thumb": "thumbs/collectible_30.webp"
+  },
+  {
+    "file": "collectible_31.png",
+    "thumb": "thumbs/collectible_31.webp"
+  },
+  {
+    "file": "collectible_32.png",
+    "thumb": "thumbs/collectible_32.webp"
+  },
+  {
+    "file": "collectible_33.png",
+    "thumb": "thumbs/collectible_33.webp"
+  },
+  {
+    "file": "collectible_34.png",
+    "thumb": "thumbs/collectible_34.webp"
+  },
+  {
+    "file": "collectible_35.png",
+    "thumb": "thumbs/collectible_35.webp"
+  },
+  {
+    "file": "collectible_36.png",
+    "thumb": "thumbs/collectible_36.webp"
+  },
+  {
+    "file": "collectible_38.png",
+    "thumb": "thumbs/collectible_38.webp"
+  },
+  {
+    "file": "collectible_39.png",
+    "thumb": "thumbs/collectible_39.webp"
+  },
+  {
+    "file": "collectible_40.png",
+    "thumb": "thumbs/collectible_40.webp"
+  },
+  {
+    "file": "collectible_41.png",
+    "thumb": "thumbs/collectible_41.webp"
+  },
+  {
+    "file": "collectible_42.png",
+    "thumb": "thumbs/collectible_42.webp"
+  },
+  {
+    "file": "collectible_43.png",
+    "thumb": "thumbs/collectible_43.webp"
+  },
+  {
+    "file": "collectible_44.png",
+    "thumb": "thumbs/collectible_44.webp"
+  },
+  {
+    "file": "collectible_45.png",
+    "thumb": "thumbs/collectible_45.webp"
+  },
+  {
+    "file": "collectible_46.png",
+    "thumb": "thumbs/collectible_46.webp"
+  },
+  {
+    "file": "collectible_47.png",
+    "thumb": "thumbs/collectible_47.webp"
+  },
+  {
+    "file": "collectible_48.png",
+    "thumb": "thumbs/collectible_48.webp"
+  },
+  {
+    "file": "collectible_49.png",
+    "thumb": "thumbs/collectible_49.webp"
+  },
+  {
+    "file": "collectible_51.png",
+    "thumb": "thumbs/collectible_51.webp"
+  },
+  {
+    "file": "collectible_52.png",
+    "thumb": "thumbs/collectible_52.webp"
+  },
+  {
+    "file": "collectible_53.png",
+    "thumb": "thumbs/collectible_53.webp"
+  },
+  {
+    "file": "collectible_54.png",
+    "thumb": "thumbs/collectible_54.webp"
+  },
+  {
+    "file": "collectible_55.png",
+    "thumb": "thumbs/collectible_55.webp"
+  },
+  {
+    "file": "collectible_56.png",
+    "thumb": "thumbs/collectible_56.webp"
+  },
+  {
+    "file": "collectible_58.png",
+    "thumb": "thumbs/collectible_58.webp"
+  },
+  {
+    "file": "collectible_59.png",
+    "thumb": "thumbs/collectible_59.webp"
+  },
+  {
+    "file": "collectible_60.png",
+    "thumb": "thumbs/collectible_60.webp"
+  },
+  {
+    "file": "collectible_61.png",
+    "thumb": "thumbs/collectible_61.webp"
+  },
+  {
+    "file": "collectible_62.png",
+    "thumb": "thumbs/collectible_62.webp"
+  },
+  {
+    "file": "frost.svg",
+    "thumb": "thumbs/frost.webp"
+  },
+  {
+    "file": "horns.svg",
+    "thumb": "thumbs/horns.webp"
+  },
+  {
+    "file": "neon.svg",
+    "thumb": "thumbs/neon.webp"
+  }
+]

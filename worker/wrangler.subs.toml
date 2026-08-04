@@ -1,0 +1,24 @@
+name = "luffytv-subs"
+main = "luffytv-subs.js"
+compatibility_date = "2024-09-01"
+workers_dev = true
+
+# Dedicated subtitle proxy for LuffyTV.
+# Handles ONLY subtitle files (.vtt, .srt, .ass) — no video streams.
+# What it does:
+#   1. Injects correct Referer/Origin/User-Agent per CDN host
+#   2. Converts SRT → WebVTT on-the-fly (browsers only render VTT)
+#   3. Converts ASS → WebVTT (basic — strips styling, extracts Dialogue)
+#   4. Passes VTT through with correct content-type
+#   5. Caches at edge for 24h (subtitles don't change)
+#
+# Deploy:
+#   cd worker && npx wrangler deploy --config wrangler.subs.toml
+#
+# Or via Cloudflare dashboard:
+#   1. Workers & Pages → Create → Worker
+#   2. Name it: luffytv-subs
+#   3. Paste luffytv-subs.js → Save & Deploy
+#
+# Then set in Vercel:
+#   NEXT_PUBLIC_SUBS_PROXY_BASE=https://luffytv-subs.<your-account>.workers.dev

@@ -1,0 +1,67 @@
+# ─── SEO Bots: Allow pages, block API routes ───
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /embed
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /embed
+
+User-agent: Twitterbot
+Allow: /
+Disallow: /api/
+
+User-agent: facebookexternalhit
+Allow: /
+Disallow: /api/
+
+# ─── All other bots: Restricted ───
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /embed
+Disallow: /anime/watch
+Disallow: /anime/servers
+Disallow: /manga/read
+Disallow: /novel/read
+Disallow: /*/watch$
+Disallow: /*/read$
+
+# ─── Known scrapers: Fully blocked ───
+User-agent: Scrapy
+Disallow: /
+
+User-agent: python-requests
+Disallow: /
+
+User-agent: httpx
+Disallow: /
+
+User-agent: curl
+Disallow: /
+
+User-agent: wget
+Disallow: /
+
+User-agent: Axios
+Disallow: /
+
+User-agent: node-fetch
+Disallow: /
+
+User-agent: Puppeteer
+Disallow: /
+
+User-agent: HeadlessChrome
+Disallow: /
+
+User-agent: PhantomJS
+Disallow: /
+
+User-agent: Selenium
+Disallow: /

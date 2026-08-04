@@ -1,10 +1,7 @@
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata } from "next";
+import { Geist, Geist_Mono, Space_Mono, Inter, Space_Grotesk, Outfit, Karla } from "next/font/google";
+import AntiScrapeClient from "@/components/anti-scrape-client";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { SITE_CONFIG } from "@/lib/seo/config";
-import { getRootSchema } from "@/lib/seo/schemas";
-import { JsonLd } from "@/components/seo/json-ld";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,122 +13,112 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0F0F0F" },
-  ],
-};
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
 
-// ─── ROOT METADATA — applied to EVERY page ─────────────────────
-// This is the MOST CRITICAL SEO element for your site.
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+// Karla — Shiroko's hero font (used for title, badges, genre tags)
+const karla = Karla({
+  variable: "--font-karla",
+  subsets: ["latin"],
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
+});
+
+const SITE_URL = "https://luffytv.app";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_CONFIG.primaryDomain),
-
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
-    template: `%s | ${SITE_CONFIG.name}`,
+    default: "Luffy TV — Watch Anime, Movies & TV Shows Free in HD",
+    template: "%s | Luffy TV",
   },
-
-  description: SITE_CONFIG.description,
-  keywords: SITE_CONFIG.keywords,
-
-  authors: [{ name: SITE_CONFIG.name, url: SITE_CONFIG.primaryDomain }],
-  creator: SITE_CONFIG.name,
-  publisher: SITE_CONFIG.name,
-
-  // Allow full indexing
+  description:
+    "Stream anime, movies, TV shows, manga & light novels free in HD. Subbed & dubbed anime, trending movies and popular series — all in one place, no signup required.",
+  applicationName: "Luffy TV",
+  keywords: [
+    "anime", "watch anime online", "free anime streaming", "movies",
+    "TV shows", "manga", "light novels", "HD anime", "trending anime",
+    "Luffy TV", "streaming", "subbed", "dubbed", "watch movies free",
+    "watch TV shows online", "anime online free",
+  ],
+  authors: [{ name: "Luffy TV" }],
+  creator: "Luffy TV",
+  publisher: "Luffy TV",
+  alternates: { canonical: SITE_URL },
   robots: {
     index: true,
     follow: true,
-    "max-image-preview": "large",
-    "max-snippet": -1,
-    "max-video-preview": -1,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
-    },
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
   },
-
-  // Canonical — ALWAYS luffytv.live
-  alternates: {
-    canonical: SITE_CONFIG.primaryDomain,
-    languages: {
-      "x-default": SITE_CONFIG.primaryDomain,
-      "en": SITE_CONFIG.primaryDomain,
-      "ta": `${SITE_CONFIG.primaryDomain}/tamil-dub`,
-      "hi": `${SITE_CONFIG.primaryDomain}/hindi-dub`,
-      "te": `${SITE_CONFIG.primaryDomain}/telugu-dub`,
-      "bn": `${SITE_CONFIG.primaryDomain}/bengali-dub`,
-    },
-  },
-
-  // Open Graph
   openGraph: {
-    title: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
-    description: SITE_CONFIG.description,
-    url: SITE_CONFIG.primaryDomain,
-    siteName: SITE_CONFIG.name,
-    locale: SITE_CONFIG.locale,
     type: "website",
-    images: [
-      {
-        url: SITE_CONFIG.ogImage,
-        width: SITE_CONFIG.ogImageWidth,
-        height: SITE_CONFIG.ogImageHeight,
-        alt: `${SITE_CONFIG.name} — Watch Anime Online Free in Tamil, Hindi & English`,
-        type: "image/png",
-      },
-    ],
+    siteName: "Luffy TV",
+    title: "Luffy TV — Watch Anime, Movies & TV Shows Free in HD",
+    description:
+      "Stream anime, movies, TV shows, manga & light novels free in HD. Subbed & dubbed — all in one place.",
+    url: SITE_URL,
+    locale: "en_US",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Luffy TV" }],
   },
-
-  // Twitter Card
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_CONFIG.name} — Watch Anime Online Free`,
-    description: SITE_CONFIG.description,
-    images: [SITE_CONFIG.ogImage],
-    creator: "@TheLuffyTV",
-    site: "@TheLuffyTV",
+    site: "@luffytv",
+    title: "Luffy TV — Watch Anime, Movies & TV Shows Free in HD",
+    description: "Stream anime, movies, TV shows, manga & novels free in HD.",
+    images: ["/og.png"],
   },
-
-  // Icons
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
-  },
-
-  applicationName: SITE_CONFIG.name,
-  appleWebApp: {
-    capable: true,
-    title: SITE_CONFIG.name,
-    statusBarStyle: "black-translucent",
-  },
-
   category: "entertainment",
-
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
   },
+};
 
-  // Search console verification
-  other: {
-    "google-site-verification": SITE_CONFIG.verification.google,
-    "msvalidate.01": SITE_CONFIG.verification.bing,
-  },
+// Structured data — Organization + WebSite with a sitelinks SearchAction.
+// The SearchAction is what makes Google render a search box under the site's
+// result ("sitelinks search box"), a strong signal for branded queries.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#org`,
+      name: "Luffy TV",
+      url: SITE_URL,
+      logo: `${SITE_URL}/logo.svg`,
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "Luffy TV",
+      publisher: { "@id": `${SITE_URL}/#org` },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/#search/{search_term_string}` },
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -140,35 +127,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
-        {/* 
-          ROOT JSON-LD Schema — Organization + WebSite + SearchAction
-          This tells Google: "LuffyTV is an anime streaming site,
-          not a Twitch channel or crypto token"
-        */}
-        <JsonLd data={getRootSchema()} />
-
-        {/* Preconnect for faster loading */}
-        <link rel="preconnect" href="https://cdn.example.com" />
-        <link rel="dns-prefetch" href="https://cdn.example.com" />
-
-        {/*
-          GOOGLE & BING VERIFICATION
-          Replace these with your actual codes from:
-          - Google: https://search.google.com/search-console → Add property → HTML tag
-          - Bing: https://www.bing.com/webmasters → Add site → HTML tag
-          
-          Once verified, submit your sitemap:
-          - Google: https://search.google.com/search-console → Sitemaps → https://luffytv.live/sitemap.xml
-          - Bing: https://www.bing.com/webmasters → Sitemaps → https://luffytv.live/sitemap.xml
-        */}
+        <meta name="referrer" content="no-referrer" />
+        <link rel="canonical" href={SITE_URL} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        suppressHydrationWarning
+        className={`${geistSans.variable} ${geistMono.variable} ${spaceMono.variable} ${inter.variable} ${spaceGrotesk.variable} ${outfit.variable} ${karla.variable} antialiased bg-[#000000] text-[#fafafa] selection:bg-[#E63946]/30 selection:text-white`}
       >
+        <AntiScrapeClient />
         {children}
-        <Toaster />
       </body>
     </html>
   );

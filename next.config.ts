@@ -1,133 +1,132 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
 
-  // ─── SEO Headers ──────────────────────────────────────────────
-  // Security headers + SEO-friendly caching
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+    ],
+  },
+
   async headers() {
     return [
       {
         source: "/(.*)",
         headers: [
-          // HSTS — force HTTPS (critical for SEO: no http→https dilution)
+          // ─── Tightened Content Security Policy ───
           {
-            key: "Strict-Transport-Security",
-            value: "max-age=31536000; includeSubDomains; preload",
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "img-src * blob: data: https:",
+              "frame-src * blob: data:",
+              "frame-ancestors 'self'",  // was ALLOWALL — now only same-origin embeds
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com",
+              "style-src 'self' 'unsafe-inline'",
+              "connect-src 'self' https: wss: https://luffytv-proxy.ggy892767.workers.dev https://luffytv-subtitle.ggy892767.workers.dev",
+              "media-src * blob: data: https: http:",
+              "font-src 'self' https://fonts.gstatic.com",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+            ].join("; "),
           },
-          // X-Content-Type-Options — security
+          // ─── Anti-Clickjacking ───
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",  // was ALLOWALL
+          },
+          // ─── Prevent MIME type sniffing ───
           {
             key: "X-Content-Type-Options",
             value: "nosniff",
           },
-          // X-Frame-Options — prevent clickjacking
+          // ─── Force HTTPS ───
           {
-            key: "X-Frame-Options",
-            value: "DENY",
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
           },
-          // Referrer-Policy — control referrer data
+          // ─── Referrer Policy ───
           {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
-          // Permissions-Policy — limit browser features
+          // ─── Permissions Policy — lock down browser APIs ───
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            value: [
+              "camera=()",
+              "microphone=()",
+              "geolocation=()",
+              "payment=()",
+              "usb=()",
+              "magnetometer=()",
+              "gyroscope=()",
+              "accelerometer=()",
+              "ambient-light-sensor=()",
+              "battery=()",
+              "display-capture=()",
+              "document-domain=()",
+              "encrypted-media=()",
+              "fullscreen=(self)",
+              "hid=()",
+              "idle-detection=()",
+              "local-fonts=()",
+              "midi=()",
+              "otp-credentials=()",
+              "publickey-credentials-get=()",
+              "serial=()",
+              "speaker-selection=()",
+              "sync-xhr=()",
+              "unload=()",
+              "window-management=()",
+            ].join(", "),
+          },
+          // ─── XSS Protection (legacy but still useful) ───
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
+          },
+          // ─── Cross-Origin policies ───
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+          {
+            key: "Cross-Origin-Resource-Policy",
+            value: "cross-origin",
+          },
+          // ─── Cache control for API routes ───
+          {
+            key: "X-Powered-By",
+            value: "",  // Hide Next.js version
           },
         ],
       },
-      // Cache static assets aggressively
+      // ─── Stricter cache control for API routes ───
       {
-        source: "/(.*)\\.(ico|png|jpg|jpeg|gif|svg|woff2|woff|ttf|css|js)",
+        source: "/api/:path*",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate",
           },
-        ],
-      },
-      // Cache sitemap & robots for 1 hour
-      {
-        source: "/(sitemap.xml|robots.txt)",
-        headers: [
           {
-            key: "Cache-Control",
-            value: "public, max-age=3600, s-maxage=3600",
+            key: "Pragma",
+            value: "no-cache",
+          },
+          {
+            key: "Expires",
+            value: "0",
           },
         ],
       },
     ];
-  },
-
-  // ─── Redirects ────────────────────────────────────────────────
-  // Ensure clean URLs and trailing slash consistency
-  async redirects() {
-    return [
-      // Redirect old/common paths to canonical locations
-      {
-        source: "/home",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/popular",
-        destination: "/trending",
-        permanent: true,
-      },
-      {
-        source: "/new",
-        destination: "/trending",
-        permanent: true,
-      },
-      {
-        source: "/anime-list",
-        destination: "/library",
-        permanent: true,
-      },
-      {
-        source: "/browse",
-        destination: "/library",
-        permanent: true,
-      },
-      // Ensure trailing slash consistency (remove trailing slashes)
-      {
-        source: "/:path*/",
-        destination: "/:path",
-        permanent: true,
-        has: [
-          {
-            type: "host",
-            value: "luffytv.live",
-          },
-        ],
-      },
-    ];
-  },
-
-  // ─── Rewrites ────────────────────────────────────────────────
-  // Clean URLs for watch pages
-  async rewrites() {
-    return [];
-  },
-
-  // ─── Image Optimization ──────────────────────────────────────
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "cdn.example.com",
-      },
-      {
-        protocol: "https",
-        hostname: "img.luffytv.live",
-      },
-    ],
-    formats: ["image/avif", "image/webp"],
   },
 };
 

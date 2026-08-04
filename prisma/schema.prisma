@@ -1,32 +1,189 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
+model Bookmark {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  animeId   String
+  animeName String
+  thumbnail String?
+  score     Float?
+  type      String?
+  status    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([animeId])
 }
 
-model Post {
+model WatchHistory {
+  id           String   @id @default(cuid())
+  animeId      String
+  animeName    String
+  thumbnail    String?
+  episodeNum   Float
+  episodeTitle String?
+  progress     Float    @default(0)
+  duration     Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([animeId, episodeNum])
+}
+
+model Comment {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  animeId   String
+  episode   Float?
+  username  String
+  content   String
+  parentId  String?
+  rating    Int?
+  likes     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  userLikes CommentLike[]
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  username  String
+  createdAt DateTime @default(now())
+
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, username])
+}
+
+// ── Manga view tracking (our own view counter, layered on atsu.moe's base) ──
+// Each manga has ONE row. Views increment every time a user opens the detail page.
+// The displayed view count = atsu.moe's base views + our own views.
+model MangaView {
+  id        String   @id @default(cuid())
+  mangaId   String   @unique          // e.g. "at:3xHoW" (prefixed like the rest of the app)
+  views     Int      @default(0)      // our own view count (starts at 0)
+  updatedAt DateTime @updatedAt
+
+  ratings   MangaRating[]
+}
+
+// ── Manga ratings (our own user ratings, layered on atsu.moe's base) ──
+// Each user can rate each manga once (upsert on [mangaId, username]).
+// The displayed rating = weighted combination of atsu.moe's base rating
+// and our users' ratings.
+model MangaRating {
+  id        String   @id @default(cuid())
+  mangaId   String                     // e.g. "at:3xHoW"
+  username  String                     // user identifier (from auth-local or session)
+  rating    Float                       // 0.0 – 10.0
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  manga     MangaView @relation(fields: [mangaId], references: [mangaId], onDelete: Cascade)
+
+  @@unique([mangaId, username])
+}
+
+// ── Manga follows (user bookmarks/follows a manga to track reading) ──
+// Follow = user is reading it. View = user just visited the detail page.
+model MangaFollow {
+  id        String   @id @default(cuid())
+  mangaId   String
+  username  String
+  createdAt DateTime @default(now())
+
+  @@unique([mangaId, username])
+}
+
+// ── Per-chapter comments (individual chapter, not whole manga) ──
+// Users can comment while reading — comments are tied to a specific chapter.
+model MangaChapterComment {
+  id        String   @id @default(cuid())
+  mangaId   String
+  chapterId String                     // chapter identifier (atsu ID, mangaball translation ID, etc.)
+  chapterNum Float                     // chapter number for display
+  username  String
+  text      String                     // comment text (max 1000 chars)
+  likes     Int      @default(0)       // like count (denormalized for fast sorting)
+  createdAt DateTime @default(now())
+
+  likers    MangaChapterCommentLike[]
+
+  @@index([mangaId, chapterId])
+  @@index([mangaId, chapterId, likes(sort: Desc)])
+  @@index([mangaId, chapterId, createdAt(sort: Desc)])
+}
+
+model MangaChapterCommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  username  String
+  createdAt DateTime @default(now())
+
+  comment   MangaChapterComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, username])
+}
+
+// ── Vibe reviews (4-option quick review: drop/bold/great/recommended) ──
+// Each user can give ONE vibe per manga. "VibeBar" shows the aggregate.
+model MangaVibeReview {
+  id        String   @id @default(cuid())
+  mangaId   String
+  username  String
+  vibe      String   // "drop" | "bold" | "great" | "recommended"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([mangaId, username])
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KV (Key-Value) store — PostgreSQL-backed replacement for Upstash Redis/Vercel KV
+// Powers the admin panel, moderation system, analytics, and announcements.
+// These models emulate Redis data structures (strings, hashes, sorted sets, HLL)
+// so all existing pipe() calls work transparently with PostgreSQL.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Simple key-value strings (emulates Redis GET/SET/INCR) ──
+model KvStore {
+  key   String @id
+  value String
+}
+
+// ── Hash fields (emulates Redis HSET/HGET/HDEL/HGETALL/HINCRBY) ──
+model KvHash {
+  hash  String
+  field String
+  value String
+  @@id([hash, field])
+  @@index([hash])
+}
+
+// ── Sorted sets (emulates Redis ZADD/ZREMRANGEBYSCORE/ZCARD) ──
+// Used for online-user tracking with score = timestamp.
+model KvSortedSet {
+  key    String
+  member String
+  score  Float
+  @@id([key, member])
+  @@index([key])
+  @@index([key, score])
+}
+
+// ── HyperLogLog approximation (emulates Redis PFADD/PFCOUNT) ──
+// Simplified: stores unique members in a set and counts them exactly.
+// For the scale of this app (thousands of visitors), exact count is fine.
+model KvHll {
+  key    String
+  member String
+  @@id([key, member])
+  @@index([key])
 }

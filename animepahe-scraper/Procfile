@@ -1,0 +1,8 @@
+# AnimePahe Scraper — Cloudflare bypass using cloudscraper
+# Deploy on Render: https://render.com → New → Web Service → connect this folder
+#
+# Build Command: pip install -r requirements.txt
+# Start Command: gunicorn app:app --host 0.0.0.0 --port $PORT
+#
+# After deploying, set ANIMEPAHE_SCRAPER_URL env var on Vercel to your Render URL
+web: gunicorn app:app --host 0.0.0.0 --port ${PORT:-10000}

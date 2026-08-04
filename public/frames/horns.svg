@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <defs>
+    <radialGradient id="flameCore" cx="50%" cy="100%" r="90%">
+      <stop offset="0%" stop-color="#fff3c4"/>
+      <stop offset="30%" stop-color="#ffb545"/>
+      <stop offset="65%" stop-color="#ff6a00"/>
+      <stop offset="100%" stop-color="#a81f00"/>
+    </radialGradient>
+    <!-- single combined filter: turbulence-driven flame flicker + soft glow -->
+    <filter id="flameFx" x="-70%" y="-70%" width="240%" height="240%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.014 0.06" numOctaves="2" seed="7" result="n">
+        <animate attributeName="baseFrequency" values="0.014 0.05;0.018 0.07;0.014 0.05" dur="6s" repeatCount="indefinite"/>
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="12" xChannelSelector="R" yChannelSelector="G" result="disp"/>
+      <feGaussianBlur in="disp" stdDeviation="4" result="soft"/>
+      <feMerge><feMergeNode in="soft"/><feMergeNode in="disp"/></feMerge>
+    </filter>
+    <style>
+      .flick { animation: flick 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom center; }
+      .flick2 { animation: flick 2.8s ease-in-out infinite .4s; transform-box: fill-box; transform-origin: bottom center; }
+      @keyframes flick {
+        0%, 100% { opacity: .88; transform: scale(1) translateY(0); }
+        50% { opacity: 1; transform: scale(1.045) translateY(-2px); }
+      }
+      @media (prefers-reduced-motion: reduce) { .flick, .flick2 { animation: none; } }
+    </style>
+  </defs>
+
+  <!-- left flame wing -->
+  <path class="flick" filter="url(#flameFx)" fill="url(#flameCore)"
+    d="M92 158 C70 150 46 128 40 96 C36 76 42 54 58 34 C56 54 66 70 82 78
+       C78 60 82 42 96 26 C92 48 100 66 116 76 C120 92 118 112 106 132
+       C112 118 110 102 100 90 C104 108 100 126 92 158 Z"/>
+
+  <!-- right flame wing (mirrored copy, drawn directly — no transform-on-filtered-group) -->
+  <path class="flick2" filter="url(#flameFx)" fill="url(#flameCore)"
+    d="M208 158 C230 150 254 128 260 96 C264 76 258 54 242 34 C244 54 234 70 218 78
+       C222 60 218 42 204 26 C208 48 200 66 184 76 C180 92 182 112 194 132
+       C188 118 190 102 200 90 C196 108 200 126 208 158 Z"/>
+
+  <!-- base ember ring -->
+  <circle cx="150" cy="150" r="106" fill="none" stroke="#ff8a3d" stroke-width="2.5" opacity=".5"/>
+</svg>
