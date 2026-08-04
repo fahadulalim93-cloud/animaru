@@ -3,19 +3,10 @@
  * 
  * ⚠️ CRITICAL SEO DECISIONS:
  * 
- * PRIMARY DOMAIN: luffytv.to
+ * SOLE DOMAIN: luffytv.live
  *   - ALL canonical URLs MUST point here
- *   - This is the domain we want Google to index
- * 
- * SECONDARY DOMAINS (301 redirect to .to):
- *   - luffytv.live → 301 → luffytv.to
- *   - luffytv.app → 301 → luffytv.to
- *   - www.luffytv.to → 301 → luffytv.to
- * 
- * WHY: Google was indexing luffytv.live separately with NO title/description.
- *      This is a duplicate content penalty. By setting canonical to luffytv.to
- *      and 301-redirecting all other domains, we consolidate ALL link equity
- *      to ONE domain.
+ *   - This is the ONLY domain we want Google to index
+ *   - www.luffytv.live → 301 → luffytv.live (canonical normalization)
  * 
  * TAMIL/INDIAN LANGUAGE SEO:
  *   - We have Tamil, Hindi, Telugu, Bengali dub content
@@ -25,16 +16,12 @@
 
 export const SITE_CONFIG = {
   // ─── PRIMARY DOMAIN (authoritative) ───────────────────────
-  primaryDomain: "https://luffytv.to",
+  primaryDomain: "https://luffytv.live",
   
   // ─── ALL DOMAINS (for redirect/canonical) ─────────────────
   allDomains: [
-    "luffytv.to",
     "luffytv.live",
-    "luffytv.app",
-    "www.luffytv.to",
     "www.luffytv.live",
-    "www.luffytv.app",
   ],
 
   // ─── Brand ────────────────────────────────────────────────
@@ -48,20 +35,42 @@ export const SITE_CONFIG = {
 
   // ─── Keywords (targeting Indian anime audience) ───────────
   keywords: [
-    // Primary
+    // Primary brand
     "watch anime online free",
     "free anime streaming",
     "anime online free",
     "LuffyTV",
-    "luffytv.to",
-    // Indian language dubs — HIGH PRIORITY
+    "luffytv.live",
+    // Tamil dub — HIGHEST PRIORITY (main ranking goal)
     "anime in tamil",
     "tamil dubbed anime",
     "anime tamil dub",
+    "tamil dub anime",
+    "anime in tamil dubbed",
+    "watch tamil dubbed anime",
+    "tamil dubbed anime online",
+    "anime tamil dub free",
+    "tamil anime watch online",
+    "tamil anime streaming",
+    "anime tamil voice",
+    "tamil dub anime watch",
+    "one piece tamil dub",
+    "naruto tamil dub",
+    "dragon ball tamil dub",
+    "demon slayer tamil dub",
+    "attack on titan tamil dub",
+    "jujutsu kaisen tamil dub",
+    "அனிமே தமிழ்",
+    "தமிழ் டப் அனிமே",
+    "அனிமே பார்க்க",
+    // Hindi dub
     "hindi dubbed anime",
     "anime hindi dub",
+    "hindi dub anime online",
+    // Telugu dub
     "telugu dubbed anime",
     "anime telugu dub",
+    // Bengali dub
     "bengali dubbed anime",
     "anime bengali dub",
     // General anime
@@ -95,30 +104,30 @@ export const SITE_CONFIG = {
 
   // ─── hreflang languages ──────────────────────────────────
   languages: {
-    default: { code: "x-default", url: "https://luffytv.to" },
-    english: { code: "en", url: "https://luffytv.to" },
-    tamil: { code: "ta", url: "https://luffytv.to/tamil-dub" },
-    hindi: { code: "hi", url: "https://luffytv.to/hindi-dub" },
-    telugu: { code: "te", url: "https://luffytv.to/telugu-dub" },
-    bengali: { code: "bn", url: "https://luffytv.to/bengali-dub" },
+    default: { code: "x-default", url: "https://luffytv.live" },
+    english: { code: "en", url: "https://luffytv.live" },
+    tamil: { code: "ta", url: "https://luffytv.live/tamil-dub" },
+    hindi: { code: "hi", url: "https://luffytv.live/hindi-dub" },
+    telugu: { code: "te", url: "https://luffytv.live/telugu-dub" },
+    bengali: { code: "bn", url: "https://luffytv.live/bengali-dub" },
   },
 
   // ─── Contact ─────────────────────────────────────────────
-  email: "contact@luffytv.to",
+  email: "contact@luffytv.live",
 
   // ─── Logo & Images ───────────────────────────────────────
-  logo: "https://luffytv.to/logo.png",
+  logo: "https://luffytv.live/logo.png",
   logoWidth: 512,
   logoHeight: 512,
-  icon: "https://luffytv.to/favicon.ico",
-  appleTouchIcon: "https://luffytv.to/apple-touch-icon.png",
-  ogImage: "https://luffytv.to/og-image.png",
+  icon: "https://luffytv.live/favicon.ico",
+  appleTouchIcon: "https://luffytv.live/apple-touch-icon.png",
+  ogImage: "https://luffytv.live/og-image.png",
   ogImageWidth: 1200,
   ogImageHeight: 630,
 
   // ─── Search ──────────────────────────────────────────────
   searchAction: {
-    target: "https://luffytv.to/trending?q={search_term_string}",
+    target: "https://luffytv.live/trending?q={search_term_string}",
     queryInput: "search_term_string",
   },
 
@@ -141,7 +150,7 @@ export const SITE_CONFIG = {
 } as const;
 
 /**
- * Helper: Build canonical URL (ALWAYS luffytv.to)
+ * Helper: Build canonical URL (ALWAYS luffytv.live)
  */
 export function canonicalUrl(path: string = "/"): string {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;

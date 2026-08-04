@@ -65,8 +65,7 @@ const nextConfig: NextConfig = {
   },
 
   // ─── Redirects ────────────────────────────────────────────────
-  // luffytv.live paths → luffytv.to equivalents (301 permanent)
-  // These ensure no duplicate content between domains
+  // Ensure clean URLs and trailing slash consistency
   async redirects() {
     return [
       // Redirect old/common paths to canonical locations
@@ -103,7 +102,7 @@ const nextConfig: NextConfig = {
         has: [
           {
             type: "host",
-            value: "luffytv.to",
+            value: "luffytv.live",
           },
         ],
       },
@@ -125,7 +124,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "img.luffytv.to",
+        hostname: "img.luffytv.live",
       },
     ],
     formats: ["image/avif", "image/webp"],

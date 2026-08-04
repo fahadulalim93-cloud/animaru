@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     },
   },
 
-  // Canonical — ALWAYS luffytv.to, never .live or .app
+  // Canonical — ALWAYS luffytv.live
   alternates: {
     canonical: SITE_CONFIG.primaryDomain,
     languages: {
@@ -160,8 +160,8 @@ export default function RootLayout({
           - Bing: https://www.bing.com/webmasters → Add site → HTML tag
           
           Once verified, submit your sitemap:
-          - Google: https://search.google.com/search-console → Sitemaps → https://luffytv.to/sitemap.xml
-          - Bing: https://www.bing.com/webmasters → Sitemaps → https://luffytv.to/sitemap.xml
+          - Google: https://search.google.com/search-console → Sitemaps → https://luffytv.live/sitemap.xml
+          - Bing: https://www.bing.com/webmasters → Sitemaps → https://luffytv.live/sitemap.xml
         */}
       </head>
       <body

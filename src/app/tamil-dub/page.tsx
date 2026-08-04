@@ -17,7 +17,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buildPageMetadata, SITE_CONFIG } from "@/lib/seo/config";
-import { getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/lib/seo/schemas";
+import { getWebPageSchema, getBreadcrumbSchema, getItemListSchema, getFAQSchema } from "@/lib/seo/schemas";
 import { TRENDING_ANIME } from "@/lib/seo/anime-data";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SeoBreadcrumbs } from "@/components/seo/seo-breadcrumbs";
@@ -66,9 +66,32 @@ export default function TamilDubPage() {
     }))
   );
 
+  const faqSchema = getFAQSchema([
+    {
+      question: "Where can I watch anime in Tamil dub for free?",
+      answer: "You can watch Tamil dubbed anime for free on LuffyTV (luffytv.live). LuffyTV offers 1,000+ anime episodes dubbed in Tamil with HD quality, no signup, and no ads.",
+    },
+    {
+      question: "Which anime are available in Tamil dub on LuffyTV?",
+      answer: "LuffyTV has Tamil dubs for popular anime including Jujutsu Kaisen, Demon Slayer (Kimetsu no Yaiba), One Piece, Solo Leveling, Attack on Titan, Dragon Ball Super, Naruto Shippuden, Chainsaw Man, My Hero Academia, and many more.",
+    },
+    {
+      question: "Is LuffyTV free for watching Tamil dubbed anime?",
+      answer: "Yes, LuffyTV is completely free. No signup, no ads, and no payment required. Just visit luffytv.live/tamil-dub and start watching Tamil dubbed anime instantly.",
+    },
+    {
+      question: "How do I switch between Tamil dub and English sub?",
+      answer: "On any episode page, use the audio/subtitle toggle to switch between Tamil dub and English sub. LuffyTV supports multiple audio tracks and subtitle languages.",
+    },
+    {
+      question: "Are new Tamil dub episodes added regularly?",
+      answer: "Yes, LuffyTV adds new Tamil dubbed episodes daily. Check the schedule page to see when new episodes are airing, or visit the Tamil dub page for the latest additions.",
+    },
+  ]);
+
   return (
     <>
-      <JsonLd data={[webPageSchema, breadcrumbSchema, itemListSchema]} />
+      <JsonLd data={[webPageSchema, breadcrumbSchema, itemListSchema, faqSchema]} />
       <SeoBreadcrumbs items={[{ name: "Tamil Dub", path: "/tamil-dub" }]} />
 
       <div className="min-h-screen flex flex-col">
@@ -159,20 +182,46 @@ export default function TamilDubPage() {
 
           <Separator className="my-10" />
 
-          {/* SEO content — keyword rich, crawlable */}
-          <section className="max-w-3xl" aria-labelledby="tamil-seo-heading">
-            <h2 id="tamil-seo-heading" className="text-xl font-bold mb-4">
-              Tamil Dubbed Anime on LuffyTV
+          {/* FAQ Section — targets rich results for "anime in tamil" queries */}
+          <section className="max-w-3xl mt-10" aria-labelledby="tamil-faq-heading">
+            <h2 id="tamil-faq-heading" className="text-xl font-bold mb-4">
+              Frequently Asked Questions — Tamil Dubbed Anime
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-sm">Where can I watch anime in Tamil dub for free?</h3>
+                <p className="text-muted-foreground text-sm mt-1">You can watch Tamil dubbed anime for free on LuffyTV (luffytv.live). LuffyTV offers 1,000+ anime episodes dubbed in Tamil with HD quality, no signup, and no ads.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Which anime are available in Tamil dub on LuffyTV?</h3>
+                <p className="text-muted-foreground text-sm mt-1">LuffyTV has Tamil dubs for popular anime including Jujutsu Kaisen, Demon Slayer, One Piece, Solo Leveling, Attack on Titan, Dragon Ball Super, Naruto Shippuden, Chainsaw Man, My Hero Academia, and many more.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Is LuffyTV free for watching Tamil dubbed anime?</h3>
+                <p className="text-muted-foreground text-sm mt-1">Yes, LuffyTV is completely free. No signup, no ads, and no payment required. Just visit luffytv.live/tamil-dub and start watching Tamil dubbed anime instantly.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">How do I switch between Tamil dub and English sub?</h3>
+                <p className="text-muted-foreground text-sm mt-1">On any episode page, use the audio/subtitle toggle to switch between Tamil dub and English sub. LuffyTV supports multiple audio tracks and subtitle languages.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Are new Tamil dub episodes added regularly?</h3>
+                <p className="text-muted-foreground text-sm mt-1">Yes, LuffyTV adds new Tamil dubbed episodes daily. Check the schedule page to see when new episodes are airing.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Tamil-language content block — signals to Google this page is about Tamil */}
+          <section className="max-w-3xl mt-10 border-t border-border/40 pt-8" aria-labelledby="tamil-lang-heading">
+            <h2 id="tamil-lang-heading" className="text-xl font-bold mb-4">
+              தமிழில் அனிமே பார்க்க — Anime in Tamil
             </h2>
             <div className="space-y-4 text-muted-foreground text-sm leading-relaxed">
               <p>
-                Looking for anime in Tamil? LuffyTV is your go-to destination for Tamil dubbed anime online. We offer a massive collection of over 1,000 anime episodes dubbed in Tamil, available to stream for free in HD quality. From action-packed series like Jujutsu Kaisen and Demon Slayer to long-running favorites like One Piece and Naruto, our Tamil dub library has something for every anime fan in Tamil Nadu and beyond.
+                தமிழ் டப்பில் அனிமே பார்க்க விரும்புகிறீர்களா? LuffyTV-ல் 1,000-க்கும் மேற்பட்ட அனிமே எபிசோடுகளை தமிழ் டப்பில் இலவசமாக HD தரத்தில் ஸ்ட்ரீம் செய்யலாம். ஜுஜுத்சு கைசென், டெமன் ஸ்லேயர், ஒன் பீஸ், சோலோ லெவலிங் போன்ற பிரபலமான அனிமேக்கள் அனைத்தும் தமிழில் கிடைக்கின்றன. பதிவு செய்ய வேண்டாம், விளம்பரங்கள் இல்லை, உடனடியாக பார்க்கலாம்.
               </p>
               <p>
-                Watching Tamil dubbed anime on LuffyTV is completely free — no signup required, no ads interrupting your episodes, and instant playback on any device. Whether you are on mobile, tablet, or desktop, our player is optimized for smooth streaming. We add new Tamil dub episodes daily, so you can always find the latest releases right here.
-              </p>
-              <p>
-                LuffyTV supports multiple Indian language dubs including Tamil, Hindi, Telugu, and Bengali — so you can watch anime in your preferred language. Switch between Tamil dub and English sub on any episode with a single click. Start watching your favorite anime in Tamil right now, no account needed.
+                LuffyTV என்பது இந்தியாவின் #1 இலவச அனிமே ஸ்ட்ரீமிங் தளம். தமிழ், ஹிந்தி, தெலுங்கு, வங்காளம் மற்றும் ஆங்கிலம் உட்பட பல மொழிகளில் அனிமே பார்க்கலாம். தினமும் புதிய தமிழ் டப் எபிசோடுகள் சேர்க்கப்படுகின்றன. luffytv.live/tamil-dub பக்கத்திற்கு செல்லுங்கள்.
               </p>
             </div>
           </section>

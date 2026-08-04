@@ -257,7 +257,7 @@ export default async function AnimeDetailPage({
         </main>
 
         <footer className="mt-auto border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} LuffyTV — luffytv.to
+          © {new Date().getFullYear()} LuffyTV — luffytv.live
         </footer>
       </div>
     </>

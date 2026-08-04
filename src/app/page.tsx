@@ -367,7 +367,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="mt-8 pt-4 border-t border-border/40 text-center text-xs text-muted-foreground">
-              © {new Date().getFullYear()} LuffyTV. All rights reserved. luffytv.to
+              © {new Date().getFullYear()} LuffyTV. All rights reserved. luffytv.live
             </div>
           </div>
         </footer>
