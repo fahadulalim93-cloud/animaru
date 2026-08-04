@@ -27,6 +27,24 @@ const stripSeason = (t: string) => t
   .replace(/\s+(season\s*\d+|s\d{1,2}|part\s*\d+|cour\s*\d+)\s*$/i, "")
   .trim();
 
+/** Extract season number from anime title (0 = not found) */
+function extractSeasonFromTitle(title: string): number {
+  if (!title) return 0;
+  let m = title.match(/(\d+)(?:st|nd|rd|th)\s+season/i);
+  if (m) return parseInt(m[1], 10);
+  m = title.match(/season\s+(\d+)/i);
+  if (m) return parseInt(m[1], 10);
+  m = title.match(/\bS(\d+)\b/i);
+  if (m) return parseInt(m[1], 10);
+  m = title.match(/\b(II|III|IV|V(?:I{0,3})?|IX|X{1,3}I{0,3})\b(?!\w)/);
+  if (m) {
+    const romanMap: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10 };
+    const n = romanMap[m[1]];
+    if (n && n > 1) return n;
+  }
+  return 0;
+}
+
 async function getTitleFromAniList(id: number): Promise<string> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 5000);
@@ -80,8 +98,12 @@ export async function GET(
 
     // Get the title — from query param or AniList
     const qTitle = req.nextUrl.searchParams.get("title") || "";
-    const seasonParam = parseInt(req.nextUrl.searchParams.get("season") || "1", 10);
+    // Resolve season: client can pass ?season=N, otherwise extract from title
+    let seasonParam = parseInt(req.nextUrl.searchParams.get("season") || "0", 10);
     const title = qTitle || await getTitleFromAniList(id);
+    if (seasonParam < 1 && title) {
+      seasonParam = extractSeasonFromTitle(title) || 1;
+    }
     if (!title) {
       return NextResponse.json({ anilistId: id, episode: epNum, matchedTitle: "", servers: [], total: 0 });
     }

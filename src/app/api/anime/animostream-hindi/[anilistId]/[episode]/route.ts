@@ -30,6 +30,24 @@ const SPINOFF_KEYWORDS = [
 const normTitle = (t: string) =>
   t.toLowerCase().replace(/[:',.\-!]/g, "").replace(/\s+/g, " ").trim();
 
+/** Extract season number from anime title (0 = not found) */
+function extractSeasonFromTitle(title: string): number {
+  if (!title) return 0;
+  let m = title.match(/(\d+)(?:st|nd|rd|th)\s+season/i);
+  if (m) return parseInt(m[1], 10);
+  m = title.match(/season\s+(\d+)/i);
+  if (m) return parseInt(m[1], 10);
+  m = title.match(/\bS(\d+)\b/i);
+  if (m) return parseInt(m[1], 10);
+  m = title.match(/\b(II|III|IV|V(?:I{0,3})?|IX|X{1,3}I{0,3})\b(?!\w)/);
+  if (m) {
+    const romanMap: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10 };
+    const n = romanMap[m[1]];
+    if (n && n > 1) return n;
+  }
+  return 0;
+}
+
 /** Strip "Season N" / "S2" / "Part 2" / "Final Season" so a sequel query still
  *  finds the single series entry animostream actually stores. */
 const stripSeasonSuffix = (t: string) => t
@@ -107,7 +125,12 @@ export async function GET(
     }
 
     if (best) {
-      const season = req.nextUrl.searchParams.get("season") || "s1";
+      // Resolve season: client can pass ?season=sN, otherwise extract from title
+      const seasonParam = req.nextUrl.searchParams.get("season") || "";
+      const season = seasonParam || (() => {
+        const sn = extractSeasonFromTitle(qTitle) || extractSeasonFromTitle(best.title);
+        return sn > 1 ? `s${sn}` : "s1";
+      })();
       const results = await resolveAnimoStreamStreams(best.postId, epNum, season);
       for (const r of results) {
         servers.push({

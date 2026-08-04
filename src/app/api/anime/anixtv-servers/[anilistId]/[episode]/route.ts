@@ -2,32 +2,196 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Season resolution removed — always use season=1. Each AniList ID already
-// represents the correct season entry on AnixTV, so the season parameter
-// is always 1 within that entry. Walking the prequel chain was computing
-// wrong seasons (e.g. S2 anime got season=2, but AnixTV expects season=1
-// for that ID). This route is now instant — no AniList calls needed.
-export const maxDuration = 10;
+export const maxDuration = 15;
 
 /**
  * GET /api/anime/anixtv-servers/[anilistId]/[episode]
  *
  * AnixTV Hindi dub, standalone.
  *
- * Season resolution: ALWAYS use season=1.
+ * Season resolution: Extract season number from the anime title first
+ * (most reliable — AniList titles include "Season 2", "S2", roman numerals),
+ * then fall back to walking the PREQUEL chain via AniList (skipping Cour/Part
+ * entries which are within the same season).
  *
- * AnixTV indexes each anime season as a separate entry identified by its
- * AniList ID. When the user is watching "Mushoku Tensei Season 2"
- * (AniList ID 146065), AnixTV expects id=146065&season=1 — NOT season=2.
- * The season parameter only matters for long-running shows where all episodes
- * live under a single AniList entry (rare for dubbed content).
+ * This is REQUIRED because AnixTV's `season` parameter selects which season's
+ * episodes to return — it does NOT use the AniList ID for season selection.
  *
- * The previous prequel-walk logic was computing season=2/3/4 for sequels,
- * which caused AnixTV to return the wrong season's episodes (e.g. S2 anime
- * would show S1's 24 episodes instead of S2's episodes).
+ * Example (Mushoku Tensei):
+ *   - AniList S2 ID = 146065, title = "... Season 2"
+ *   - AnixTV: id=146065&season=1 → returns S1E1 (WRONG!)
+ *   - AnixTV: id=146065&season=2 → returns S2E1 (CORRECT!)
+ *
+ * Previous bugs:
+ *   - "always season=1": Always returned S1 episodes for all seasons
+ *   - "naive prequel walk": Counted Cour/Part entries as separate seasons
+ *     (e.g. Cour 2 of S1 counted as S2, pushing actual S2 to S3)
  */
 
 const ANIXTV_BASE = "https://anixtv.in";
+const ANILIST_GQL = "https://graphql.anilist.co";
+
+// ── In-memory season cache (avoids repeated AniList calls) ──
+const seasonCache = new Map<number, { season: number; ts: number }>();
+const SEASON_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+/**
+ * Extract season number from an anime title string.
+ * Returns 0 if the title doesn't contain an explicit season indicator.
+ */
+function extractSeasonFromTitle(title: string): number {
+  if (!title) return 0;
+
+  // '2nd Season', '3rd Season', etc.
+  let m = title.match(/(\d+)(?:st|nd|rd|th)\s+season/i);
+  if (m) return parseInt(m[1], 10);
+
+  // 'Season 2', 'Season 3', etc.
+  m = title.match(/season\s+(\d+)/i);
+  if (m) return parseInt(m[1], 10);
+
+  // 'S2', 'S3', etc. (standalone, not mid-word like 'Slime')
+  m = title.match(/\bS(\d+)\b/i);
+  if (m) return parseInt(m[1], 10);
+
+  // Roman numerals after title: 'Title II', 'Title III', 'Title IV'
+  // Only count if > 1 (I could be part of the title)
+  m = title.match(/\b(II|III|IV|V(?:I{0,3})?|IX|X{1,3}I{0,3})\b(?!\w)/);
+  if (m) {
+    const romanMap: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10 };
+    const n = romanMap[m[1]];
+    if (n && n > 1) return n;
+  }
+
+  return 0; // no explicit season indicator
+}
+
+/**
+ * Resolve the actual season number for an AniList ID.
+ *
+ * Strategy (in order of reliability):
+ *   1. Parse the anime title for "Season N" / "SN" / Roman numerals
+ *   2. Walk PREQUEL chain, skipping Cour/Part entries (same season)
+ *   3. Default to 1 (first season)
+ */
+async function resolveSeasonNumber(anilistId: number): Promise<number> {
+  // Check cache
+  const cached = seasonCache.get(anilistId);
+  if (cached && Date.now() - cached.ts < SEASON_CACHE_TTL) {
+    return cached.season;
+  }
+
+  // Step 1: Get title from AniList
+  let englishTitle = "";
+  let romajiTitle = "";
+  try {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 5000);
+    const res = await fetch(ANILIST_GQL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
+        variables: { id: anilistId },
+      }),
+      signal: ac.signal,
+      cache: "no-store",
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      const json = await res.json();
+      const t = json?.data?.Media?.title;
+      englishTitle = t?.english || "";
+      romajiTitle = t?.romaji || "";
+    }
+  } catch { /* best-effort */ }
+
+  // Step 2: Try title-based extraction (english first, then romaji)
+  let season = extractSeasonFromTitle(englishTitle);
+  if (season === 0) season = extractSeasonFromTitle(romajiTitle);
+
+  if (season > 0) {
+    // Title had explicit season info — cache and return
+    seasonCache.set(anilistId, { season, ts: Date.now() });
+    return season;
+  }
+
+  // Step 3: Title didn't have season info — walk PREQUEL chain
+  // Skip Cour/Part entries (they're the same season, not a new one)
+  season = 1;
+  let currentId = anilistId;
+  const visited = new Set<number>([anilistId]);
+
+  for (let step = 0; step < 10; step++) {
+    // Check cache at this node
+    const stepCached = seasonCache.get(currentId);
+    if (stepCached && Date.now() - stepCached.ts < SEASON_CACHE_TTL) {
+      season = stepCached.season + (season - 1);
+      break;
+    }
+
+    try {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 5000);
+      const res = await fetch(ANILIST_GQL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          query: `query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType}node{id format title{english romaji}}}}}`,
+          variables: { id: currentId },
+        }),
+        signal: ac.signal,
+        cache: "no-store",
+      });
+      clearTimeout(timer);
+
+      if (!res.ok) break;
+      const json = await res.json();
+      const edges = json?.data?.Media?.relations?.edges;
+      if (!Array.isArray(edges)) break;
+
+      // Find PREQUEL that is a TV season (not movie/OVA/special)
+      const prequel = edges.find((e: any) =>
+        e.relationType === "PREQUEL" &&
+        (!e.node?.format || e.node.format === "TV" || e.node.format === "TV_SHORT" || e.node.format === "ONA")
+      );
+
+      if (!prequel || visited.has(prequel.node.id)) break;
+
+      visited.add(prequel.node.id);
+
+      // Check prequel title for season info
+      const prequelEng = prequel.node.title?.english || "";
+      const prequelRom = prequel.node.title?.romaji || "";
+      let prequelSeason = extractSeasonFromTitle(prequelEng);
+      if (prequelSeason === 0) prequelSeason = extractSeasonFromTitle(prequelRom);
+
+      if (prequelSeason > 0) {
+        // Prequel has explicit season number — we're one after it
+        season = prequelSeason + 1;
+        seasonCache.set(currentId, { season, ts: Date.now() });
+        break;
+      }
+
+      // No explicit season in title — check if it's a Cour/Part (same season)
+      const isCourOrPart = /\b(?:cour|part)\s*\d+\b/i.test(prequelEng) ||
+                           /\b(?:cour|part)\s*\d+\b/i.test(prequelRom);
+      if (!isCourOrPart) {
+        // It's a real previous season — increment counter
+        season++;
+      }
+      // Cour/Part = same season, don't increment
+
+      currentId = prequel.node.id;
+    } catch {
+      break;
+    }
+  }
+
+  // Cache the result
+  seasonCache.set(anilistId, { season, ts: Date.now() });
+  return season;
+}
 
 export async function GET(
   req: NextRequest,
@@ -43,8 +207,8 @@ export async function GET(
 
   const title = req.nextUrl.searchParams.get("title") || "";
 
-  // Always season=1 — each AniList ID IS the season entry on AnixTV
-  const season = 1;
+  // Resolve correct season number (title-based + prequel walk fallback)
+  const season = await resolveSeasonNumber(id);
 
   const streamUrl =
     `${ANIXTV_BASE}/anime-watch?action=hindi_1_player&id=${id}` +
@@ -55,7 +219,7 @@ export async function GET(
       anilistId: id,
       episode: epNum,
       season,
-      seasonSource: "always-1",
+      seasonSource: "title+prequel-walk",
       servers: [
         {
           id: `anixtv:hindi_1:s${season}:dub`,

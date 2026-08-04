@@ -1,0 +1,1132 @@
+     1→/**
+     2→ * GET /api/anime/servers/[anilistId]/[episode]
+     3→ *
+     4→ * Returns ONLY servers that have a VERIFIED working stream.
+     5→ * All servers checked IN PARALLEL (4s timeout each).
+     6→ *
+     7→ * Sources:
+     8→ *   - Animex (miku, yuki, beep, mimi, mochi, uwu, etc.) — HLS m3u8
+     9→ *   - AniVault (AnimeHeaven) — MP4 direct
+    10→ *   - AniVexa (animegg, allmanga, anikoto) — HLS m3u8 + MP4
+    11→ *
+    12→ * Each server includes a ready-to-play `streamUrl`.
+    13→ */
+    14→import { NextRequest, NextResponse } from "next/server";
+    15→import { animexGetAnime, animexServers, animexSources } from "@/lib/animex-api";
+    16→import {
+    17→  fetchAllAniDapSources,
+    18→  ANIDAP_PROVIDER_META,
+    19→  type AniDapProvider,
+    20→} from "@/lib/anidap-api";
+    21→import { fetchAniLightSources } from "@/lib/anilight-api";
+    22→import { wrapStreamUrl, wrapM3u8Url, wrapM3u8UrlWithReferer } from "@/lib/proxy";
+    23→import {
+    24→  fetchAllKyrenSources,
+    25→  KYREN_SERVER_NAMES,
+    26→  type KyrenServer,
+    27→} from "@/lib/kyren-api";
+    28→import { fetchAnikageSources } from "@/lib/anikage-api";
+    29→import { fetchMioAnimeSources } from "@/lib/mioanime-api";
+    30→import { fetchAnistreamSources } from "@/lib/anistream-api";
+    31→import { fetchAnikuroSources } from "@/lib/anikuro-api";
+    32→import { fetchAniPmSources } from "@/lib/anipm-api";
+    33→import { fetchAnimeHeavenSources } from "@/lib/animeheaven-api";
+    34→// AniWaves removed — not working (user request)
+    35→import { fetchAnimePaheSources as fetchAllAnimePaheSources } from "@/lib/animepahe-api";
+    36→import { fetchAllOnsenSources, ONSEN_ENABLED } from "@/lib/animeonsen-api";
+    37→import { fetchAllReAnimeSources, REANIME_ENABLED } from "@/lib/reanime-api";
+    38→
+    39→export const runtime = "nodejs";
+    40→export const dynamic = "force-dynamic";
+    41→export const maxDuration = 60;
+    42→
+    43→const ANIVAULT_API = "https://anivault-scraper.up.railway.app/api/watch/animeheaven";
+    44→const ANIVEXA_API = "https://anivexa-api-tawny.vercel.app";
+    45→const ANIVAULT_SENSHI = "https://anivault-scraper.up.railway.app/api/watch/senshi"; // broken — CF blocks
+    46→
+    47→// AniVexa providers that work (tested) — reduced to 2 to avoid 60s timeout.
+    48→// Each provider × 2 types = 4 candidates, each with up to 8s API + 5s clock.json
+    49→// = 13s worst case per candidate. 4 candidates × 13s = 52s (under 60s limit).
+    50→// Original 4 providers × 2 = 8 candidates × 13s = 104s (OVER limit → 500 error).
+    51→const ANIVEXA_PROVIDERS = ["allmanga", "anineko"] as const;
+    52→
+    53→/**
+    54→ * Build a proxy URL using proxy.anikuro.to — the same proxy that was working
+    55→ * before. It's a Cloudflare Worker that:
+    56→ *   - Rewrites m3u8 manifest (segments + AES keys + sub-playlists)
+    57→ *   - Sends correct Referer/Origin headers upstream
+    58→ *   - Adds permissive CORS headers for browser playback
+    59→ *
+    60→ * URL format: https://proxy.anikuro.to/{base64(url|referer)}.{m3u8|mp4}
+    61→ *
+    62→ * Note: Anikuro does NOT work for some Cloudflare-protected CDNs (e.g.
+    63→ * vault-XX.uwucdn.top from AniDap) — it returns 500 for those. AniDap
+    64→ * streams use their own buildAniDapProxyUrl() (also via Anikuro) defined
+    65→ * in /lib/anidap-api.ts. Subtitle URLs from AniDap use our own scraper
+    66→ * stream proxy because Anikuro 500s on those.
+    67→ */
+    68→/**
+    69→ * Build a playable URL for a stream using the 3-tier proxy system.
+    70→ * Uses wrapM3u8UrlWithReferer so the source-provided Referer is encoded in the token.
+    71→ */
+    72→function buildProxyUrl(streamUrl: string, referer: string, isMP4: boolean = false): string {
+    73→  if (isMP4) return wrapStreamUrl(streamUrl);
+    74→  return wrapM3u8UrlWithReferer(streamUrl, referer);
+    75→}
+    76→
+    77→/**
+    78→ * Hard ceiling on a provider promise.
+    79→ *
+    80→ * Several sources in the fan-out below accept no timeout option at all
+    81→ * (fetchRawEpisodes, the animex slug->servers chain, the AniVault fetches,
+    82→ * fetchAllAnimePaheSources), so a single slow upstream set the runtime for the
+    83→ * whole route — measured at 93-180s against this function's 60s maxDuration,
+    84→ * which meant Vercel killed it and NONE of the 17 providers reached the player.
+    85→ * Promise.allSettled waits for the slowest member; this makes "slowest" bounded.
+    86→ *
+    87→ * Resolves to `fallback` on timeout rather than rejecting, so one dead provider
+    88→ * is simply an empty slot instead of a lost response.
+    89→ */
+    90→function withTimeout<T>(p: Promise<T> | T, ms: number, fallback: T): Promise<T> {
+    91→  return Promise.race([
+    92→    Promise.resolve(p).catch(() => fallback),
+    93→    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
+    94→  ]);
+    95→}
+    96→
+    97→const ANIMEX_REFERERS: Record<string, string> = {
+    98→  beep: "https://animex.one/", mimi: "https://animex.one/",
+    99→  vee: "https://www.animeonsen.xyz/", yuki: "https://megaplay.buzz/",
+   100→  miku: "https://allanime.uns.bio", neko: "https://animeverse.to/",
+   101→  huzz: "https://kem.clvd.xyz/", mochi: "https://animex.one",
+   102→  uwu: "https://allanime.uns.bio", koto: "https://allanime.uns.bio",
+   103→  kiwi: "https://anidb.app/", kami: "https://animex.one/",
+   104→  sax: "https://animex.one/", yume: "https://animex.one/",
+   105→};
+   106→
+   107→interface VerifiedServer {
+   108→  id: string;
+   109→  name: string;
+   110→  source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap" | "anilight" | "kyren" | "anikage" | "mioanime" | "anixtv" | "anistream" | "anikuro" | "anipm" | "animeheaven" | "animepahe" | "animeonsen" | "reanime" | "animo4" | "animostream" | "anibd";
+   111→  provider: string;
+   112→  type: "sub" | "dub";
+   113→  quality: string;
+   114→  streamUrl: string;
+   115→  isM3U8: boolean;
+   116→  isMP4: boolean;
+   117→  isEmbed?: boolean;
+   118→  isDASH?: boolean;  // DASH .mpd stream (AnimeOnsen — needs dash.js player)
+   119→  /**
+   120→   * Whether this stream has subtitles burned into the video (hard sub) vs
+   121→   * provided as a separate VTT track (soft sub). Used by the watch-page UI
+   122→   * to filter servers when the user picks "Hard Sub" vs "Soft Sub".
+   123→   *
+   124→   * Mapping:
+   125→   *   - AniDap beep/meme/uwu/kuro/sax/yume (under type=sub) → hardsub=true
+   126→   *   - AniDap mimi/mochi/uwu/kuro/sax/yume (under type=dub) → harddub=true
+   127→   *     (but we still mark hardsub=true since subs are burned in)
+   128→   *   - AniDap vee/yuki/miku/neko (under type=sub) → hardsub=false (soft sub)
+   129→   *   - Animex beep/mimi/miku/uwu/etc → hardsub=true (Animex doesn't do soft sub)
+   130→   *   - AniLight → hardsub=false (returns WebVTT subtitle tracks)
+   131→   *   - Kyren → hardsub=false (returns optional WebVTT subtitle tracks)
+   132→   *   - AniVexa/Senshi/AniVault → unknown, default false
+   133→   */
+   134→  hardsub?: boolean;
+   135→  /** Optional WebVTT subtitle tracks (AniDap/AniLight providers include these) */
+   136→  subtitleTracks?: Array<{ url: string; lang: string; label: string }>;
+   137→  /** Optional intro chapter for auto-skip */
+   138→  intro?: { start: number; end: number } | null;
+   139→  /** Optional outro chapter for auto-skip */
+   140→  outro?: { start: number; end: number } | null;
+   141→}
+   142→
+   143→export async function GET(
+   144→  _req: NextRequest,
+   145→  { params }: { params: Promise<{ anilistId: string; episode: string }> }
+   146→) {
+   147→  const { anilistId, episode } = await params;
+   148→  const id = parseInt(anilistId, 10);
+   149→  const epNum = parseInt(episode, 10);
+   150→  if (isNaN(id) || id <= 0) {
+   151→    return NextResponse.json({ error: "Invalid anilistId" }, { status: 400 });
+   152→  }
+   153→
+   154→  /**
+   155→   * Provider group. Everything in one request measured 98-173s against a 60s
+   156→   * maxDuration, so Vercel killed it and the player got NOTHING — capping the
+   157→   * providers hard enough to fit meant silently dropping miruro/animex, the two
+   158→   * highest-priority sources.
+   159→   *
+   160→   * Splitting instead: the client fires ?group=fast and ?group=slow in
+   161→   * parallel, so each half gets its own 60s budget and merges as it lands.
+   162→   * Nothing is dropped; the slow half just shows up later.
+   163→   *
+   164→   * ?group=all (the default) preserves the original single-request behaviour
+   165→   * for any caller that isn't group-aware.
+   166→   */
+   167→  const group = (_req.nextUrl.searchParams.get("group") || "all").toLowerCase();
+   168→  const wantFast = group === "all" || group === "fast";
+   169→  const wantSlow = group === "all" || group === "slow";
+   170→  // The slow half is alone in its request, so it can afford real patience.
+   171→  const SLOW_CAP = group === "slow" ? 45000 : 12000;
+   172→
+   173→  try {
+   174→  // ─── Resolve anime title from AniList (needed for AnixTV search) ────────────
+   175→  // AnixTV's watch URL requires the anime title as a query param — without it,
+   176→  // AnixTV can't find the anime and returns no iframe → no hindi servers.
+   177→  let animeTitle = "Anime";
+   178→  let animeTitles: { english?: string; romaji?: string; native?: string } = {};
+   179→  let animeSeason = 1;  // hoisted out of try-block so AnixTV block can use it
+   180→  try {
+   181→    const titleRes = await Promise.race([
+   182→      fetch("https://graphql.anilist.co", {
+   183→        method: "POST",
+   184→        headers: { "Content-Type": "application/json" },
+   185→        body: JSON.stringify({
+   186→          query: `query($id:Int){Media(id:$id,type:ANIME){id title{english romaji native}}}`,
+   187→          variables: { id },
+   188→        }),
+   189→      }),
+   190→      new Promise<Response | null>(r => setTimeout(() => r(null), 5000)),
+   191→    ]);
+   192→    if (titleRes && titleRes.ok) {
+   193→      const titleData = await titleRes.json();
+   194→      const t = titleData?.data?.Media?.title;
+   195→      animeTitles = { english: t?.english, romaji: t?.romaji, native: t?.native };
+   196→      animeTitle = t?.english || t?.romaji || t?.native || "Anime";
+   197→    }
+   198→
+   199→    // Also fetch the anime's season + relations to determine the correct
+   200→    // season number for AnixTV (e.g. Slime S4 → season=4, not 1)
+   201→    //
+   202→    // Two strategies:
+   203→    //   1. Title heuristic: parse "Season N" / "S2" / "Part 2" from the title
+   204→    //      (most reliable for sequels that include the season number in title)
+   205→    //   2. AniList relation walk: count PREQUEL chain (any format — TV, ONA,
+   206→    //      OVA, MOVIE, SPECIAL — AniList sometimes lists OVAs as the prequel
+   207→    //      for sequel seasons, e.g. Slime S2 → "Visions of Coleus" OVA → S1)
+   208→    try {
+   209→      // Strategy 1: title heuristic
+   210→      const titleForSeason = animeTitles.english || animeTitles.romaji || animeTitle;
+   211→      const seasonMatch = titleForSeason.match(/\bSeason\s+(\d+)\b/i)
+   212→                       || titleForSeason.match(/\bS(\d{1,2})\b\s*$/i);
+   213→      if (seasonMatch) {
+   214→        const parsed = parseInt(seasonMatch[1], 10);
+   215→        if (parsed >= 1 && parsed <= 30) {
+   216→          animeSeason = parsed;
+   217→          console.log(`[Servers] AnixTV season from title: ${animeTitle} → season ${animeSeason}`);
+   218→        }
+   219→      }
+   220→
+   221→      // Strategy 2: AniList relation walk (if title heuristic didn't fire)
+   222→      if (animeSeason === 1) {
+   223→        const seasonRes = await Promise.race([
+   224→          fetch("https://graphql.anilist.co", {
+   225→            method: "POST",
+   226→            headers: { "Content-Type": "application/json" },
+   227→            body: JSON.stringify({
+   228→              query: `query($id:Int){Media(id:$id,type:ANIME){id idMal season seasonYear format relations{edges{relationType node{id title{english romaji} format}}} } }`,
+   229→              variables: { id },
+   230→            }),
+   231→          }),
+   232→          new Promise<Response | null>(r => setTimeout(() => r(null), 5000)),
+   233→        ]);
+   234→        if (seasonRes && seasonRes.ok) {
+   235→          const seasonData = await seasonRes.json();
+   236→          const media = seasonData?.data?.Media;
+   237→          if (media?.relations?.edges) {
+   238→            // Include ALL formats in the prequel walk — AniList sometimes
+   239→            // lists OVAs/specials/movies as the prequel for a sequel season.
+   240→            const prequels = media.relations.edges.filter(
+   241→              (e: any) => e.relationType === "PREQUEL"
+   242→            );
+   243→            if (prequels.length > 0) {
+   244→              let count = 1;
+   245→              let currentPrequel = prequels[0];
+   246→              const visited = new Set<number>([id]);
+   247→              for (let i = 0; i < 15; i++) {
+   248→                if (!currentPrequel?.node?.id) break;
+   249→                if (visited.has(currentPrequel.node.id)) break;
+   250→                visited.add(currentPrequel.node.id);
+   251→                try {
+   252→                  const prequelRes = await fetch("https://graphql.anilist.co", {
+   253→                    method: "POST",
+   254→                    headers: { "Content-Type": "application/json" },
+   255→                    body: JSON.stringify({
+   256→                      query: `query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{id format title{english}}}} } }`,
+   257→                      variables: { id: currentPrequel.node.id },
+   258→                    }),
+   259→                  });
+   260→                  if (prequelRes.ok) {
+   261→                    const prequelData = await prequelRes.json();
+   262→                    const prequelEdges = prequelData?.data?.Media?.relations?.edges || [];
+   263→                    const nextPrequel = prequelEdges.find(
+   264→                      (e: any) => e.relationType === "PREQUEL"
+   265→                    );
+   266→                    if (nextPrequel) {
+   267→                      count++;
+   268→                      currentPrequel = nextPrequel;
+   269→                    } else {
+   270→                      count++;
+   271→                      break;
+   272→                    }
+   273→                  } else break;
+   274→                } catch { break; }
+   275→              }
+   276→              animeSeason = count;
+   277→            }
+   278→          }
+   279→          console.log(`[Servers] AnixTV season from relations: ${animeTitle} → season ${animeSeason}`);
+   280→        }
+   281→      }
+   282→    } catch { /* fallback to season 1 */ }
+   283→  } catch { /* fallback to "Anime" */ }
+   284→
+   285→  // ─── Gather all candidate servers in parallel ─────────────────────
+   286→  interface Candidate {
+   287→    id: string; name: string;
+   288→    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap";
+   289→    provider: string; type: "sub" | "dub";
+   290→  }
+   291→  const candidates: Candidate[] = [];
+   292→
+   293→  // ── INCREASED TIMEOUTS: each source gets more time to respond ──
+   294→  // Old: AniDap=4s, others=5-6s. New: AniDap=8s, others=8-10s.
+   295→  // This fixes AniDap servers not showing (4s was too short).
+   296→  const ANIDAP_TIMEOUT = 8000;
+   297→  const OTHER_TIMEOUT = 8000;
+   298→
+   299→  // Fire AniDap resolver + sources fetch in parallel with the other sources.
+   300→  // AniDap gives us 11 providers × 2 types (sub/dub) — all verified playable.
+   301→  // Also fire AniLight + Kyren + AniKuro + AnimePahe in parallel — all return direct-playable streams.
+   302→  // Every entry is capped at FANOUT_TIMEOUT so the fan-out can't outlive the
+   303→  // route's budget. Providers that accept their own timeoutMs keep it (it fires
+   304→  // first and lets them fail cleanly); this is the backstop for the ones that
+   305→  // don't, which is what was pushing the route past 60s.
+   306→  const FANOUT_TIMEOUT = 12000;
+   307→  const [miruroRaw, animexData, anivaultSub, anivaultDub, anidapResults, anilightResults, kyrenResults, anikageResults, mioanimeResults, anistreamResults, anikuroResults, anipmResults, animetsuResults, animeheavenResults, animepaheResults, onsenResults, reanimeResults] = await Promise.allSettled(([
+   308→    // ── SLOW group ── these are the ones that blew the budget; they get the
+   309→    // whole 45s of their own request rather than being cut to fit alongside.
+   310→    // REMOVED: Miruro. Its episodes endpoint returns HTTP 403 (measured: fails
+   311→    // in ~172ms with providers: NONE), so it contributed nothing but a slot.
+   312→    // Miruro is still used for anime METADATA elsewhere — this is streams only.
+   313→    Promise.resolve(null),  // miruroRaw — provider removed
+   314→    wantSlow ? withTimeout<any>((async () => {
+   315→      const anime = await animexGetAnime(id);
+   316→      if (!anime?.slug) return null;
+   317→      return { slug: anime.slug, servers: await animexServers(anime.slug, epNum) };
+   318→    })(), SLOW_CAP, null) : Promise.resolve(null),
+   319→    wantSlow ? withTimeout<any>(fetch(`${ANIVAULT_API}/${id}/${epNum}/sub?server=AnimeHeaven`).then(r => r.ok ? r.json() : null).catch(() => null), SLOW_CAP, null) : Promise.resolve(null),
+   320→    wantSlow ? withTimeout<any>(fetch(`${ANIVAULT_API}/${id}/${epNum}/dub?server=AnimeHeaven`).then(r => r.ok ? r.json() : null).catch(() => null), SLOW_CAP, null) : Promise.resolve(null),
+   321→    // AniDap and AniKuro are fetched SEPARATELY via dedicated endpoints
+   322→    // (they're slow and were blocking the main servers route).
+   323→    // Watch page fetches them in parallel via /api/anime/{anidap,anikuro}-servers/
+   324→    Promise.resolve([] as any[]),  // anidapResults — fetched separately
+   325→    wantFast ? fetchAniLightSources(id, epNum, { sub: true, dub: true, timeoutMs: OTHER_TIMEOUT }) : Promise.resolve([] as any[]),
+   326→    wantFast ? fetchAllKyrenSources(id, epNum, { sub: true, dub: true, timeoutMs: OTHER_TIMEOUT }) : Promise.resolve([] as any[]),
+   327→    wantFast ? fetchAnikageSources(id, epNum, { timeoutMs: OTHER_TIMEOUT }) : Promise.resolve([] as any[]),
+   328→    wantFast ? fetchMioAnimeSources(id, epNum, { timeoutMs: OTHER_TIMEOUT }) : Promise.resolve([] as any[]),
+   329→    // Anistream.one: uses api.anistream.one (OWN REST API, NOT Cloudflare-protected).
+   330→    // Returns DIRECT stream URLs — no XOR wrapper, no cdn.animex.su needed.
+   331→    // Has embed providers too (ok.ru, mp4upload) for some servers.
+   332→    wantFast ? fetchAnistreamSources(id, epNum, { sub: true, dub: true, timeoutMs: OTHER_TIMEOUT }) : Promise.resolve([] as any[]),
+   333→    Promise.resolve([] as any[]),  // anikuroResults — fetched separately
+   334→    // Played as iframe embeds (kwik.cx blocks server-side scraping).
+   335→    // Ani.pm: Full scraper with categorized servers (Nova, Halo, Lyra, Cobalt, Orion, etc.)
+   336→    // Returns HLS (via worker proxy), MP4, and embed URLs.
+   337→    wantFast ? fetchAniPmSources(id, epNum, { sub: true, dub: true, timeoutMs: OTHER_TIMEOUT }) : Promise.resolve([] as any[]),
+   338→    Promise.resolve([] as any[]),  // animetsuResults — provider removed
+   339→    // AnimeHeaven.me — direct MP4 streams
+   340→    wantFast ? fetchAnimeHeavenSources(id, epNum, { timeoutMs: OTHER_TIMEOUT }) : Promise.resolve([] as any[]),
+   341→    // AnimePahe: external scraper with Cloudflare bypass (env-configured).
+   342→    // Skipped silently if ANIMEPAHE_SCRAPER_URL and ANIMEPAHE_CF_CLEARANCE are not set.
+   343→    wantSlow
+   344→      ? withTimeout<any>(fetchAllAnimePaheSources(id, epNum, animeTitles.english || animeTitles.romaji || ""), SLOW_CAP, [])
+   345→      : Promise.resolve([] as any[]),
+   346→    // AnimeOnsen: DASH .mpd streams with ASS subtitles (self-hosted CDN)
+   347→    ONSEN_ENABLED && wantSlow
+   348→      ? withTimeout<any>(fetchAllOnsenSources(id, epNum, animeTitles, { sub: true, dub: false, timeoutMs: SLOW_CAP }), SLOW_CAP, [])
+   349→      : Promise.resolve([] as any[]),
+   350→    // ReAnime: FlixCLOUD streaming via reanime.to — uses AniList ID directly
+   351→    // Returns m3u8 (if decryption succeeds) or embed URLs (if CF blocks decryption)
+   352→    REANIME_ENABLED && wantSlow
+   353→      ? withTimeout<any>(fetchAllReAnimeSources(id, epNum, animeTitles, { sub: true, dub: true, timeoutMs: SLOW_CAP }), SLOW_CAP, [])
+   354→      : Promise.resolve([] as any[]),
+   355→  ] as Promise<any>[]).map(p => withTimeout<any>(p, FANOUT_TIMEOUT, null)));
+   356→
+   357→  // Animex — NOT included in the main servers endpoint.
+   358→  // Animex has its own dedicated endpoint: /api/anime/animex-servers/{id}/{ep}
+   359→  // The watch page fetches it separately so it doesn't compete for the 30s timeout.
+   360→  // Animex servers appear in the watch page after they finish loading.
+   361→  let animexSlug: string | null = null;
+   362→  if (animexData.status === "fulfilled" && animexData.value) {
+   363→    animexSlug = animexData.value.slug;
+   364→  }
+   365→  // No animexVerified here — it's fetched separately by the watch page.
+   366→
+   367→  // AniVault (AnimeHeaven)
+   368→  if (anivaultSub.status === "fulfilled" && anivaultSub.value?.mp4) {
+   369→    candidates.push({ id: "anivault:animeheaven:sub", name: "NH-1", source: "anivault", provider: "AnimeHeaven", type: "sub" });
+   370→  }
+   371→  if (anivaultDub.status === "fulfilled" && anivaultDub.value?.mp4) {
+   372→    candidates.push({ id: "anivault:animeheaven:dub", name: "NH-1 Dub", source: "anivault", provider: "AnimeHeaven", type: "dub" });
+   373→  }
+   374→
+   375→  // AniVexa (animegg, allmanga, anikoto, anineko)
+   376→  for (const prov of ANIVEXA_PROVIDERS) {
+   377→    for (const cat of ["sub", "dub"] as const) {
+   378→      candidates.push({
+   379→        id: `anivexa:${prov}:${cat}`,
+   380→        name: (() => { const m: Record<string,string> = { anineko: "NV-1", allmanga: "NA-1" }; return `${m[prov] || prov}${cat === "dub" ? " (Dub)" : ""}`; })(),
+   381→        source: "anivexa", provider: prov, type: cat,
+   382→      });
+   383→    }
+   384→  }
+   385→
+   386→  // Senshi via AniVault anikoto source (CF bypass)
+   387→  // Only add 1 server (sub) to keep verification fast — dub is rarely used
+   388→  candidates.push({ id: "senshi:VidPlay-1:sub", name: "NS-1", source: "senshi", provider: "VidPlay-1", type: "sub" });
+   389→
+   390→  // AniDap results are ALREADY verified playable (fetchAllAniDapSources filters out
+   391→  // providers with no playable stream). We push them straight into the final list
+   392→  // — no need to re-verify each one. We also pass through subtitles + intro/outro.
+   393→  const anidapVerified: VerifiedServer[] = [];
+   394→  if (anidapResults.status === "fulfilled" && anidapResults.value) {
+   395→    for (const r of anidapResults.value) {
+   396→      const meta = ANIDAP_PROVIDER_META[r.provider as AniDapProvider];
+   397→      const provName = meta?.name || (r.provider[0].toUpperCase() + r.provider.slice(1));
+   398→      const typeTag = r.type === "dub" ? " (Dub)" : (meta?.hardsub ? " (HS)" : "");
+   399→      // Detect embed URLs (ok.ru, mp4upload) — these need iframe playback
+   400→      const isEmbedUrl = r.streamUrl.includes("ok.ru/videoembed")
+   401→                      || r.streamUrl.includes("mp4upload.com/embed")
+   402→                      || r.streamUrl.includes("streamlare.com/e/")
+   403→                      || r.streamUrl.includes("streamsb.net/e/");
+   404→      anidapVerified.push({
+   405→        id: `anidap:${r.provider}:${r.type}`,
+   406→        name: `ND-${provName.slice(1)}${typeTag}`,
+   407→        source: "anidap",
+   408→        provider: r.provider,
+   409→        type: r.type,
+   410→        quality: r.quality,
+   411→        streamUrl: r.streamUrl,
+   412→        isM3U8: r.isM3U8,
+   413→        isMP4: r.isMP4,
+   414→        isEmbed: isEmbedUrl,
+   415→        // Mark hardsub servers — from AniDap's metadata
+   416→        hardsub: meta?.hardsub === true,
+   417→        subtitleTracks: r.tracks.map(t => ({ url: t.url, lang: t.lang, label: t.label })),
+   418→        intro: r.intro,
+   419→        outro: r.outro,
+   420→      });
+   421→    }
+   422→    console.log(`[Servers] AniDap: ${anidapVerified.length} verified streams (already pre-checked)`);
+   423→  }
+   424→
+   425→  // AniLight results — pre-verified playable, direct CDN URLs (no proxy needed).
+   426→  // AniLight results — includes BOTH:
+   427→  //   1. Quality variants (1080p, 720p, 360p) from /api/watch/mal — direct ESA CDN
+   428→  //   2. Death Note servers (Light, Near, Ryu, Misa, Kiwi, Misora, Raye, Rem) from /api/sources
+   429→  // All show with "AniLight" prefix.
+   430→  const anilightVerified: VerifiedServer[] = [];
+   431→  if (anilightResults.status === "fulfilled" && anilightResults.value) {
+   432→    for (const [alIdx, r] of anilightResults.value.entries()) {
+   433→      // Capitalize first letter for display
+   434→      const serverDisplay = r.server.charAt(0).toUpperCase() + r.server.slice(1);
+   435→      const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
+   436→      anilightVerified.push({
+   437→        id: `anilight:${r.server}:${r.type}`,
+   438→        name: `NL-${(alIdx+1)}${typeTag}`,
+   439→        source: "anilight",
+   440→        provider: r.server,
+   441→        type: r.type,
+   442→        quality: r.quality,
+   443→        streamUrl: r.streamUrl,
+   444→        isM3U8: r.isM3U8,
+   445→        isMP4: r.isMP4,
+   446→        hardsub: r.hardsub,
+   447→        subtitleTracks: r.tracks.map(t => ({ url: t.url, lang: t.lang, label: t.label })),
+   448→      });
+   449→    }
+   450→    console.log(`[Servers] AniLight: ${anilightVerified.length} servers (quality variants + Death Note servers)`);
+   451→  }
+   452→
+   453→  // Kyren results — pre-verified playable, HLS through kyren's CF Worker (permissive CORS)
+   454→  const kyrenVerified: VerifiedServer[] = [];
+   455→  if (kyrenResults.status === "fulfilled" && kyrenResults.value) {
+   456→    for (const [krIdx, r] of kyrenResults.value.entries()) {
+   457→      const serverName = KYREN_SERVER_NAMES[r.server as KyrenServer] || r.server;
+   458→      kyrenVerified.push({
+   459→        id: `kyren:${r.server}:${r.type}`,
+   460→        name: `NK-${krIdx+1}${r.type === "dub" ? " (Dub)" : ""}`,
+   461→        source: "kyren",
+   462→        provider: r.server,
+   463→        type: r.type,
+   464→        quality: r.quality,
+   465→        streamUrl: r.streamUrl,
+   466→        isM3U8: r.isM3U8,
+   467→        isMP4: r.isMP4,
+   468→        // Kyren streams are soft sub (return optional WebVTT subtitle tracks)
+   469→        hardsub: false,
+   470→        subtitleTracks: r.tracks.map(t => ({ url: t.url, lang: t.lang, label: t.label || t.lang })),
+   471→      });
+   472→    }
+   473→    console.log(`[Servers] Kyren: ${kyrenVerified.length} verified streams (HLS via kyren Worker)`);
+   474→  }
+   475→
+   476→  // Anikage results — HLS (prox.anikage.cc) + embeds (otakuvid, otakuhg, vibeplayer, etc.)
+   477→  const anikageVerified: VerifiedServer[] = [];
+   478→  if (anikageResults.status === "fulfilled" && anikageResults.value) {
+   479→    for (const [akIdx, r] of anikageResults.value.entries()) {
+   480→      const serverName = r.server.charAt(0).toUpperCase() + r.server.slice(1);
+   481→      const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
+   482→      anikageVerified.push({
+   483→        id: `anikage:${r.server}:${r.type}`,
+   484→        name: `NK-${akIdx+5}${typeTag}`,
+   485→        source: "anikage",
+   486→        provider: r.server,
+   487→        type: r.type,
+   488→        quality: r.quality,
+   489→        streamUrl: r.streamUrl,
+   490→        isM3U8: r.isM3U8,
+   491→        isMP4: r.isMP4,
+   492→        isEmbed: r.isEmbed === true,
+   493→        hardsub: r.hardsub,
+   494→        subtitleTracks: r.tracks,
+   495→        intro: r.intro,
+   496→        outro: r.outro,
+   497→      });
+   498→    }
+   499→    console.log(`[Servers] Anikage: ${anikageVerified.length} servers`);
+   500→  }
+   501→
+   502→  // MioAnime results — AniZone + Verse + Senshi + AllAnime (4 sources)
+   503→  const mioanimeVerified: VerifiedServer[] = [];
+   504→  if (mioanimeResults.status === "fulfilled" && mioanimeResults.value) {
+   505→    for (const [maIdx, r] of mioanimeResults.value.entries()) {
+   506→      const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
+   507→      const maNameMap: Record<string, string> = { "AniZone": "L1", "MegaPlay": "L2", "Senshi": "L3", "AniDB": "L4", "AnimeSalt": "L5", "AniBD": "L6", "AnimeNexus": "L7", "AllAnime": "NA-1" };
+   508→      const maDisplayName = maNameMap[r.name] || r.name;
+   509→      mioanimeVerified.push({
+   510→        id: r.id,
+   511→        name: `${maDisplayName}${typeTag}`,
+   512→        source: "mioanime",
+   513→        provider: r.id,
+   514→        type: r.type,
+   515→        quality: r.quality,
+   516→        streamUrl: r.streamUrl,
+   517→        isM3U8: r.isM3U8,
+   518→        isMP4: r.isMP4,
+   519→        isEmbed: (r as any).isEmbed === true,
+   520→        hardsub: r.hardsub,
+   521→        subtitleTracks: r.subtitleTracks,
+   522→      });
+   523→    }
+   524→    console.log(`[Servers] MioAnime: ${mioanimeVerified.length} servers`);
+   525→  }
+   526→
+   527→  // AnixTV (anixtv.in) — Hindi dubbed anime via the legacy hindi_1_player URL.
+   528→  //
+   529→  // Per user request (2026-07-18):
+   530→  //   "only this will show ... only this route it with anilist"
+   531→  //   https://anixtv.in/anime-watch?action=hindi_1_player&id={anilistId}
+   532→  //     &season={season}&episode={ep}&title={title}
+   533→  //
+   534→  // The hindi_1_player URL returns an iframe pointing to as-cdn21.top which
+   535→  // serves a multi-audio HLS stream (Hindi + English + Japanese audio tracks).
+   536→  //
+   537→  // - season is calculated from AniList prequel relations (Slime S4 has 3
+   538→  //   prequels → season=4). Falls back to season=1 if calculation fails.
+   539→  // - Always add the URL for ANY anime (no isHindiAnime gate — user wants
+   540→  //   it shown regardless; the player itself handles "not available" cases)
+   541→  // - Removed the 10 generic AnixTV embeds (TryEmbed/MegaPlay/VidNest/
+   542→  //   AnimePahe/Videasy × sub/dub) — those were noise the user didn't want
+   543→  // MOVED OUT: AnixTV Hindi now lives in its own route,
+   544→  // /api/anime/anixtv-servers/[anilistId]/[episode], fetched by the client in
+   545→  // parallel. It needs no scraping, so waiting behind this route's 17-provider
+   546→  // fan-out (measured 26-105s, past the 60s maxDuration) meant Hindi was the
+   547→  // one mode that never survived to the player. The season number is also
+   548→  // computed correctly there — TV-format prequels only.
+   549→  const anixtvVerified: VerifiedServer[] = [];
+   550→
+   551→  // 4animo.xyz — sub/dub embeds from cdn.4animo.xyz
+   552→  // Uses AniList ID to search 4animo's catalog, then fetches the embed URL
+   553→  // from /stream/getSources API (returns subtitles + intro/outro skip times).
+   554→  // Returns 1 sub + 1 dub per anime (if both exist).
+   555→  const animo4Verified: VerifiedServer[] = [];
+   556→  try {
+   557→    if (!wantSlow) throw new Error("skip: fast group");
+   558→    const { searchAnimo4, resolveAnimo4Streams } = await import("@/lib/animo4-direct");
+   559→    // 4animo stores titles without colons — normalize for matching.
+   560→    // Also try the romaji title if english doesn't match.
+   561→    const normTitle = (t: string) => t.toLowerCase().replace(/[:',.\-!]/g, "").replace(/\s+/g, " ").trim();
+   562→    const titlesToTry = [animeTitles.english, animeTitles.romaji, animeTitle].filter(Boolean) as string[];
+   563→    let best: any = null;
+   564→    for (const t of titlesToTry) {
+   565→      // Capped: this loop runs up to 3 times sequentially, after the fan-out,
+   566→      // with no timeout of its own — one of the two blocks that kept this route
+   567→      // at 98-173s even once the fan-out itself was bounded.
+   568→      const matches = await withTimeout<any[]>(searchAnimo4(t), SLOW_CAP, []);
+   569→      if (matches.length === 0) continue;
+   570→      // Pick best match — exact normalized title match preferred
+   571→      const norm = normTitle(t);
+   572→      best = matches.find(m => normTitle(m.title) === norm)
+   573→          || matches.find(m => normTitle(m.title).startsWith(norm))
+   574→          || matches[0];
+   575→      if (best) break;
+   576→    }
+   577→    if (best) {
+   578→      const streams = await withTimeout<any[]>(resolveAnimo4Streams(best.id, epNum, best.slug, ["sub", "dub"]), SLOW_CAP, []);
+   579→      for (const r of streams) {
+   580→        animo4Verified.push({
+   581→          id: `animo4:${best.id}:${r.type}:${r.serverName}`,
+   582→        name: `NF-1 ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
+   583→          source: "animo4",
+   584→          provider: r.serverName.toLowerCase().replace(/\s/g, ""),
+   585→          type: r.type,
+   586→          quality: r.quality,
+   587→          streamUrl: r.streamUrl,
+   588→          isM3U8: r.isM3U8,
+   589→          isMP4: r.isMP4,
+   590→          isEmbed: r.isEmbed,
+   591→          hardsub: false,
+   592→          subtitleTracks: r.subtitleTracks || [],
+   593→          intro: r.intro || null,
+   594→          outro: r.outro || null,
+   595→        });
+   596→      }
+   597→      console.log(`[Servers] 4animo: ${animo4Verified.length} servers (matched "${best.title}" id=${best.id})`);
+   598→    } else {
+   599→      console.log(`[Servers] 4animo: no match for "${animeTitle}"`);
+   600→    }
+   601→  } catch (e: any) {
+   602→    console.log(`[Servers] 4animo: error — ${e?.message || e}`);
+   603→  }
+   604→
+   605→  // animostream.com — Hindi-dubbed anime (Blogger feed, 240 entries)
+   606→  // Search by title, then fetch the per-post animeData to find stream URLs.
+   607→  // Each anime has 2 servers (Abyss + StreamTape) per episode, all Hindi dub.
+   608→  //
+   609→  // Per user request (2026-07-18):
+   610→  //   "i dont care is animostream return embed or m3u you have ad it ok stupid
+   611→  //    ass its not showing you have to ad it all animes ok"
+   612→  //   "prorpley make a scrape and ad it"
+   613→  //
+   614→  // MOVED OUT: AnimoStream Hindi now lives in its own route,
+   615→  // /api/anime/animostream-hindi/[anilistId]/[episode], fetched by the client
+   616→  // in parallel. Like AnixTV it was stranded behind this route's 17-provider
+   617→  // fan-out (measured 26-105s vs a 60s maxDuration), so the Hindi fallback
+   618→  // never survived to the player even for the ~250 titles it does carry.
+   619→  const animostreamVerified: VerifiedServer[] = [];
+   620→
+   621→  // anibd.app — direct m3u8 streams (no login, CORS-enabled)
+   622→  // Uses AniList ID directly → epeng.animeapps.top/api2.php → apilink.php → m3u8
+   623→  const anibdVerified: VerifiedServer[] = [];
+   624→  try {
+   625→    if (!wantSlow) throw new Error("skip: fast group");
+   626→    const { resolveAnibdStreams } = await import("@/lib/anibd-direct");
+   627→    // Capped for the same reason as the 4animo block above — sequential,
+   628→    // post-fan-out, and previously unbounded.
+   629→    const streams = await withTimeout<any[]>(resolveAnibdStreams(id, epNum), SLOW_CAP, []);
+   630→    for (const r of streams) {
+   631→      anibdVerified.push({
+   632→        id: `anibd:${r.serverName}:${r.type}`,
+   633→        name: `NB-1 ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
+   634→        source: "anibd",
+   635→        provider: r.serverName.toLowerCase().replace(/\s/g, ""),
+   636→        type: r.type,
+   637→        quality: r.quality,
+   638→        streamUrl: r.streamUrl,
+   639→        isM3U8: r.isM3U8,
+   640→        isMP4: r.isMP4,
+   641→        isEmbed: r.isEmbed,
+   642→        hardsub: false,
+   643→        subtitleTracks: r.subtitleTracks || [],
+   644→        intro: r.intro || null,
+   645→        outro: r.outro || null,
+   646→      });
+   647→    }
+   648→    console.log(`[Servers] AniBD: ${anibdVerified.length} servers`);
+   649→  } catch (e: any) {
+   650→    console.log(`[Servers] AniBD: error — ${e?.message || e}`);
+   651→  }
+   652→
+   653→  // Anistream.one (api.anistream.one — OWN REST API, not CF-protected)
+   654→  // Returns DIRECT stream URLs — no XOR wrapper, no cdn.animex.su needed.
+   655→  // Has embed providers (ok.ru, mp4upload) + HLS providers (beep, yuki, mimi, mochi).
+   656→  const anistreamVerified: VerifiedServer[] = [];
+   657→  if (anistreamResults.status === "fulfilled" && anistreamResults.value) {
+   658→    for (const [asIdx, r] of anistreamResults.value.entries()) {
+   659→      const provName = r.server[0].toUpperCase() + r.server.slice(1);
+   660→      const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
+   661→      anistreamVerified.push({
+   662→        id: `anistream:${r.server}:${r.type}`,
+   663→        name: `NI-${asIdx+1}${typeTag}`,
+   664→        source: "anistream",
+   665→        provider: r.server,
+   666→        type: r.type,
+   667→        quality: r.quality,
+   668→        streamUrl: r.streamUrl,
+   669→        isM3U8: r.isM3U8,
+   670→        isMP4: r.isMP4,
+   671→        isEmbed: r.isEmbed,
+   672→        hardsub: r.hardsub,
+   673→        subtitleTracks: r.tracks,
+   674→        intro: r.intro,
+   675→        outro: r.outro,
+   676→      });
+   677→    }
+   678→    console.log(`[Servers] Anistream: ${anistreamVerified.length} servers`);
+   679→  }
+   680→
+   681→  // AniKuro.ru (Russian aggregator — 11 providers: animepahe, anikoto, animegg, etc.)
+   682→  // Returns proxy.anikuro.ru URLs (base64-encoded, CORS enabled, directly playable).
+   683→  const anikuroVerified: VerifiedServer[] = [];
+   684→  if (anikuroResults.status === "fulfilled" && anikuroResults.value) {
+   685→    const PROVIDER_NAMES: Record<string, string> = {
+   686→      animepahe: "AnimePahe", anikoto: "AniKoto", reanime: "ReAnime",
+   687→      animedao: "AnimeDao", animegg: "AnimeGG", anidb: "AniDB",
+   688→      animedunya: "AnimeDunya", animeverse: "AnimeVerse", allani: "AllAnime",
+   689→      senshi: "Senshi", animix: "AniMix",
+   690→    };
+   691→    for (const [akruIdx, r] of anikuroResults.value.entries()) {
+   692→      const provName = PROVIDER_NAMES[r.provider] || (r.provider[0].toUpperCase() + r.provider.slice(1));
+   693→      const typeTag = r.type === "dub" ? " (Dub)" : "";
+   694→      anikuroVerified.push({
+   695→        id: `anikuro:${r.provider}:${r.type}`,
+   696→        name: `NQ-${akruIdx+1}${typeTag}`,
+   697→        source: "anikuro",
+   698→        provider: r.provider,
+   699→        type: r.type,
+   700→        quality: r.quality,
+   701→        streamUrl: r.streamUrl,
+   702→        isM3U8: r.isM3U8,
+   703→        isMP4: r.isMP4,
+   704→        hardsub: r.hardsub,
+   705→        subtitleTracks: r.tracks,
+   706→        intro: r.intro,
+   707→        outro: r.outro,
+   708→      });
+   709→    }
+   710→    console.log(`[Servers] AniKuro: ${anikuroVerified.length} servers`);
+   711→  }
+   712→
+   713→  // Ani.pm results — only HLS + MP4 servers (skip embeds to avoid duplicates)
+   714→  // Each server gets a unique ID based on provider + name + type to prevent
+   715→  // the watch page from treating different servers as the same one.
+   716→  const anipmVerified: VerifiedServer[] = [];
+   717→  if (anipmResults.status === "fulfilled" && anipmResults.value) {
+   718→    const seenAnipm = new Set<string>();  // dedupe by provider+name+type
+   719→    for (const [apmIdx, r] of anipmResults.value.entries()) {
+   720→      // Skip embed URLs — they duplicate the HLS servers and cause confusion
+   721→      if (r.isEmbed) continue;
+   722→
+   723→      // Dedupe by provider+name+type (in case API returns same server twice)
+   724→      const dedupeKey = `${r.provider}:${r.name}:${r.type}`;
+   725→      if (seenAnipm.has(dedupeKey)) continue;
+   726→      seenAnipm.add(dedupeKey);
+   727→
+   728→      // Unique ID: anipm:provider:name:type (e.g. anipm:Lyra:Lyra·3:sub)
+   729→      const safeName = r.name.replace(/[^a-zA-Z0-9]/g, "");
+   730→      anipmVerified.push({
+   731→        id: `anipm:${r.provider}:${safeName}:${r.type}`,
+   732→        name: `NP-${apmIdx+1}`,
+   733→        source: "anipm",
+   734→        provider: r.provider,
+   735→        type: r.type,
+   736→        quality: r.quality,
+   737→        streamUrl: r.streamUrl,
+   738→        isM3U8: r.isM3U8,
+   739→        isMP4: r.isMP4,
+   740→        isEmbed: false,
+   741→        hardsub: r.hardsub,
+   742→        subtitleTracks: r.tracks,
+   743→        intro: null,
+   744→        outro: null,
+   745→      });
+   746→    }
+   747→    console.log(`[Servers] AniPm: ${anipmVerified.length} servers (HLS only, deduped)`);
+   748→  }
+   749→
+   750→  // REMOVED: Animetsu (provider retired).
+   751→  const animetsuVerified: VerifiedServer[] = [];
+   752→
+   753→  // AnimeHeaven results — direct MP4 streams
+   754→  const animeheavenVerified: VerifiedServer[] = [];
+   755→  if (animeheavenResults.status === "fulfilled" && animeheavenResults.value) {
+   756→    for (const r of animeheavenResults.value) {
+   757→      animeheavenVerified.push({
+   758→        id: `animeheaven:${r.provider}:sub`,
+   759→        name: `NH-1`,
+   760→        source: "animeheaven",
+   761→        provider: r.provider,
+   762→        type: "sub",
+   763→        quality: r.quality,
+   764→        streamUrl: r.streamUrl,
+   765→        isM3U8: r.isM3U8,
+   766→        isMP4: r.isMP4,
+   767→        isEmbed: false,
+   768→        hardsub: false,
+   769→        subtitleTracks: [],
+   770→        intro: null,
+   771→        outro: null,
+   772→      });
+   773→    }
+   774→    console.log(`[Servers] AnimeHeaven: ${animeheavenVerified.length} servers`);
+   775→  }
+   776→
+   777→  // AniWaves removed — not working (user request). Block deleted.
+   778→
+   779→  console.log(`[Servers] ${candidates.length} candidates — verifying in parallel...`);
+   780→
+   781→  // ─── Verify ALL in parallel (4s timeout each) ─────────────────────
+   782→  const verifyPromises = candidates.map(async (c): Promise<VerifiedServer | null> => {
+   783→    try {
+   784→      // Animex servers are pre-built from AniDap's results (above) — skip verify
+   785→      if (c.source === "anivault") {
+   786→        const data = c.type === "dub" ? (anivaultDub.status === "fulfilled" ? anivaultDub.value : null) : (anivaultSub.status === "fulfilled" ? anivaultSub.value : null);
+   787→        if (data?.streamUrl) {
+   788→          return { ...c, quality: "MP4", streamUrl: data.streamUrl, isM3U8: !!data.m3u8, isMP4: !!data.mp4 };
+   789→        }
+   790→      }
+   791→      if (c.source === "anivexa") {
+   792→        // Fetch from AniVexa API (5s timeout — was 8s, caused 60s limit breaches)
+   793→        const res = await Promise.race([
+   794→          fetch(`${ANIVEXA_API}/watch/${c.provider}/${id}/${c.type}/${c.provider}-${epNum}`).then(r => r.ok ? r.json() : null),
+   795→          new Promise<null>(r => setTimeout(() => r(null), 5000)),
+   796→        ]);
+   797→        if (res) {
+   798→          let streamUrl: string | null = null;
+   799→          let streamReferer: string = "https://allmanga.to/";
+   800→          let quality: string = "auto";
+   801→          let isM3U8 = true;
+   802→          let isMP4 = false;
+   803→
+   804→          if (c.provider === "animegg") {
+   805→            // Animegg returns MP4 streams in multiple qualities (360p, 480p, 720p, 1080p)
+   806→            // Pick the highest quality MP4 available
+   807→            const streams = (res.streams || []).filter((s: any) => s.type === "mp4" && s.url);
+   808→            // Prefer 1080p, then 720p, then 480p, then 360p, then first
+   809→            const qualityOrder = ["1080p", "720p", "480p", "360p"];
+   810→            const playable = streams.find((s: any) => s.quality === "1080p")
+   811→                          || streams.find((s: any) => s.quality === "720p")
+   812→                          || streams.find((s: any) => qualityOrder.includes(s.quality))
+   813→                          || streams[0];
+   814→            if (playable) {
+   815→              streamUrl = playable.url;
+   816→              streamReferer = playable.referer || "https://www.animegg.org/";
+   817→              quality = playable.quality || "auto";
+   818→              isMP4 = true;
+   819→              isM3U8 = false;
+   820→            }
+   821→          } else if (c.provider === "allmanga") {
+   822→            // AllManga returns 7 sources — 3 are clock.json resolvers (→ HLS m3u8),
+   823→            // 4 are iframe embeds (streamsb, mp4upload, ok.ru, streamlare — skip).
+   824→            // Resolve ALL clock.json sources and pick the first that returns HLS.
+   825→            const sources = res.sources || [];
+   826→            const clockSources = sources.filter((s: any) => s.url && s.url.includes("clock.json"));
+   827→            const ref = "https://allmanga.to";
+   828→            const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0";
+   829→            for (const cs of clockSources) {
+   830→              try {
+   831→                const clockRes = await Promise.race([
+   832→                  fetch(cs.url, { headers: { Referer: ref, "User-Agent": ua }, cache: "no-store" }).then(r => r.ok ? r.json() : null),
+   833→                  new Promise<null>(r => setTimeout(() => r(null), 3000)),
+   834→                ]);
+   835→                if (clockRes?.links?.length) {
+   836→                  const hlsLink = clockRes.links.find((l: any) => l.hls) || clockRes.links[0];
+   837→                  if (hlsLink?.link) {
+   838→                    streamUrl = hlsLink.link;
+   839→                    streamReferer = ref;
+   840→                    quality = hlsLink.resolutionStr || cs.name || "auto";
+   841→                    isM3U8 = true;
+   842→                    isMP4 = false;
+   843→                    break; // Use first working clock.json source
+   844→                  }
+   845→                }
+   846→              } catch {
+   847→                // try next clock source
+   848→              }
+   849→            }
+   850→          } else if (c.provider === "anikoto") {
+   851→            // Anikoto returns ssub.streams[] / sdub.streams[]
+   852→            const key = c.type === "dub" ? "sdub" : "ssub";
+   853→            const streams = (res[key]?.streams || []).filter((s: any) => s.type === "hls" && s.url);
+   854→            if (streams.length > 0) {
+   855→              streamUrl = streams[0].url;
+   856→              streamReferer = streams[0].referer || "https://megaplay.buzz/";
+   857→              quality = streams[0].server || "auto";
+   858→              isM3U8 = true;
+   859→              isMP4 = false;
+   860→            }
+   861→          } else if (c.provider === "anineko") {
+   862→            // AniNeko returns streams[] directly (same as animegg shape)
+   863→            const streams = (res.streams || []).filter((s: any) => s.type === "hls" && s.url);
+   864→            if (streams.length > 0) {
+   865→              streamUrl = streams[0].url;
+   866→              streamReferer = streams[0].referer || "https://vibeplayer.site/";
+   867→              quality = streams[0].server || "auto";
+   868→              isM3U8 = true;
+   869→              isMP4 = false;
+   870→            }
+   871→          }
+   872→
+   873→          if (streamUrl) {
+   874→            // For MP4, use mode=segment (no manifest rewriting needed)
+   875→            // For HLS, use mode=manifest (needs URL rewriting)
+   876→            const mode = isMP4 ? "segment" : "manifest";
+   877→            return { ...c, quality,
+   878→              streamUrl: buildProxyUrl(streamUrl, streamReferer, isMP4),
+   879→              isM3U8, isMP4 };
+   880→          }
+   881→        }
+   882→      }
+   883→      if (c.source === "senshi") {
+   884→        // Use AniVault's anikoto source (which scrapes senshi.live with CF bypass)
+   885→        // Endpoint: /api/watch/anikoto/{anilistId}/{ep}/{type}?server={serverId}
+   886→        const serverParam = c.provider; // e.g. "VidPlay-1"
+   887→        const res = await Promise.race([
+   888→          fetch(`${ANIVAULT_SENSHI.replace('/senshi', '/anikoto')}/${id}/${epNum}/${c.type}?server=${encodeURIComponent(serverParam)}`).then(r => r.ok ? r.json() : null),
+   889→          new Promise<null>(r => setTimeout(() => r(null), 3000)),
+   890→        ]);
+   891→        if (res?.hlsProxyUrl) {
+   892→          // AniVault already provides a proxied HLS URL — use it directly
+   893→          return { ...c, quality: res.server || "auto",
+   894→            streamUrl: res.hlsProxyUrl,
+   895→            isM3U8: true, isMP4: false };
+   896→        }
+   897→        if (res?.m3u8) {
+   898→          // Raw m3u8 — wrap through Anikuro proxy
+   899→          const ref = res.embedUrl ? new URL(res.embedUrl).origin + "/" : "https://senshi.live/";
+   900→          return { ...c, quality: res.server || "auto",
+   901→            streamUrl: buildProxyUrl(res.m3u8, ref, false),
+   902→            isM3U8: true, isMP4: false };
+   903→        }
+   904→      }
+   905→    } catch (e) { console.error(`[Servers] ${c.id} failed:`, e); }
+   906→    return null;
+   907→  });
+   908→
+   909→  // Second hard ceiling. Most branches race their own 3-4s timeout, but not all
+   910→  // do, and this runs over every candidate — so without a cap the verification
+   911→  // pass could still push the route past its budget on its own.
+   912→  const VERIFY_TIMEOUT = group === "slow" ? 30000 : 10000;
+   913→  const results = await Promise.allSettled(
+   914→    verifyPromises.map(p => withTimeout<VerifiedServer | null>(p, VERIFY_TIMEOUT, null)),
+   915→  );
+   916→  const verified: VerifiedServer[] = [];
+   917→  for (const r of results) {
+   918→    if (r.status === "fulfilled" && r.value) verified.push(r.value);
+   919→  }
+   920→
+   921→  // ─── AnimePahe — pre-verified HLS m3u8 + MP4 streams via kwik.si ───────────
+   922→  // (always fires — scraper URL is hardcoded with env var override)
+   923→  const animepaheVerified: VerifiedServer[] = [];
+   924→  if (animepaheResults.status === "fulfilled" && Array.isArray(animepaheResults.value)) {
+   925→    for (const r of animepaheResults.value) {
+   926→      const qualityLabel = r.quality || "auto";
+   927→      const typeTag = r.type === "dub" ? " (Dub)" : "";
+   928→      // Detect embed URLs (kwik.cx raw embed fallback)
+   929→      const isEmbed = r.isEmbed === true
+   930→                    || r.streamUrl.includes("kwik.cx/e/");
+   931→      animepaheVerified.push({
+   932→        id: `animepahe:${r.type}:${qualityLabel}`,
+   933→        name: `NQ-1 ${qualityLabel}${typeTag}`,
+   934→        source: "animepahe",
+   935→        provider: "animepahe",
+   936→        type: r.type,
+   937→        quality: qualityLabel,
+   938→        streamUrl: r.streamUrl,
+   939→        isM3U8: r.isM3U8,
+   940→        isMP4: r.isMP4,
+   941→        isEmbed,
+   942→        hardsub: false,  // animepahe subs are soft (separate audio track available)
+   943→      });
+   944→    }
+   945→    if (animepaheVerified.length > 0) {
+   946→      console.log(`[Servers] AnimePahe: ${animepaheVerified.length} verified streams`);
+   947→    }
+   948→  }
+   949→
+   950→  // ─── AnimeOnsen — DASH .mpd streams with ASS subtitles ────────────────────
+   951→  const onsenVerified: VerifiedServer[] = [];
+   952→  if (onsenResults.status === "fulfilled" && Array.isArray(onsenResults.value)) {
+   953→    for (const r of onsenResults.value) {
+   954→      onsenVerified.push({
+   955→        id: `animeonsen:${r.type}`,
+   956→        name: `NO-1 ${r.quality}`,
+   957→        source: "animeonsen",
+   958→        provider: "animeonsen",
+   959→        type: r.type,
+   960→        quality: r.quality,
+   961→        streamUrl: r.streamUrl,
+   962→        isM3U8: r.isM3U8,
+   963→        isMP4: r.isMP4,
+   964→        isDASH: r.isDASH || false,
+   965→        hardsub: false,
+   966→        subtitleTracks: r.subtitleTracks || [],
+   967→        intro: r.intro || null,
+   968→        outro: r.outro || null,
+   969→      });
+   970→    }
+   971→    if (onsenVerified.length > 0) {
+   972→      console.log(`[Servers] AnimeOnsen: ${onsenVerified.length} verified streams`);
+   973→    }
+   974→  }
+   975→
+   976→  // ReAnime — FlixCLOUD streams (m3u8 or embed)
+   977→  const reanimeVerified: VerifiedServer[] = [];
+   978→  if (reanimeResults.status === "fulfilled" && Array.isArray(reanimeResults.value)) {
+   979→    for (const r of reanimeResults.value) {
+   980→      reanimeVerified.push({
+   981→        id: `reanime:${r.provider}`,
+   982→        name: `NR-1 ${r.provider.includes("hd-2") ? "HD-2" : "HD-1"} ${r.type === "dub" ? "Dub" : "Sub"}`,
+   983→        source: "reanime",
+   984→        provider: r.provider,
+   985→        type: r.type,
+   986→        quality: r.quality,
+   987→        streamUrl: r.streamUrl,
+   988→        isM3U8: r.isM3U8,
+   989→        isMP4: r.isMP4,
+   990→        isEmbed: r.isEmbed || false,
+   991→        hardsub: !r.isEmbed && r.subtitleTracks?.length === 0,
+   992→        subtitleTracks: r.subtitleTracks || [],
+   993→        intro: r.intro || null,
+   994→        outro: r.outro || null,
+   995→      });
+   996→    }
+   997→    if (reanimeVerified.length > 0) {
+   998→      console.log(`[Servers] ReAnime: ${reanimeVerified.length} verified streams (m3u8=${reanimeVerified.filter(s => s.isM3U8).length}, embed=${reanimeVerified.filter(s => s.isEmbed).length})`);
+   999→    }
+  1000→  }
+  1001→
+  1002→  // Merge in the pre-verified AniDap + AniLight + Kyren streams (already have
+  1003→  // playable streamUrl, subtitles, intro/outro chapters — no re-verification needed).
+  1004→  verified.push(...anidapVerified);
+  1005→  verified.push(...anilightVerified);
+  1006→  verified.push(...kyrenVerified);
+  1007→  verified.push(...anikageVerified);
+  1008→  verified.push(...mioanimeVerified);
+  1009→  verified.push(...anixtvVerified);
+  1010→  verified.push(...anistreamVerified);
+  1011→  verified.push(...anikuroVerified);
+  1012→  verified.push(...anipmVerified);
+  1013→  verified.push(...animetsuVerified);
+  1014→  verified.push(...animeheavenVerified);
+  1015→  // AniWaves removed — not working
+  1016→  verified.push(...animepaheVerified);
+  1017→  verified.push(...onsenVerified);
+  1018→  verified.push(...reanimeVerified);
+  1019→  // New providers
+  1020→  verified.push(...animo4Verified);
+  1021→  verified.push(...animostreamVerified);
+  1022→  verified.push(...anibdVerified);
+  1023→  // NOTE: Animex is NOT here — it's fetched separately via /api/anime/animex-servers
+  1024→
+  1025→  // ── STRICT FILTER: only show servers with a playable stream URL ───────────
+  1026→  // A server must have:
+  1027→  //   1. A streamUrl that's > 10 chars (not empty/undefined)
+  1028→  //   2. The URL must start with http://, https://, or / (relative proxy URL)
+  1029→  //   3. Must NOT be a data: URI or blob:
+  1030→  //   4. Must be a playable format:
+  1031→  //      - HLS (m3u8) → isM3U8 must be true OR url contains .m3u8
+  1032→  //      - MP4 → isMP4 must be true OR url contains .mp4
+  1033→  //      - Embed (iframe) → isEmbed must be true (kwik.cx, ok.ru, mp4upload, anixtv)
+  1034→  //   5. If neither isM3U8, isMP4, nor isEmbed → reject (no playable format)
+  1035→  const beforeFilter = verified.length;
+  1036→  const filtered = verified.filter(s => {
+  1037→    if (!s.streamUrl || s.streamUrl.length <= 10) return false;
+  1038→    if (s.streamUrl.startsWith("data:") || s.streamUrl.startsWith("blob:")) return false;
+  1039→    if (!s.streamUrl.startsWith("http") && !s.streamUrl.startsWith("/")) return false;
+  1040→
+  1041→    // Must have at least one playable format
+  1042→    const url = s.streamUrl.toLowerCase();
+  1043→    const isHls = s.isM3U8 === true || url.includes(".m3u8") || url.includes("/m3u8");
+  1044→    const isMp4 = s.isMP4 === true || url.includes(".mp4");
+  1045→    const isEmbed = s.isEmbed === true
+  1046→                  || url.includes("kwik.cx")
+  1047→                  || url.includes("ok.ru/videoembed")
+  1048→                  || url.includes("mp4upload.com/embed")
+  1049→                  || url.includes("streamlare.com/e/")
+  1050→                  || url.includes("streamsb.net/e/")
+  1051→                  || url.includes("anixtv.in")
+  1052→                  || url.includes("/embed/")
+  1053→                  || url.includes("otakuvid.online/embed")
+  1054→                  || url.includes("otakuhg.site/e/")
+  1055→                  || url.includes("bibiemb.xyz/")
+  1056→                  || url.includes("vibeplayer.site/")
+  1057→                  || url.includes("playmogo.com/e/")
+  1058→                  || url.includes("doodstream.com/e/")
+  1059→                  || url.includes("streamtape.com/e/")
+  1060→                  || url.includes("voe.sx/e/")
+  1061→                  || url.includes("mixdrop.ag/e/")
+  1062→                  || url.includes("upstream.to/e/")
+  1063→                  || url.includes("flixcloud.cc/e/")  // ReAnime FlixCLOUD embed
+  1064→                  // New provider embeds
+  1065→                  || url.includes("cdn.4animo.xyz/embed/")        // 4animo
+  1066→                  || url.includes("abyssplayer.com/")             // animostream Abyss
+  1067→                  || url.includes("animostream.embedseek.online/") // animostream StreamTape proxy
+  1068→                  || url.includes("tryembed.us.cc/")              // AnixTV TryEmbed
+  1069→                  || url.includes("megaplay.buzz/stream/")        // AnixTV MegaPlay
+  1070→                  || url.includes("vidnest.fun/")                // AnixTV VidNest + AnimePahe
+  1071→                  || url.includes("player.videasy.net/");         // AnixTV Videasy
+  1072→    // Reject if no playable format detected
+  1073→    const isDash = s.isDASH === true;
+  1074→    if (!isHls && !isMp4 && !isEmbed && !isDash) return false;
+  1075→
+  1076→    return true;
+  1077→  });
+  1078→
+  1079→  const totalPre = anidapVerified.length + anilightVerified.length + kyrenVerified.length + anikageVerified.length + mioanimeVerified.length + anixtvVerified.length + anistreamVerified.length + anikuroVerified.length + anipmVerified.length + animetsuVerified.length + animeheavenVerified.length + animepaheVerified.length + onsenVerified.length + reanimeVerified.length + animo4Verified.length + animostreamVerified.length + anibdVerified.length;
+  1080→  console.log(`[Servers] ${filtered.length}/${beforeFilter} servers (filtered ${beforeFilter - filtered.length} empty/unplayable) — AniDap=${anidapVerified.length}, AniLight=${anilightVerified.length}, Kyren=${kyrenVerified.length}, Anikage=${anikageVerified.length}, MioAnime=${mioanimeVerified.length}, AnixTV=${anixtvVerified.length}, Anistream=${anistreamVerified.length}, AniKuro=${anikuroVerified.length}, AniPm=${anipmVerified.length}, Animetsu=${animetsuVerified.length}, AnimeHeaven=${animeheavenVerified.length}, AnimePahe=${animepaheVerified.length}, AnimeOnsen=${onsenVerified.length}, ReAnime=${reanimeVerified.length}, 4animo=${animo4Verified.length}, AnimoStream=${animostreamVerified.length}, AniBD=${anibdVerified.length}`);
+  1081→
+  1082→  // ── SORT by priority: Animex → AniDap → AniKuro → AniKoto → AniNeko → others ──
+  1083→  // User requested this specific order so the best servers appear first.
+  1084→  const SOURCE_PRIORITY: Record<string, number> = {
+  1085→    animex: 1,     // Animex (fetched separately, appended client-side)
+  1086→    anidap: 2,     // AniDap (m3u8 + embed)
+  1087→    animepahe: 3,  // AnimePahe
+  1088→    animeonsen: 4,  // AnimeOnsen (DASH .mpd, high quality, ASS subs)
+  1089→    reanime: 5,    // ReAnime (FlixCLOUD m3u8 + embed, uses AniList ID directly)
+  1090→    anikuro: 6,    // AniKuro (m3u8 via proxy.anikuro.ru)
+  1091→    anikage: 8,    // AniKage (m3u8 via prox.anikage.cc)
+  1092→    kyren: 9,      // Kyren (m3u8 via worker)
+  1093→    anipm: 10,     // AniPm
+  1094→    animeheaven: 12, // AnimeHeaven (direct MP4)
+  1095→    anilight: 13,  // AniLight (m3u8 via proxy)
+  1096→    anivexa: 14,   // AniVexa (m3u8/mp4)
+  1097→    mioanime: 15,  // MioAnime (m3u8 + embed)
+  1098→    anistream: 16, // Anistream (m3u8 + embed)
+  1099→    animo4: 17,    // 4animo (sub/dub embeds + subtitles + skip times)
+  1100→    animostream: 18, // AnimoStream (Hindi dub — Abyss + StreamTape)
+  1101→    anibd: 19,     // AniBD (direct m3u8, CORS-enabled, BD/uncensored)
+  1102→    anixtv: 20,    // AnixTV (10 embed providers, Hindi 1 if in Hindi DB)
+  1103→  };
+  1104→  // Sort: sub before dub, then by source priority, then by quality
+  1105→  const sorted = filtered.sort((a, b) => {
+  1106→    // Sub first, then dub
+  1107→    if (a.type !== b.type) return a.type === "sub" ? -1 : 1;
+  1108→    // By source priority
+  1109→    const pa = SOURCE_PRIORITY[a.source] || 99;
+  1110→    const pb = SOURCE_PRIORITY[b.source] || 99;
+  1111→    if (pa !== pb) return pa - pb;
+  1112→    // By quality (1080p > 720p > 360p > auto)
+  1113→    const qa = parseInt((a.quality || "").match(/(\d{3,4})/)?.[1] || "0", 10);
+  1114→    const qb = parseInt((b.quality || "").match(/(\d{3,4})/)?.[1] || "0", 10);
+  1115→    return qb - qa;
+  1116→  });
+  1117→
+  1118→  return NextResponse.json({ anilistId: id, episode: epNum, servers: sorted, total: sorted.length }, {
+  1119→    headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+  1120→  });
+  1121→  } catch (e: any) {
+  1122→    console.error(`[Servers] FATAL error for ${anilistId} ep${epNum}:`, e?.message || e, e?.stack || "");
+  1123→    return NextResponse.json({
+  1124→      anilistId: id,
+  1125→      episode: epNum,
+  1126→      servers: [],
+  1127→      total: 0,
+  1128→      error: e?.message || "Internal server error",
+  1129→    }, { status: 200 });  // return 200 with empty array so watch page doesn't crash
+  1130→  }
+  1131→}
+  1132→
