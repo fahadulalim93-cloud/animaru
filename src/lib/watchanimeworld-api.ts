@@ -19,6 +19,10 @@
  *   2. POST https://play.zephyrix.top/player/index.php?data={hash}&do=getVideo
  *      Body: hash={hash}&r={referer}
  *      → Returns JSON: { videoSource: "https://play.zephyrix.top/cdn/hls/{id}/master.m3u8?..." }
+ *
+ * IMPORTANT: Both watchanimeworld.top and play.zephyrix.top are
+ * Cloudflare-protected. All HTTP requests must go through the CF Worker
+ * proxy, otherwise Vercel serverless IPs get CF challenge pages (403/503).
  */
 
 const SITE_BASE = "https://watchanimeworld.top";
@@ -26,6 +30,9 @@ const PLAYER_BASE = "https://play.zephyrix.top";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
+
+// CF Worker proxy — same pattern as anixtv-api.ts
+const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -60,6 +67,11 @@ export interface WatchAnimeworldSearchResult {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
+/**
+ * Fetch HTML through the Cloudflare Worker proxy.
+ * watchanimeworld.top and play.zephyrix.top are CF-protected —
+ * direct fetch from Vercel IPs returns CF challenge pages.
+ */
 async function fetchHtml(url: string, referer?: string): Promise<string> {
   const headers: Record<string, string> = {
     "User-Agent": UA,
@@ -71,7 +83,9 @@ async function fetchHtml(url: string, referer?: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(url, { headers, signal: controller.signal, redirect: "follow", cache: "no-store" });
+    // Route through CF Worker — same as anixtv-api.ts
+    const proxyUrl = `${WORKER_BASE}/proxy?url=${encodeURIComponent(url)}&ref=${encodeURIComponent(referer || SITE_BASE + "/")}`;
+    const res = await fetch(proxyUrl, { headers, signal: controller.signal, cache: "no-store" });
     if (!res.ok) return "";
     return await res.text();
   } catch {
@@ -201,6 +215,9 @@ export async function getVideoHashFromEpisode(
  * Two-step process:
  * 1. GET the player page to obtain the fireplayer_player cookie
  * 2. POST to the getVideo API with the cookie to get the m3u8 URL
+ *
+ * Both requests go through the CF Worker proxy since
+ * play.zephyrix.top is Cloudflare-protected.
  */
 export async function resolveWatchAnimeworldStream(
   videoHash: string,
@@ -209,60 +226,63 @@ export async function resolveWatchAnimeworldStream(
   const videoUrl = `${PLAYER_BASE}/video/${videoHash}`;
 
   // Step 1: GET the player page to get the session cookie
+  // Route through CF Worker since play.zephyrix.top is CF-protected
   let cookie = "";
   try {
-    const getRes = await fetch(videoUrl, {
+    const proxyUrl = `${WORKER_BASE}/proxy?url=${encodeURIComponent(videoUrl)}&ref=${encodeURIComponent(referer)}`;
+    const getRes = await fetch(proxyUrl, {
       headers: { "User-Agent": UA, Referer: referer },
       redirect: "follow",
       cache: "no-store",
     });
 
     // Extract fireplayer_player cookie from Set-Cookie
-    const setCookies = getRes.headers.getSetCookie?.() || [];
-    for (const sc of setCookies) {
-      const m = sc.match(/fireplayer_player=([^;]+)/);
-      if (m) { cookie = `fireplayer_player=${m[1]}`; break; }
-    }
-
-    // Fallback: try from raw header
-    if (!cookie) {
-      const rawCookie = getRes.headers.get("set-cookie") || "";
-      const m = rawCookie.match(/fireplayer_player=([^;]+)/);
-      if (m) cookie = `fireplayer_player=${m[1]}`;
-    }
+    const rawCookie = getRes.headers.get("set-cookie") || "";
+    const m = rawCookie.match(/fireplayer_player=([^;]+)/);
+    if (m) cookie = `fireplayer_player=${m[1]}`;
   } catch (e) {
     console.error("[WatchAnimeworld] Failed to get player cookie:", e);
     return null;
   }
 
   // Step 2: POST to the getVideo API
+  // play.zephyrix.top requires Origin header and validates the referer
+  // The CF Worker can proxy POST requests too
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
 
-    const postRes = await fetch(
-      `${PLAYER_BASE}/player/index.php?data=${videoHash}&do=getVideo`,
-      {
-        method: "POST",
-        headers: {
-          "User-Agent": UA,
-          Referer: videoUrl,
-          Origin: PLAYER_BASE,
-          "X-Requested-With": "XMLHttpRequest",
-          "Content-Type": "application/x-www-form-urlencoded",
-          ...(cookie ? { Cookie: cookie } : {}),
-        },
-        body: `hash=${videoHash}&r=${encodeURIComponent(referer)}`,
-        signal: controller.signal,
-        redirect: "follow",
-        cache: "no-store",
+    const postApiUrl = `${PLAYER_BASE}/player/index.php?data=${videoHash}&do=getVideo`;
+    const proxyPostUrl = `${WORKER_BASE}/proxy?url=${encodeURIComponent(postApiUrl)}&ref=${encodeURIComponent(videoUrl)}`;
+
+    const postRes = await fetch(proxyPostUrl, {
+      method: "POST",
+      headers: {
+        "User-Agent": UA,
+        Referer: videoUrl,
+        Origin: PLAYER_BASE,
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json, text/javascript, */*; q=0.01",
+        ...(cookie ? { Cookie: cookie } : {}),
       },
-    );
+      body: `hash=${videoHash}&r=${encodeURIComponent(referer)}`,
+      signal: controller.signal,
+      redirect: "follow",
+      cache: "no-store",
+    });
 
     clearTimeout(timer);
 
     if (!postRes.ok) {
       console.error(`[WatchAnimeworld] getVideo API returned ${postRes.status}`);
+      return null;
+    }
+
+    // Check if we got JSON back (CF challenge returns HTML)
+    const contentType = postRes.headers.get("content-type") || "";
+    if (!contentType.includes("json") && !contentType.includes("javascript")) {
+      console.error("[WatchAnimeworld] getVideo returned non-JSON (likely CF challenge):", contentType);
       return null;
     }
 

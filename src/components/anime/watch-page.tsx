@@ -404,7 +404,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   interface ServerEntry {
     id: string;
     name: string;
-    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap" | "anilight" | "kyren" | "anikage" | "mioanime" | "anixtv" | "anistream" | "anikuro" | "anipm" | "animeheaven" | "aniwaves" | "anidb" | "anikoto" | "anineko" | "allmanga" | "animo4" | "animostream" | "anibd";
+    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap" | "anilight" | "kyren" | "anikage" | "mioanime" | "anixtv" | "anistream" | "anikuro" | "anipm" | "animeheaven" | "aniwaves" | "anidb" | "anikoto" | "anineko" | "allmanga" | "animo4" | "animostream" | "anibd" | "watchanimeworld";
     provider: string;
     type: "sub" | "dub";
     quality?: string;
@@ -414,6 +414,10 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     isEmbed?: boolean;
     /** Embed hosts that allow framing and ignore Referer — skip the worker proxy */
     noProxy?: boolean;
+    /** Whether to route through /api/embed/proxy for CF-protected embed sources */
+    useEmbedProxy?: boolean;
+    /** DASH manifest (.mpd) — needs dash.js instead of hls.js */
+    isDASH?: boolean;
     /** Whether subtitles are burned into the video (hard sub) vs soft sub */
     hardsub?: boolean;
     /** AniDap/AniLight streams include WebVTT subtitle tracks + intro/outro chapters */
@@ -615,20 +619,20 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
             || serverList.find(s => s.source === "anixtv");
       } else if (t === "dub") {
         // Dub: find dub server (not anixtv hindi_1, not animostream which is Hindi-only)
-        best = serverList.find(s => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream")
+        best = serverList.find(s => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
             || serverList.find(s => s.type === "dub");
       } else if (t === "hardsub") {
         // Hardsub: prefer 4animo, then true hardsub servers
         best = serverList.find(s => s.source === "animo4" && s.type === "sub")
             || serverList.find(s => s.type === "sub" && s.hardsub === true)
-            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream")
+            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
             || serverList.find(s => s.type === "sub");
       } else {
         // Sub (default): find softsub server, prefer mimi.
         // Exclude AnixTV + AnimoStream (Hindi-only sources).
         best = serverList.find(s => s.id === "animex:mimi:sub")
-            || serverList.find(s => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream")
-            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream")
+            || serverList.find(s => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
             || serverList.find(s => s.type === "sub");
       }
 
@@ -1228,8 +1232,8 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           if (newServers.length === 0) return prev;
           console.log(`[WatchPage] Miruro V3: added ${newServers.length} servers`);
           const combined = [...prev, ...newServers];
-          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream"));
-          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream"));
+          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
           return combined;
         });
       })
@@ -1248,9 +1252,9 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           if (newServers.length === 0) return prev;
           console.log(`[WatchPage] Slow providers: added ${newServers.length} servers`);
           const combined = [...prev, ...newServers];
-          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream"));
+          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
           setHardsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4")));
-          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream"));
+          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
           return combined;
         });
       })
@@ -1279,10 +1283,10 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           const newServers = dedupeNew(prev, data.servers);
           const combined = [...prev, ...newServers];
           // Update availability flags based on the combined list
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream");
+          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
           const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
-          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream");
-          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream");
+          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld");
           setDubAvailable(hasDub);
           setHardsubAvailable(hasHardsub);
           setSoftsubAvailable(hasSoftsub);
@@ -1305,7 +1309,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
               || data.servers.find((s: ServerEntry) => s.source === "animostream")
               || data.servers.find((s: ServerEntry) => s.source === "anixtv");
           } else if (translation === "dub") {
-            firstMatch = data.servers.find((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream");
+            firstMatch = data.servers.find((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
           } else if (translation === "hardsub") {
             // Hardsub: prefer 4animo, then true hardsub servers
             firstMatch = data.servers.find((s: ServerEntry) => s.source === "animo4" && s.type === "sub")
@@ -1313,8 +1317,8 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           } else {
             // "sub" → soft sub preferred, fall back to any sub (hardsub ok)
             // Exclude AnixTV + AnimoStream (Hindi-only sources)
-            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream")
-                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream")
+            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
                       || data.servers.find((s: ServerEntry) => s.type === "sub");
           }
 
@@ -1322,8 +1326,8 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           // soft sub is available), fall back to whatever's first available
           // in priority order: soft sub → hard sub → dub
           if (!firstMatch) {
-            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream")
-                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream")
+            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
                       || data.servers.find((s: ServerEntry) => s.type === "sub")
                       || data.servers.find((s: ServerEntry) => s.type === "dub")
                       || data.servers[0];
@@ -1363,10 +1367,10 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           const newServers = dedupeNew(prev, animexData.servers);
           const combined = [...prev, ...newServers];
           // Update availability flags
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream");
+          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
           const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
-          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream");
-          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream");
+          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld");
           setDubAvailable(hasDub);
           setHardsubAvailable(hasHardsub);
           setSoftsubAvailable(hasSoftsub);
@@ -1388,9 +1392,9 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
         setServerList(prev => {
           const newServers = dedupeNew(prev, anidapData.servers);
           const combined = [...prev, ...newServers];
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream");
+          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
           const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
-          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream");
+          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
           setDubAvailable(hasDub);
           setHardsubAvailable(hasHardsub);
           setSoftsubAvailable(hasSoftsub);
@@ -1408,7 +1412,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
         setServerList(prev => {
           const newServers = dedupeNew(prev, anikuroData.servers);
           const combined = [...prev, ...newServers];
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream");
+          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
           setDubAvailable(hasDub);
           console.log(`[WatchPage] AniKuro servers loaded: +${newServers.length} (total: ${combined.length})`);
           return combined;

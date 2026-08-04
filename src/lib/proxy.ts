@@ -82,6 +82,15 @@ const CDN_REFERERS: Record<string, string> = {
   "vault94.slopnet.site":  "https://flixcloud.cc/",
   // harmonix (miku) — allanime referer
   "soq6.harmonixwellnessgroup.store": "https://allanime.uns.bio/",
+  // AnixTV CDN — as-cdn21.top serves HLS streams for AnixTV Hindi dub
+  "as-cdn21.top":               "https://anixtv.in/",
+  "as-cdn22.top":               "https://anixtv.in/",
+  "as-cdn23.top":               "https://anixtv.in/",
+  "as-cdn24.top":               "https://anixtv.in/",
+  "as-cdn25.top":               "https://anixtv.in/",
+  // WatchAnimeWorld / Zephyrix CDN — play.zephyrix.top serves HLS streams
+  "play.zephyrix.top":          "https://watchanimeworld.top/",
+  "as-cdn17.top":               "https://watchanimeworld.top/",
 };
 
 // Wildcard referer patterns — matched against the URL hostname.

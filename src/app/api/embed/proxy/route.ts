@@ -419,6 +419,9 @@ function injectAntiSandboxScript(html: string): string {
  */
 const CF_PROTECTED_DOMAINS = [
   "anixtv.in",
+  "anixx.fun",
+  "watchanimeworld.top",
+  "play.zephyrix.top",
 ];
 
 const CF_WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";

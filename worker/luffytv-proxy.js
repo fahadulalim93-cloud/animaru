@@ -133,8 +133,18 @@ const CDN_RULES = [
   { test: h => h.endsWith('.vid-cdn.xyz') || h === 'vid-cdn.xyz',
     referer: 'https://anizone.to/', origin: 'https://anizone.to', secSite: 'cross-site' },
   // as-cdn21.top — Luna AnimeSalt HLS (already proxied through luna, but just in case)
+  // Also used by AnixTV (same CDN, auth params handle authorization)
   { test: h => h.endsWith('.as-cdn21.top') || h === 'as-cdn21.top',
     referer: 'https://animesalt.to/', origin: 'https://animesalt.to', secSite: 'cross-site' },
+  // AnixTV HLS CDN variants (as-cdn22..25.top) — need anixtv.in referer
+  { test: h => /^as-cdn2[2-5]\.top$/.test(h) || /^as-cdn2[2-5]\.top$/.test(h),
+    referer: 'https://anixtv.in/', origin: 'https://anixtv.in', secSite: 'cross-site' },
+  // WatchAnimeWorld / Zephyrix — play.zephyrix.top serves HLS streams
+  { test: h => h === 'play.zephyrix.top' || h.endsWith('.zephyrix.top'),
+    referer: 'https://watchanimeworld.top/', origin: 'https://watchanimeworld.top', secSite: 'cross-site' },
+  // as-cdn17.top — WatchAnimeWorld HLS segments
+  { test: h => h.endsWith('.as-cdn17.top') || h === 'as-cdn17.top',
+    referer: 'https://watchanimeworld.top/', origin: 'https://watchanimeworld.top', secSite: 'cross-site' },
   // stream.neongambit.com / stream2.neongambit.com — Luna HadFree
   { test: h => h.endsWith('.neongambit.com') || h === 'neongambit.com',
     referer: 'https://luna-stream.me/', origin: 'https://luna-stream.me', secSite: 'cross-site' },
