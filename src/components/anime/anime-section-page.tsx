@@ -5,6 +5,7 @@ import { useAppStore } from "./store";
 import type { MiruroAnimeResult } from "@/lib/miruro-api";
 import BrowsePage from "./browse-page";
 import SchedulePage from "./schedule-page";
+import DubSubPage from "./dub-sub-page";
 import { Plus, Flame, Play } from "lucide-react";
 
 type SubPage = "home" | "browse" | "schedule";
@@ -1725,6 +1726,15 @@ export default function AnimeSectionPage() {
         <div className="px-4 lg:px-8 pb-16">
           <SchedulePage />
         </div>
+      </div>
+    );
+  }
+
+  // If sub-page is dub or sub, show the DubSubPage with language tabs (Tamil, Hindi, etc.)
+  if (sectionSubPage === "dub" || sectionSubPage === "sub") {
+    return (
+      <div className="w-full bg-[#000000] text-white" style={{ paddingTop: "88px", minHeight: "100vh" }}>
+        <DubSubPage mode={sectionSubPage as "dub" | "sub"} />
       </div>
     );
   }
