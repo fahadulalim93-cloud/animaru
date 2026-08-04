@@ -288,10 +288,12 @@ export async function GET(
           isM3U8: false,
           isMP4: false,
           isEmbed: true,
-          // Route through Cloudflare Worker proxy — anixtv.in now blocks
-          // direct iframe embedding. The worker fetches the page and serves
-          // it with X-Frame-Options: ALLOWALL so our iframe can load it.
+          // Route through /api/embed/proxy — it strips sandbox detection,
+          // injects anti-sandbox overrides, and for CF-protected sites like
+          // anixtv.in, internally routes through the CF Worker to bypass
+          // bot protection. This matches the reference Vercel app (luffytv2).
           noProxy: false,
+          useEmbedProxy: true,
           hardsub: false,
           subtitleTracks: [],
           intro: null,

@@ -1,0 +1,1790 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from "react";
+     4→import { useAppStore } from "./store";
+     5→import type { MiruroAnimeResult } from "@/lib/miruro-api";
+     6→import BrowsePage from "./browse-page";
+     7→import SchedulePage from "./schedule-page";
+     8→import DubSubPage from "./dub-sub-page";
+     9→import { Plus, Flame, Play } from "lucide-react";
+    10→
+    11→type SubPage = "home" | "browse" | "schedule";
+    12→
+    13→function ordinal(n: number): string {
+    14→  const s = ["th", "st", "nd", "rd"];
+    15→  const v = n % 100;
+    16→  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    17→}
+    18→
+    19→interface FeaturedAnime {
+    20→  id: number;
+    21→  title: { romaji?: string; english?: string; native?: string };
+    22→  bannerImage?: string;
+    23→  coverImage?: { extraLarge?: string; large?: string; medium?: string; color?: string };
+    24→  description?: string;
+    25→  format?: string;
+    26→  episodes?: number;
+    27→  averageScore?: number;
+    28→  genres?: string[];
+    29→  season?: string;
+    30→  seasonYear?: number;
+    31→  status?: string;
+    32→  nextAiringEpisode?: { episode: number; airingAt: number };
+    33→}
+    34→
+    35→interface AnimeItem {
+    36→  id: number;
+    37→  title: { romaji?: string; english?: string; native?: string };
+    38→  coverImage?: { extraLarge?: string; large?: string; medium?: string; color?: string };
+    39→  bannerImage?: string;
+    40→  format?: string;
+    41→  episodes?: number;
+    42→  seasonYear?: number;
+    43→  averageScore?: number;
+    44→  genres?: string[];
+    45→  status?: string;
+    46→  description?: string;
+    47→  popularity?: number;
+    48→  nextAiringEpisode?: { episode: number; airingAt: number };
+    49→}
+    50→
+    51→/* ═══════════════════════════════════════════════════════════════
+    52→   HELPERS
+    53→   ═══════════════════════════════════════════════════════════════ */
+    54→
+    55→function getTitle(a: any): string {
+    56→  return a?.title?.english || a?.title?.romaji || a?.title?.native || "Unknown";
+    57→}
+    58→
+    59→function getBanner(a: any): string {
+    60→  // Prefer bannerImage (high quality), then extraLarge cover
+    61→  const banner = a?.bannerImage;
+    62→  if (banner) return banner;
+    63→  // Fallback to cover image (extra large)
+    64→  return a?.coverImage?.extraLarge || a?.coverImage?.large || "";
+    65→}
+    66→
+    67→function getCover(a: any): string {
+    68→  return a?.coverImage?.extraLarge || a?.coverImage?.large || a?.coverImage?.medium || "";
+    69→}
+    70→
+    71→function getScore(a: any): number {
+    72→  const s = a?.averageScore;
+    73→  if (!s) return 0;
+    74→  return s > 100 ? Math.round(s / 10) : s;
+    75→}
+    76→
+    77→function formatCount(n?: number): string {
+    78→  const v = n || 0;
+    79→  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    80→  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+    81→  return String(v);
+    82→}
+    83→
+    84→// Shared "+" (add to list) click handler for every poster card on the home
+    85→// page. No AniList/MAL linked yet → the focused connect prompt (always this
+    86→// minimal card, never the full email/password sign-in form); AniList linked
+    87→// → the real edit-entry modal, synced to their AniList list.
+    88→function handleAddToList(e: React.MouseEvent, anime: { id: number; title: string; cover?: string }) {
+    89→  e.stopPropagation();
+    90→  const { anilistToken, malToken, openConnectListModal, openEditListModal } = useAppStore.getState();
+    91→  if (anilistToken) { openEditListModal(anime); return; }
+    92→  if (!malToken) { openConnectListModal(); return; }
+    93→}
+    94→
+    95→// Manga cards use a provider id ("at:xxxxx"), not an AniList media id, so
+    96→// they can't open the AniList-synced edit modal — just the connect prompt.
+    97→function handleAddToListManga(e: React.MouseEvent) {
+    98→  e.stopPropagation();
+    99→  const { anilistToken, malToken, openConnectListModal } = useAppStore.getState();
+   100→  if (!anilistToken && !malToken) { openConnectListModal(); return; }
+   101→}
+   102→
+   103→function getStatusPill(status?: string): { label: string; className: string } | null {
+   104→  if (!status) return null;
+   105→  const s = status.toUpperCase();
+   106→  if (s === "RELEASING" || s === "AIRING") return { label: "On-Going", className: "bg-emerald-500/15 text-emerald-400" };
+   107→  if (s === "FINISHED") return { label: "Finished", className: "bg-white/10 text-white/60" };
+   108→  if (s === "NOT_YET_RELEASED" || s === "NOT_YET_AIRED") return { label: "TBA", className: "bg-white/10 text-white/60" };
+   109→  if (s === "CANCELLED") return { label: "Cancelled", className: "bg-white/10 text-white/60" };
+   110→  if (s === "HIATUS") return { label: "Hiatus", className: "bg-white/10 text-white/60" };
+   111→  return { label: status, className: "bg-white/10 text-white/60" };
+   112→}
+   113→
+   114→/* ═══════════════════════════════════════════════════════════════
+   115→   HERO CAROUSEL — Full-screen featured anime
+   116→   ═══════════════════════════════════════════════════════════════ */
+   117→
+   118→function HeroCarousel({ items, navigate }: { items: FeaturedAnime[]; navigate: (r: any) => void }) {
+   119→  const [current, setCurrent] = useState(0);
+   120→  const [paused, setPaused] = useState(false);
+   121→  const [logos, setLogos] = useState<Record<number, string>>({});
+   122→  const [backdrops, setBackdrops] = useState<Record<number, string>>({});
+   123→  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   124→
+   125→  // Fetch TVDB clearlogos + backgrounds for the hero banners.
+   126→  // TVDB has the best anime clearlogos (transparent PNG logos like the
+   127→  // One Piece logo). Falls back to AniList banner if TVDB has no background.
+   128→  // Each TVDB API call has a 4s timeout to prevent Vercel function timeouts.
+   129→  useEffect(() => {
+   130→    let cancelled = false;
+   131→    (async () => {
+   132→      for (const anime of items) {
+   133→        if (cancelled) return;
+   134→        if (logos[anime.id] || backdrops[anime.id]) continue;
+   135→        try {
+   136→          const title = getTitle(anime);
+   137→          const res = await fetch(`/api/anime/tmdb-images?anilistId=${anime.id}&title=${encodeURIComponent(title)}`);
+   138→          if (res.ok) {
+   139→            const data = await res.json();
+   140→            if (cancelled) return;
+   141→            if (data.logoUrl) setLogos(prev => ({ ...prev, [anime.id]: data.logoUrl }));
+   142→            if (data.backdropUrl) setBackdrops(prev => ({ ...prev, [anime.id]: data.backdropUrl }));
+   143→          }
+   144→        } catch { /* keep going to the next banner */ }
+   145→      }
+   146→    })();
+   147→    return () => { cancelled = true; };
+   148→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   149→  }, [items]);
+   150→
+   151→  useEffect(() => {
+   152→    if (paused || items.length === 0) return;
+   153→    timerRef.current = setTimeout(() => {
+   154→      setCurrent(prev => (prev + 1) % items.length);
+   155→    }, 8000);
+   156→    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+   157→  }, [current, paused, items.length]);
+   158→
+   159→  if (items.length === 0) {
+   160→    return (
+   161→      <div className="relative w-full h-[100dvh] bg-[#000000] flex items-center justify-center">
+   162→        <div className="w-10 h-10 border-2 border-white/10 border-t-white rounded-full animate-spin" />
+   163→      </div>
+   164→    );
+   165→  }
+   166→
+   167→  const anime = items[current];
+   168→  // Use TVDB backdrop if available, otherwise AniList banner
+   169→  const banner = backdrops[anime.id] || anime.bannerImage || getBanner(anime) || "";
+   170→  const logoUrl = logos[anime.id];
+   171→  const title = getTitle(anime);
+   172→  const score = getScore(anime);
+   173→  const seasonStr = anime.season && anime.seasonYear ? `${anime.season} ${anime.seasonYear}` : anime.seasonYear ? String(anime.seasonYear) : "";
+   174→  const description = anime.description ? anime.description.replace(/<[^>]*>/g, "") : "";
+   175→
+   176→  return (
+   177→    <div
+   178→      className="relative w-full h-[85dvh] md:h-[100dvh] min-h-[480px] md:min-h-[560px] overflow-hidden bg-[#000000]"
+   179→      onMouseEnter={() => setPaused(true)}
+   180→      onMouseLeave={() => setPaused(false)}
+   181→    >
+   182→      {/* ── Banner image — full-bleed, object-cover for cinematic crop ── */}
+   183→      {banner && (
+   184→        <img
+   185→          src={banner}
+   186→          alt=""
+   187→          className="object-cover object-[center_30%] md:object-center"
+   188→          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", animation: "ltv-hero-crossfade 1.2s ease-in-out" }}
+   189→          key={`bg-${current}`}
+   190→          onError={(e) => {
+   191→            const fallback = anime.bannerImage || getBanner(anime) || "";
+   192→            const img = e.currentTarget;
+   193→            if (fallback && img.src !== fallback) img.src = fallback;
+   194→            else img.style.display = "none";
+   195→          }}
+   196→        />
+   197→      )}
+   198→
+   199→      {/* ── Overlay system — matches the original cinematic look the user liked:
+   200→          strong vignette on all sides, bold left gradient for text column, dark
+   201→          top fade under header, and a solid bottom fade into the next section. */}
+   202→      {/* 1) Base wash — uniform darkening across entire banner */}
+   203→      <div className="absolute inset-0 bg-black/40" />
+   204→      {/* 2) Edge vignette — dark shadow on all 4 edges */}
+   205→      <div className="absolute inset-0" style={{ boxShadow: "inset 0 0 220px 60px rgba(0,0,0,0.65)" }} />
+   206→      {/* 3) Left gradient — near-black at edge for text contrast */}
+   207→      <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.95) 0%, transparent 22%)" }} />
+   208→      {/* 4) Top fade — strong darkening under header */}
+   209→      <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 18%)" }} />
+   210→      {/* 5) Bottom fade — solid black at bottom edge to blend into section below */}
+   211→      <div className="absolute inset-x-0 bottom-0 h-28 md:h-64 bg-gradient-to-t from-black to-transparent" />
+   212→
+   213→      {/* ── Content — bottom-left anchored, shiroko-style ── */}
+   214→      <div
+   215→        className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-16 pb-6 sm:pb-12 lg:pb-24 pt-3 sm:pt-6"
+   216→        key={`content-${current}`}
+   217→        style={{ animation: "ltv-hero-content-slide 1.2s ease-out" }}
+   218→      >
+   219→        <div className="flex flex-col items-start gap-1.5 sm:gap-2 lg:w-[45%] text-white">
+   220→          {/* Trending badge */}
+   221→          <div className="capitalize font-karla flex items-center gap-2" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))" }}>
+   222→            <Flame size={16} strokeWidth={1} className="text-red-500 fill-red-500 sm:text-[20px]" />
+   223→            <p className="text-xs sm:text-sm font-semibold tracking-wide">{ordinal(current + 1)} on trend</p>
+   224→          </div>
+   225→
+   226→          {/* TITLE → logo art or plain text */}
+   227→          <div className="font-karla text-balance font-extrabold leading-8 sm:leading-10 xl:leading-14">
+   228→            {logoUrl ? (
+   229→              <img
+   230→                key={anime.id}
+   231→                src={logoUrl}
+   232→                alt={title}
+   233→                className="max-w-[160px] sm:max-w-[220px] lg:max-w-[320px] xl:max-w-[400px] max-h-[60px] sm:max-h-[80px] lg:max-h-[110px] w-auto h-auto object-contain"
+   234→                style={{ objectPosition: "left", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.9))" }}
+   235→                draggable={false}
+   236→                onError={() => setLogos((prev) => { const n = { ...prev }; delete n[anime.id]; return n; })}
+   237→              />
+   238→            ) : (
+   239→              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-white leading-tight" style={{ textShadow: "0 4px 16px rgba(0,0,0,0.9)" }}>
+   240→                {title}
+   241→              </h1>
+   242→            )}
+   243→          </div>
+   244→
+   245→          {/* Genre pills */}
+   246→          <div className="flex py-1 sm:py-1.5 gap-1.5 sm:gap-2 flex-wrap w-full text-white" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.8))" }}>
+   247→            {anime.seasonYear && (
+   248→              <span className="border border-white/10 bg-[#ceced1]/10 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full backdrop-blur-sm">{anime.seasonYear}</span>
+   249→            )}
+   250→            {anime.genres?.slice(0, 3).map(g => (
+   251→              <span key={g} className="border border-white/10 bg-[#ceced1]/10 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full backdrop-blur-sm">{g}</span>
+   252→            ))}
+   253→          </div>
+   254→
+   255→          {/* Description */}
+   256→          {description && (
+   257→            <div className="w-full max-w-lg relative font-karla font-light line-clamp-2 leading-5 sm:leading-6 text-white/70 text-xs sm:text-sm sm:line-clamp-3" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}>
+   258→              {description}
+   259→            </div>
+   260→          )}
+   261→
+   262→          {/* Buttons */}
+   263→          <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
+   264→            <button
+   265→              onClick={() => navigate({ page: "anime", id: String(anime.id) })}
+   266→              className="inline-flex items-center justify-center gap-1 whitespace-nowrap transition-all shrink-0 outline-none bg-white/95 text-slate-900 shadow-sm border border-slate-200/70 hover:bg-white h-8 sm:h-9 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-semibold text-xs sm:text-sm"
+   267→            >
+   268→              <Play size={12} strokeWidth={1} fill="currentColor" className="sm:text-[14px]" />
+   269→              Watch Now
+   270→            </button>
+   271→
+   272→            <button
+   273→              onClick={(e) => handleAddToList(e, { id: anime.id, title, cover: getCover(anime) })}
+   274→              className="inline-flex items-center justify-center transition-all shrink-0 outline-none shadow-sm h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/15"
+   275→              title="Add to list"
+   276→              aria-label="Add to list"
+   277→            >
+   278→              <Plus size={16} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" />
+   279→            </button>
+   280→          </div>
+   281→        </div>
+   282→      </div>
+   283→
+   284→      {/* Navigation dots — hidden on mobile (overlaps button), visible sm+ */}
+   285→      <div className="hidden sm:flex absolute bottom-6 right-6 lg:right-16 items-center gap-2 z-30">
+   286→        {items.slice(0, 6).map((_, i) => (
+   287→          <button
+   288→            key={i}
+   289→            onClick={() => setCurrent(i)}
+   290→            className={`h-1 rounded-full transition-all ${i === current ? "w-8 bg-white/90" : "w-1.5 bg-white/25 hover:bg-white/40"}`}
+   291→          />
+   292→        ))}
+   293→      </div>
+   294→    </div>
+   295→  );
+   296→}
+   297→
+   298→/* ═══════════════════════════════════════════════════════════════
+   299→   POSTER ROW — shared horizontal-scroll row of poster cards with
+   300→   status + episode-count pills. Used by Trending Anime + Popular Anime.
+   301→   ═══════════════════════════════════════════════════════════════ */
+   302→
+   303→// Hover title-tint colors, cycled per card index (4-color loop) instead of
+   304→// the old flat white/uniform hover — each poster in the row gets its own hue.
+   305→const HOVER_TITLE_COLORS = ["#8FCBAE", "#84A8D1", "#C98DA8", "#9E8BC4"];
+   306→
+   307→function PosterRow({ title, items, navigate }: {
+   308→  title: string;
+   309→  items: AnimeItem[];
+   310→  navigate: (r: any) => void;
+   311→}) {
+   312→  const scrollRef = useRef<HTMLDivElement>(null);
+   313→  const cards = items.slice(0, 10);
+   314→
+   315→  if (cards.length === 0) return null;
+   316→
+   317→  const scroll = (dir: "left" | "right") => {
+   318→    if (scrollRef.current) {
+   319→      scrollRef.current.scrollBy({ left: dir === "right" ? 700 : -700, behavior: "smooth" });
+   320→    }
+   321→  };
+   322→
+   323→  return (
+   324→    <section className="px-4 md:px-8 lg:px-8 py-4">
+   325→      <div className="flex items-center justify-between mb-4">
+   326→        <h2
+   327→          className="font-karla text-xl font-bold bg-clip-text text-transparent"
+   328→          style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
+   329→        >
+   330→          {title}
+   331→        </h2>
+   332→        <div className="flex gap-2">
+   333→          <button onClick={() => scroll("left")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+   334→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+   335→          </button>
+   336→          <button onClick={() => scroll("right")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+   337→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+   338→          </button>
+   339→        </div>
+   340→      </div>
+   341→      <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+   342→        {cards.map((anime, idx) => {
+   343→          const cover = getCover(anime);
+   344→          const cardTitle = getTitle(anime);
+   345→          const pill = getStatusPill(anime.status);
+   346→          const accent = HOVER_TITLE_COLORS[idx % HOVER_TITLE_COLORS.length];
+   347→          return (
+   348→            <div
+   349→              key={`${anime.id}-${idx}`}
+   350→              onClick={() => navigate({ page: "anime", id: String(anime.id) })}
+   351→              className="group shrink-0 text-left cursor-pointer"
+   352→              style={{ width: "190px", ["--accent" as any]: accent }}
+   353→            >
+   354→              <div className="relative w-full aspect-[2/3] bg-white/5 overflow-hidden ring-1 ring-transparent group-hover:ring-white/20 transition-all duration-300" style={{ borderRadius: "12px" }}>
+   355→                {cover ? (
+   356→                  <img src={cover} alt={cardTitle} className="w-full h-full object-cover" loading="lazy" />
+   357→                ) : (
+   358→                  <div className="w-full h-full flex items-center justify-center text-white/10 font-bold text-2xl">{cardTitle.charAt(0)}</div>
+   359→                )}
+   360→                <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+   361→                {/* Add button — fades in on hover */}
+   362→                <button
+   363→                  onClick={(e) => handleAddToList(e, { id: anime.id, title: cardTitle, cover })}
+   364→                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+   365→                  title="Add to list"
+   366→                  aria-label="Add to list"
+   367→                >
+   368→                  <Plus size={14} strokeWidth={2} />
+   369→                </button>
+   370→              </div>
+   371→              {/* Title + status/episode pills below the card */}
+   372→              <div className="mt-2.5 space-y-1">
+   373→                <p className="text-[13px] font-medium text-white/90 leading-snug line-clamp-2 transition-colors duration-200 group-hover:text-[var(--accent)]">{cardTitle}</p>
+   374→                <div className="flex items-center gap-1.5 flex-wrap">
+   375→                  {pill && (
+   376→                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${pill.className}`}>
+   377→                      {pill.label}
+   378→                    </span>
+   379→                  )}
+   380→                  {!!anime.episodes && (
+   381→                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/60">
+   382→                      {anime.episodes} eps
+   383→                    </span>
+   384→                  )}
+   385→                </div>
+   386→              </div>
+   387→            </div>
+   388→          );
+   389→        })}
+   390→      </div>
+   391→    </section>
+   392→  );
+   393→}
+   394→
+   395→function TopTrending({ trending, navigate }: {
+   396→  trending: AnimeItem[];
+   397→  topRated: AnimeItem[];
+   398→  navigate: (r: any) => void;
+   399→}) {
+   400→  return <PosterRow title="Trending Anime" items={trending} navigate={navigate} />;
+   401→}
+   402→
+   403→function PopularAnime({ popular, navigate }: {
+   404→  popular: AnimeItem[];
+   405→  navigate: (r: any) => void;
+   406→}) {
+   407→  return <PosterRow title="Popular Anime" items={popular} navigate={navigate} />;
+   408→}
+   409→
+   410→/* ═══════════════════════════════════════════════════════════════
+   411→   TRENDING MANGA — pulled from /api/manga/home, same poster-row look
+   412→   ═══════════════════════════════════════════════════════════════ */
+   413→
+   414→interface MangaHomeItem {
+   415→  id: string;
+   416→  title: string;
+   417→  poster?: string;
+   418→  cover?: string;
+   419→  status?: string;
+   420→}
+   421→
+   422→function getMangaStatusPill(status?: string): { label: string; className: string } | null {
+   423→  if (!status) return null;
+   424→  const s = status.toLowerCase();
+   425→  if (s.includes("ongoing") || s.includes("releasing") || s.includes("airing")) {
+   426→    return { label: "On-Going", className: "bg-emerald-500/15 text-emerald-400" };
+   427→  }
+   428→  if (s.includes("complet") || s.includes("finish")) {
+   429→    return { label: "Finished", className: "bg-white/10 text-white/60" };
+   430→  }
+   431→  if (s.includes("hiatus")) return { label: "Hiatus", className: "bg-white/10 text-white/60" };
+   432→  if (s.includes("cancel")) return { label: "Cancelled", className: "bg-white/10 text-white/60" };
+   433→  return { label: status, className: "bg-white/10 text-white/60" };
+   434→}
+   435→
+   436→function TrendingManga({ navigate }: { navigate: (r: any) => void }) {
+   437→  const scrollRef = useRef<HTMLDivElement>(null);
+   438→  const [items, setItems] = useState<MangaHomeItem[]>([]);
+   439→
+   440→  useEffect(() => {
+   441→    let cancelled = false;
+   442→    async function load() {
+   443→      try {
+   444→        const res = await fetch("/api/manga/home");
+   445→        if (!res.ok) return;
+   446→        const data = await res.json();
+   447→        const sections: { type: string; items: MangaHomeItem[] }[] = data.sections || [];
+   448→        const trendingSection = sections.find(s => s.type === "trending");
+   449→        const flat = trendingSection ? trendingSection.items : sections.flatMap(s => s.items);
+   450→        const seen = new Set<string>();
+   451→        const deduped = flat.filter(m => {
+   452→          if (!m.id || seen.has(m.id)) return false;
+   453→          seen.add(m.id);
+   454→          return true;
+   455→        });
+   456→        if (!cancelled) setItems(deduped.slice(0, 12));
+   457→      } catch { /* ignore */ }
+   458→    }
+   459→    load();
+   460→    return () => { cancelled = true; };
+   461→  }, []);
+   462→
+   463→  if (items.length === 0) return null;
+   464→
+   465→  const scroll = (dir: "left" | "right") => {
+   466→    if (scrollRef.current) {
+   467→      scrollRef.current.scrollBy({ left: dir === "right" ? 700 : -700, behavior: "smooth" });
+   468→    }
+   469→  };
+   470→
+   471→  const goToDetail = (manga: MangaHomeItem) => {
+   472→    try {
+   473→      const poster = manga.poster || manga.cover || "";
+   474→      if (poster) sessionStorage.setItem(`manga-poster-${manga.id}`, poster);
+   475→      if (manga.title) sessionStorage.setItem(`manga-title-${manga.id}`, manga.title);
+   476→    } catch { /* ignore */ }
+   477→    navigate({ page: "manga-detail", id: manga.id });
+   478→  };
+   479→
+   480→  return (
+   481→    <section className="px-4 md:px-8 lg:px-8 py-4">
+   482→      <div className="flex items-center justify-between mb-4">
+   483→        <h2
+   484→          className="font-karla text-xl font-bold bg-clip-text text-transparent"
+   485→          style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
+   486→        >
+   487→          Trending Manga
+   488→        </h2>
+   489→        <div className="flex gap-2">
+   490→          <button onClick={() => scroll("left")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+   491→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+   492→          </button>
+   493→          <button onClick={() => scroll("right")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+   494→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+   495→          </button>
+   496→        </div>
+   497→      </div>
+   498→      <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+   499→        {items.map((manga, idx) => {
+   500→          const cover = manga.poster || manga.cover || "";
+   501→          const pill = getMangaStatusPill(manga.status);
+   502→          const accent = HOVER_TITLE_COLORS[idx % HOVER_TITLE_COLORS.length];
+   503→          return (
+   504→            <div
+   505→              key={`${manga.id}-${idx}`}
+   506→              onClick={() => goToDetail(manga)}
+   507→              className="group shrink-0 text-left cursor-pointer"
+   508→              style={{ width: "190px", ["--accent" as any]: accent }}
+   509→            >
+   510→              <div className="relative w-full aspect-[2/3] bg-white/5 overflow-hidden ring-1 ring-transparent group-hover:ring-white/20 transition-all duration-300" style={{ borderRadius: "12px" }}>
+   511→                {cover ? (
+   512→                  <img src={cover} alt={manga.title} className="w-full h-full object-cover" loading="lazy" />
+   513→                ) : (
+   514→                  <div className="w-full h-full flex items-center justify-center text-white/10 font-bold text-2xl">{manga.title.charAt(0)}</div>
+   515→                )}
+   516→                <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+   517→                {/* Add button — fades in on hover */}
+   518→                <button
+   519→                  onClick={handleAddToListManga}
+   520→                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+   521→                  title="Add to list"
+   522→                  aria-label="Add to list"
+   523→                >
+   524→                  <Plus size={14} strokeWidth={2} />
+   525→                </button>
+   526→              </div>
+   527→              <div className="mt-2.5 space-y-1">
+   528→                <p className="text-[13px] font-medium text-white/90 leading-snug line-clamp-2 transition-colors duration-200 group-hover:text-[var(--accent)]">{manga.title}</p>
+   529→                {pill && (
+   530→                  <div className="flex items-center gap-1.5 flex-wrap">
+   531→                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${pill.className}`}>
+   532→                      {pill.label}
+   533→                    </span>
+   534→                  </div>
+   535→                )}
+   536→              </div>
+   537→            </div>
+   538→          );
+   539→        })}
+   540→      </div>
+   541→    </section>
+   542→  );
+   543→}
+   544→
+   545→/* ═══════════════════════════════════════════════════════════════
+   546→   MUST WATCH ANIME — curated editorial row, ambient color glow
+   547→   pulled from each anime's AniList palette color.
+   548→   ═══════════════════════════════════════════════════════════════ */
+   549→
+   550→const TEXT_GRADIENT = "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)";
+   551→
+   552→/** Gradient-filled percentage text (replaces the old solid-gold score color). */
+   553→function GradientScore({ score, iconClassName, textClassName }: { score: number; iconClassName: string; textClassName: string }) {
+   554→  return (
+   555→    <span className="flex items-center gap-1">
+   556→      <svg className={iconClassName} fill="currentColor" viewBox="0 0 20 20" style={{ color: "#c9c9c9" }}>
+   557→        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+   558→      </svg>
+   559→      <span className={`${textClassName} bg-clip-text text-transparent`} style={{ backgroundImage: TEXT_GRADIENT }}>
+   560→        {score}%
+   561→      </span>
+   562→    </span>
+   563→  );
+   564→}
+   565→
+   566→function MustWatchAnime({ topRated, navigate }: {
+   567→  topRated: AnimeItem[];
+   568→  navigate: (r: any) => void;
+   569→}) {
+   570→  const withBanner = topRated.filter(a => getBanner(a));
+   571→  const pool = withBanner.length >= 5 ? withBanner : topRated;
+   572→  const featured = pool[0];
+   573→  const rest = pool.slice(1, 6);
+   574→
+   575→  const [tmdbBackdrop, setTmdbBackdrop] = useState("");
+   576→
+   577→  useEffect(() => {
+   578→    if (!featured) return;
+   579→    let cancelled = false;
+   580→    setTmdbBackdrop("");
+   581→    (async () => {
+   582→      try {
+   583→        const title = getTitle(featured);
+   584→        const res = await fetch(`/api/anime/tmdb-images?anilistId=${featured.id}&title=${encodeURIComponent(title)}`);
+   585→        if (res.ok && !cancelled) {
+   586→          const data = await res.json();
+   587→          if (data.backdropUrl) setTmdbBackdrop(data.backdropUrl);
+   588→        }
+   589→      } catch { /* falls back to AniList banner */ }
+   590→    })();
+   591→    return () => { cancelled = true; };
+   592→  }, [featured]);
+   593→
+   594→  if (pool.length === 0) return null;
+   595→
+   596→  const featuredTitle = getTitle(featured);
+   597→  const featuredScore = getScore(featured);
+   598→  const featuredDesc = featured.description ? featured.description.replace(/<[^>]+>/g, "") : "";
+   599→  const featuredBg = tmdbBackdrop || getBanner(featured);
+   600→
+   601→  return (
+   602→    <section className="px-4 md:px-8 lg:px-8 py-6">
+   603→      <div className="mb-5">
+   604→        <p className="font-karla text-[11px] font-bold uppercase tracking-[0.2em] text-white/40 mb-1.5">Top Selection</p>
+   605→        <h2
+   606→          className="font-karla text-2xl md:text-3xl font-extrabold bg-clip-text text-transparent"
+   607→          style={{ backgroundImage: TEXT_GRADIENT }}
+   608→        >
+   609→          Must Watch Anime
+   610→        </h2>
+   611→      </div>
+   612→
+   613→      {/* Spotlight + ranked list — one large featured pick paired with a
+   614→          compact chart-style list, instead of another poster carousel. */}
+   615→      <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-5">
+   616→        {/* ── Featured pick ── */}
+   617→        <button
+   618→          onClick={() => navigate({ page: "anime", id: String(featured.id) })}
+   619→          className="group relative text-left overflow-hidden w-full"
+   620→          style={{ minHeight: "360px", borderRadius: "18px" }}
+   621→        >
+   622→          {featuredBg ? (
+   623→            <img
+   624→              src={featuredBg}
+   625→              alt={featuredTitle}
+   626→              className="object-cover transition-transform duration-700 group-hover:scale-105"
+   627→              style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+   628→              loading="lazy"
+   629→              key={featuredBg}
+   630→            />
+   631→          ) : (
+   632→            <div className="absolute inset-0 bg-white/5" />
+   633→          )}
+   634→          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/5" />
+   635→          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
+   636→
+   637→          <div className="relative h-full flex flex-col justify-end p-6 md:p-8" style={{ minHeight: "360px" }}>
+   638→            <span className="inline-flex w-fit items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/10 text-white/70 border border-white/15 mb-3 backdrop-blur-sm">
+   639→              #1 Pick
+   640→            </span>
+   641→            <h3
+   642→              className="font-karla text-2xl md:text-4xl font-extrabold leading-tight drop-shadow-lg max-w-lg bg-clip-text text-transparent"
+   643→              style={{ backgroundImage: TEXT_GRADIENT }}
+   644→            >
+   645→              {featuredTitle}
+   646→            </h3>
+   647→            <div className="flex items-center gap-3 mt-3 text-xs text-white/60">
+   648→              <span>{featured.format || "TV"}{featured.episodes ? ` · ${featured.episodes} eps` : ""}{featured.seasonYear ? ` · ${featured.seasonYear}` : ""}</span>
+   649→              {featuredScore > 0 && (
+   650→                <GradientScore score={featuredScore} iconClassName="w-3.5 h-3.5" textClassName="text-sm font-bold" />
+   651→              )}
+   652→            </div>
+   653→            {featuredDesc && (
+   654→              <p className="text-sm text-white/50 mt-3 line-clamp-2 max-w-md">{featuredDesc}</p>
+   655→            )}
+   656→            <div className="flex items-center gap-3 mt-5">
+   657→              <span className="inline-flex items-center gap-2 whitespace-nowrap bg-white/95 text-slate-900 h-9 px-4 rounded-full font-semibold text-sm group-hover:bg-white transition-colors">
+   658→                <Play size={14} strokeWidth={1} fill="currentColor" />
+   659→                Watch Now
+   660→              </span>
+   661→            </div>
+   662→          </div>
+   663→        </button>
+   664→
+   665→        {/* ── Ranked list — remaining picks ── */}
+   666→        <div className="flex flex-col divide-y divide-white/[0.06]">
+   667→          {rest.map((anime, idx) => {
+   668→            const cover = getCover(anime);
+   669→            const title = getTitle(anime);
+   670→            const score = getScore(anime);
+   671→            return (
+   672→              <button
+   673→                key={`${anime.id}-${idx}`}
+   674→                onClick={() => navigate({ page: "anime", id: String(anime.id) })}
+   675→                className="group flex items-center gap-3 py-3 text-left hover:bg-white/[0.03] px-2 -mx-2 rounded-lg transition-colors"
+   676→              >
+   677→                <span className="font-karla text-lg font-extrabold text-white/20 w-6 shrink-0 text-center">
+   678→                  {idx + 2}
+   679→                </span>
+   680→                <div className="w-12 h-16 rounded-lg overflow-hidden shrink-0 bg-white/5">
+   681→                  {cover ? (
+   682→                    <img src={cover} alt={title} className="w-full h-full object-cover" loading="lazy" />
+   683→                  ) : (
+   684→                    <div className="w-full h-full flex items-center justify-center text-white/10 font-bold text-sm">{title.charAt(0)}</div>
+   685→                  )}
+   686→                </div>
+   687→                <div className="min-w-0 flex-1">
+   688→                  <p className="font-karla text-sm font-semibold text-white line-clamp-1 group-hover:text-[#D4A017] transition-colors">{title}</p>
+   689→                  <p className="text-[11px] text-white/40 mt-0.5">
+   690→                    {anime.format || "TV"}{anime.seasonYear ? ` · ${anime.seasonYear}` : ""}
+   691→                  </p>
+   692→                </div>
+   693→                {score > 0 && (
+   694→                  <GradientScore score={score} iconClassName="w-3 h-3" textClassName="text-[11px] font-bold" />
+   695→                )}
+   696→              </button>
+   697→            );
+   698→          })}
+   699→        </div>
+   700→      </div>
+   701→    </section>
+   702→  );
+   703→}
+   704→
+   705→/* ═══════════════════════════════════════════════════════════════
+   706→   GENRE STRIP — quick-jump pills, each one deep-links into Browse
+   707→   ═══════════════════════════════════════════════════════════════ */
+   708→
+   709→const GENRE_STRIP = [
+   710→  "Action", "Adventure", "Comedy", "Drama", "Ecchi", "Fantasy", "Horror",
+   711→  "Mahou Shoujo", "Mecha", "Music", "Mystery", "Psychological", "Romance",
+   712→  "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Thriller",
+   713→];
+   714→
+   715→/* ═══════════════════════════════════════════════════════════════
+   716→   GENRE SPOTLIGHT — wide 16:9 banner rail for one featured genre.
+   717→
+   718→   Uses AniList `bannerImage` (the wide character key-art) rather than the
+   719→   portrait cover, so each card reads as a scene instead of a poster. The
+   720→   /api/anime/genre endpoint can't back this — it returns allanime-shaped
+   721→   rows with no banner field — so this pulls from /api/anime/browse, which
+   722→   is AniList-backed and returned a banner for all 12 results when checked.
+   723→
+   724→   The featured genre rotates by day so the home page isn't static, and the
+   725→   arrows let you page through the rail like the other rows.
+   726→   ═══════════════════════════════════════════════════════════════ */
+   727→
+   728→const SPOTLIGHT_GENRES = [
+   729→  "Slice of Life", "Action", "Romance", "Fantasy", "Comedy",
+   730→  "Adventure", "Drama", "Supernatural", "Mystery", "Sci-Fi",
+   731→];
+   732→
+   733→function GenreSpotlight({ navigate }: { navigate: (r: any) => void }) {
+   734→  // genre + items land together so the heading never shows a genre whose rail
+   735→  // hasn't loaded. Both are set from the async callback rather than
+   736→  // synchronously in the effect body, which avoids a cascading re-render.
+   737→  const [data, setData] = useState<{ genre: string; items: any[] }>({ genre: "", items: [] });
+   738→  const [loading, setLoading] = useState(true);
+   739→  // TMDB clear-logo (transparent PNG) + clean backdrop per anime, same source
+   740→  // the hero carousel uses.
+   741→  const [art, setArt] = useState<Record<number, { logo?: string; backdrop?: string }>>({});
+   742→  const scrollRef = useRef<HTMLDivElement>(null);
+   743→  const { genre, items } = data;
+   744→
+   745→  useEffect(() => {
+   746→    let cancelled = false;
+   747→    // Chosen inside the effect (not at render) so server and client can't
+   748→    // disagree on the date and trip a hydration mismatch.
+   749→    const dayIndex = Math.floor(Date.now() / 86_400_000);
+   750→    const picked = SPOTLIGHT_GENRES[dayIndex % SPOTLIGHT_GENRES.length];
+   751→
+   752→    fetch(`/api/anime/browse?genre=${encodeURIComponent(picked)}&sort=most-popular&perPage=14`)
+   753→      .then(r => (r.ok ? r.json() : null))
+   754→      .then(res => {
+   755→        if (cancelled) return;
+   756→        // Only keep entries that actually have wide art — a cover stretched to
+   757→        // 16:9 looks broken, and a blank tile looks worse.
+   758→        const withBanner = (res?.results || []).filter((a: any) => !!a?.bannerImage);
+   759→        setData({ genre: picked, items: withBanner.slice(0, 12) });
+   760→      })
+   761→      .catch(() => { /* best-effort — section hides itself if nothing loads */ })
+   762→      .finally(() => { if (!cancelled) setLoading(false); });
+   763→
+   764→    return () => { cancelled = true; };
+   765→  }, []);
+   766→
+   767→  // Pull the show's logo + a clean backdrop once the rail has its items.
+   768→  // Sequential on purpose: TMDB is rate-limited and this is decoration, so it
+   769→  // must never contend with the streams/metadata calls the page actually needs.
+   770→  useEffect(() => {
+   771→    if (items.length === 0) return;
+   772→    let cancelled = false;
+   773→    (async () => {
+   774→      for (const anime of items) {
+   775→        if (cancelled) return;
+   776→        if (art[anime.id]) continue;
+   777→        try {
+   778→          const res = await fetch(`/api/anime/tmdb-images?anilistId=${anime.id}&title=${encodeURIComponent(getTitle(anime))}`);
+   779→          if (!res.ok) continue;
+   780→          const d = await res.json();
+   781→          if (cancelled) return;
+   782→          if (d.logoUrl || d.backdropUrl) {
+   783→            setArt(prev => ({ ...prev, [anime.id]: { logo: d.logoUrl || undefined, backdrop: d.backdropUrl || undefined } }));
+   784→          }
+   785→        } catch { /* skip this one, keep going */ }
+   786→      }
+   787→    })();
+   788→    return () => { cancelled = true; };
+   789→  }, [items]);
+   790→
+   791→  const scroll = (dir: "left" | "right") => {
+   792→    scrollRef.current?.scrollBy({ left: dir === "right" ? 700 : -700, behavior: "smooth" });
+   793→  };
+   794→
+   795→  // Nothing to show and nothing pending — render no empty shell.
+   796→  if (!loading && items.length === 0) return null;
+   797→
+   798→  return (
+   799→    <section className="px-4 md:px-8 lg:px-8 py-4">
+   800→      <div className="flex items-center justify-between mb-4">
+   801→        <h2
+   802→          className="font-karla text-xl font-bold bg-clip-text text-transparent"
+   803→          style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
+   804→        >
+   805→          {genre ? `Genre: ${genre}` : "Genre Spotlight"}
+   806→        </h2>
+   807→        <div className="flex gap-2">
+   808→          <button onClick={() => scroll("left")} aria-label="Scroll left" className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+   809→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+   810→          </button>
+   811→          <button onClick={() => scroll("right")} aria-label="Scroll right" className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+   812→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+   813→          </button>
+   814→        </div>
+   815→      </div>
+   816→
+   817→      <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+   818→        {loading
+   819→          ? Array.from({ length: 4 }).map((_, i) => (
+   820→              <div key={`sk-${i}`} className="shrink-0 rounded-lg bg-white/[0.04] animate-pulse" style={{ width: "min(80vw, 560px)", aspectRatio: "16 / 9" }} />
+   821→            ))
+   822→          : items.map((anime, idx) => {
+   823→              const cardTitle = getTitle(anime);
+   824→              const logo = art[anime.id]?.logo;
+   825→              const backdrop = art[anime.id]?.backdrop;
+   826→              return (
+   827→                <div
+   828→                  key={`${anime.id}-${idx}`}
+   829→                  onClick={() => navigate({ page: "anime", id: String(anime.id) })}
+   830→                  className="group shrink-0 cursor-pointer relative overflow-hidden rounded-lg ring-1 ring-white/[0.08]"
+   831→                  style={{ width: "min(80vw, 560px)", aspectRatio: "16 / 9" }}
+   832→                >
+   833→                  {/* When TMDB gives us a logo we also swap in its backdrop:
+   834→                      AniList banners often already have the show's wordmark
+   835→                      burned into them, and stacking our logo on top of that
+   836→                      would double it. TMDB backdrops are clean art. */}
+   837→                  {/* Only the banner zooms on hover. The logo, scrim and title
+   838→                      stay put — scaling the whole card made the logo drift and
+   839→                      the text swim. overflow-hidden on the wrapper clips it. */}
+   840→                  <img
+   841→                    src={(logo && backdrop) ? backdrop : anime.bannerImage}
+   842→                    alt={cardTitle}
+   843→                    loading="lazy"
+   844→                    className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+   845→                  />
+   846→                  {/* Bottom scrim so the title stays readable over bright art. */}
+   847→                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
+   848→
+   849→                  {/* Centred clear-logo — the focal point, as in the reference */}
+   850→                  {logo && (
+   851→                    <div className="absolute inset-0 flex items-center justify-center p-6 pointer-events-none">
+   852→                      <img
+   853→                        src={logo}
+   854→                        alt={cardTitle}
+   855→                        loading="lazy"
+   856→                        draggable={false}
+   857→                        className="max-w-[62%] max-h-[42%] w-auto h-auto object-contain"
+   858→                        style={{ filter: "drop-shadow(0 4px 18px rgba(0,0,0,0.85))" }}
+   859→                        onError={() => setArt(prev => {
+   860→                          const n = { ...prev };
+   861→                          if (n[anime.id]) n[anime.id] = { ...n[anime.id], logo: undefined };
+   862→                          return n;
+   863→                        })}
+   864→                      />
+   865→                    </div>
+   866→                  )}
+   867→
+   868→                  <div className="absolute inset-x-0 bottom-0 p-3">
+   869→                    <h3 className="font-karla text-[13px] sm:text-sm font-bold text-white line-clamp-1 drop-shadow-lg">
+   870→                      {cardTitle}
+   871→                    </h3>
+   872→                  </div>
+   873→                </div>
+   874→              );
+   875→            })}
+   876→      </div>
+   877→    </section>
+   878→  );
+   879→}
+   880→
+   881→function GenreStrip({ navigate }: { navigate: (r: any) => void }) {
+   882→  const setSectionSubPage = useAppStore(s => s.setSectionSubPage);
+   883→
+   884→  const goToBrowse = () => {
+   885→    navigate({ page: "home" });
+   886→    setSectionSubPage("browse");
+   887→  };
+   888→
+   889→  return (
+   890→    <section className="px-4 md:px-8 lg:px-8 py-4">
+   891→      {/* Individual square-ish chips, each with a clearly visible box */}
+   892→      <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+   893→        {GENRE_STRIP.map(genre => (
+   894→          <button
+   895→            key={genre}
+   896→            onClick={goToBrowse}
+   897→            className="shrink-0 whitespace-nowrap px-4 py-2 rounded-md text-sm font-semibold bg-black/60 border border-white/15 text-white/80 hover:border-[#D4A017]/50 hover:text-[#D4A017] transition-colors"
+   898→          >
+   899→            {genre}
+   900→          </button>
+   901→        ))}
+   902→      </div>
+   903→    </section>
+   904→  );
+   905→}
+   906→
+   907→/* ═══════════════════════════════════════════════════════════════
+   908→   CONTINUE WATCHING — From history
+   909→   ═══════════════════════════════════════════════════════════════ */
+   910→
+   911→function ContinueWatching({ navigate }: { navigate: (r: any) => void }) {
+   912→  const history = useAppStore(s => s.history);
+   913→  const recent = history.slice(0, 10);
+   914→
+   915→  if (recent.length === 0) return null;
+   916→
+   917→  return (
+   918→    <section className="px-4 md:px-8 lg:px-8 py-4">
+   919→      <div className="flex items-center justify-between mb-4">
+   920→        <h2
+   921→          className="font-karla text-xl font-bold bg-clip-text text-transparent"
+   922→          style={{ backgroundImage: TEXT_GRADIENT }}
+   923→        >
+   924→          Continue Watching
+   925→        </h2>
+   926→        <button
+   927→          onClick={() => navigate({ page: "history" })}
+   928→          className="text-xs text-white/40 hover:text-white transition-colors"
+   929→        >
+   930→          View All
+   931→        </button>
+   932→      </div>
+   933→      <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+   934→        {recent.map(h => {
+   935→          const progressPercent = h.duration > 0 ? Math.min((h.progress / h.duration) * 100, 100) : (h.progress || 0);
+   936→          const remainingMin = h.duration > 0 ? Math.max(0, Math.round((h.duration - (h.progress / 100) * h.duration) / 60)) : 0;
+   937→          return (
+   938→            <button
+   939→              key={h.animeId + h.episodeNum}
+   940→              onClick={() => navigate({ page: "watch", id: h.animeId, episode: h.episodeNum, title: h.animeName, image: h.thumbnail })}
+   941→              className="group shrink-0 w-[300px] text-left"
+   942→            >
+   943→              <div className="relative w-full aspect-video overflow-hidden" style={{ borderRadius: "8px" }}>
+   944→                {h.thumbnail && (
+   945→                  <img src={h.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+   946→                )}
+   947→                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+   948→                {/* Play button overlay */}
+   949→                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+   950→                  <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
+   951→                    <svg className="w-6 h-6 text-black ml-1" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+   952→                  </div>
+   953→                </div>
+   954→                {/* Progress bar */}
+   955→                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20">
+   956→                  <div className="h-full bg-white" style={{ width: `${progressPercent}%` }} />
+   957→                </div>
+   958→                {/* Episode badge */}
+   959→                <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/80 backdrop-blur-sm text-[10px] font-bold text-white" style={{ borderRadius: "3px" }}>
+   960→                  EP {h.episodeNum}
+   961→                </div>
+   962→              </div>
+   963→              <div className="mt-2.5">
+   964→                <p className="text-sm font-semibold text-white truncate group-hover:text-white/80 transition-colors">{h.animeName}</p>
+   965→                <div className="flex items-center justify-between mt-1">
+   966→                  <p className="text-xs font-medium text-white/60">Episode {h.episodeNum}</p>
+   967→                  <p className="text-xs text-white/30">
+   968→                    {progressPercent > 0 ? `${Math.round(progressPercent)}%` : "Just started"}
+   969→                    {remainingMin > 0 && progressPercent < 95 ? ` · ${remainingMin}m left` : ""}
+   970→                  </p>
+   971→                </div>
+   972→              </div>
+   973→            </button>
+   974→          );
+   975→        })}
+   976→      </div>
+   977→    </section>
+   978→  );
+   979→}
+   980→
+   981→/* ═══════════════════════════════════════════════════════════════
+   982→   POSTER CARD — Used in carousels
+   983→   ═══════════════════════════════════════════════════════════════ */
+   984→
+   985→function PosterCard({ anime, navigate }: { anime: AnimeItem; navigate: (r: any) => void }) {
+   986→  const cover = getCover(anime);
+   987→  const title = getTitle(anime);
+   988→  const score = getScore(anime);
+   989→  const accent = HOVER_TITLE_COLORS[anime.id % HOVER_TITLE_COLORS.length];
+   990→
+   991→  return (
+   992→    <div
+   993→      onClick={() => navigate({ page: "anime", id: String(anime.id) })}
+   994→      className="group shrink-0 w-[190px] text-left cursor-pointer"
+   995→      style={{ ["--accent" as any]: accent }}
+   996→    >
+   997→      <div className="relative w-full aspect-[2/3] bg-white/5 overflow-hidden ring-1 ring-transparent group-hover:ring-white/20 transition-all duration-300" style={{ borderRadius: "12px" }}>
+   998→        {cover ? (
+   999→          <img src={cover} alt={title} className="w-full h-full object-cover" loading="lazy" />
+  1000→        ) : (
+  1001→          <div className="w-full h-full flex items-center justify-center text-white/10 font-bold text-2xl">{title.charAt(0)}</div>
+  1002→        )}
+  1003→        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+  1004→        {/* Score badge — bottom-left */}
+  1005→        {score > 0 && (
+  1006→          <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/80 backdrop-blur-sm text-xs font-bold text-white rounded-md">
+  1007→            ★ {score}%
+  1008→          </div>
+  1009→        )}
+  1010→        {/* Add button — fades in on hover */}
+  1011→        <button
+  1012→          onClick={(e) => handleAddToList(e, { id: anime.id, title, cover })}
+  1013→          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+  1014→          title="Add to list"
+  1015→          aria-label="Add to list"
+  1016→        >
+  1017→          <Plus size={14} strokeWidth={2} />
+  1018→        </button>
+  1019→      </div>
+  1020→      <div className="mt-2.5 space-y-1">
+  1021→        <p className="text-[13px] font-medium text-white/90 leading-snug line-clamp-2 transition-colors duration-200 group-hover:text-[var(--accent)]">{title}</p>
+  1022→        <div className="flex items-center gap-1.5 text-[11px] text-white/40">
+  1023→          {anime.seasonYear && <span>{anime.seasonYear}</span>}
+  1024→          {anime.episodes && <span>· {anime.episodes} eps</span>}
+  1025→        </div>
+  1026→      </div>
+  1027→    </div>
+  1028→  );
+  1029→}
+  1030→
+  1031→/* ═══════════════════════════════════════════════════════════════
+  1032→   HORIZONTAL CAROUSEL — Section with title + scrollable posters
+  1033→   ═══════════════════════════════════════════════════════════════ */
+  1034→
+  1035→function Carousel({ title, subtitle, items, navigate }: {
+  1036→  title: string;
+  1037→  subtitle?: string;
+  1038→  items: AnimeItem[];
+  1039→  navigate: (r: any) => void;
+  1040→}) {
+  1041→  const scrollRef = useRef<HTMLDivElement>(null);
+  1042→
+  1043→  const scroll = (dir: "left" | "right") => {
+  1044→    if (scrollRef.current) {
+  1045→      const amount = 600;
+  1046→      scrollRef.current.scrollBy({ left: dir === "right" ? amount : -amount, behavior: "smooth" });
+  1047→    }
+  1048→  };
+  1049→
+  1050→  if (items.length === 0) return null;
+  1051→
+  1052→  return (
+  1053→    <section className="px-4 md:px-8 lg:px-8 py-4">
+  1054→      <div className="flex items-center justify-between mb-4">
+  1055→        <div>
+  1056→          <h2
+  1057→            className="font-karla text-xl font-bold bg-clip-text text-transparent"
+  1058→            style={{ backgroundImage: TEXT_GRADIENT }}
+  1059→          >
+  1060→            {title}
+  1061→          </h2>
+  1062→          {subtitle && <p className="text-sm text-white/40 mt-0.5">{subtitle}</p>}
+  1063→        </div>
+  1064→        <div className="flex gap-2">
+  1065→          <button onClick={() => scroll("left")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+  1066→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+  1067→          </button>
+  1068→          <button onClick={() => scroll("right")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+  1069→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+  1070→          </button>
+  1071→        </div>
+  1072→      </div>
+  1073→      <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+  1074→        {items.map(a => (
+  1075→          <PosterCard key={a.id} anime={a} navigate={navigate} />
+  1076→        ))}
+  1077→      </div>
+  1078→    </section>
+  1079→  );
+  1080→}
+  1081→
+  1082→/* ═══════════════════════════════════════════════════════════════
+  1083→   COMING SOON — Upcoming anime
+  1084→   ═══════════════════════════════════════════════════════════════ */
+  1085→
+  1086→function ComingSoon({ items, navigate }: { items: AnimeItem[]; navigate: (r: any) => void }) {
+  1087→  const [extra, setExtra] = useState<AnimeItem[]>([]);
+  1088→  const [loading, setLoading] = useState(true);
+  1089→
+  1090→  // Always fetch a dedicated batch of upcoming anime from AniList so the
+  1091→  // section is never empty / too short (trending list rarely has NOT_YET_RELEASED).
+  1092→  useEffect(() => {
+  1093→    let cancelled = false;
+  1094→    (async () => {
+  1095→      try {
+  1096→        const res = await fetch("https://graphql.anilist.co", {
+  1097→          method: "POST",
+  1098→          headers: { "Content-Type": "application/json" },
+  1099→          body: JSON.stringify({
+  1100→            query: `
+  1101→              query {
+  1102→                Page(page: 1, perPage: 30) {
+  1103→                  media(type: ANIME, status: NOT_YET_RELEASED, sort: POPULARITY_DESC, isAdult: false) {
+  1104→                    id title { romaji english native }
+  1105→                    coverImage { extraLarge large medium color }
+  1106→                    bannerImage format status episodes genres
+  1107→                    averageScore popularity season seasonYear
+  1108→                    description(asHtml: false)
+  1109→                    startDate { year month day }
+  1110→                  }
+  1111→                }
+  1112→              }
+  1113→            `,
+  1114→          }),
+  1115→        });
+  1116→        if (!res.ok) return;
+  1117→        const data = await res.json();
+  1118→        if (cancelled) return;
+  1119→        const list: AnimeItem[] = (data?.data?.Page?.media || []).map((a: any) => ({
+  1120→          ...a,
+  1121→          id: a.id,
+  1122→        }));
+  1123→        setExtra(list);
+  1124→      } catch {}
+  1125→      finally {
+  1126→        if (!cancelled) setLoading(false);
+  1127→      }
+  1128→    })();
+  1129→    return () => { cancelled = true; };
+  1130→  }, []);
+  1131→
+  1132→  // Merge: any upcoming from trending + dedicated AniList fetch, dedupe by id
+  1133→  const fromTrending = items.filter(a => a.status === "NOT_YET_RELEASED");
+  1134→  const seen = new Set<number>();
+  1135→  const merged: AnimeItem[] = [];
+  1136→  for (const a of [...fromTrending, ...extra]) {
+  1137→    if (!seen.has(a.id)) {
+  1138→      seen.add(a.id);
+  1139→      merged.push(a);
+  1140→    }
+  1141→  }
+  1142→
+  1143→  if (loading && merged.length === 0) {
+  1144→    // Show skeleton placeholders while loading
+  1145→    return (
+  1146→      <section className="px-4 md:px-8 lg:px-8 py-4">
+  1147→        <h2
+  1148→          className="font-karla text-xl font-bold bg-clip-text text-transparent mb-4"
+  1149→          style={{ backgroundImage: TEXT_GRADIENT }}
+  1150→        >
+  1151→          Coming Soon
+  1152→        </h2>
+  1153→        <div className="flex gap-3 overflow-hidden">
+  1154→          {Array.from({ length: 6 }).map((_, i) => (
+  1155→            <div key={i} className="shrink-0 w-[170px] md:w-[185px]">
+  1156→              <div className="w-full aspect-[3/4] bg-white/5 rounded animate-pulse" />
+  1157→              <div className="h-3 w-3/4 bg-white/5 rounded mt-2 animate-pulse" />
+  1158→              <div className="h-2 w-1/2 bg-white/5 rounded mt-1 animate-pulse" />
+  1159→            </div>
+  1160→          ))}
+  1161→        </div>
+  1162→      </section>
+  1163→    );
+  1164→  }
+  1165→
+  1166→  if (merged.length === 0) return null;
+  1167→
+  1168→  return (
+  1169→    <Carousel
+  1170→      title="Coming Soon"
+  1171→      items={merged}
+  1172→      navigate={navigate}
+  1173→    />
+  1174→  );
+  1175→}
+  1176→
+  1177→/* ═══════════════════════════════════════════════════════════════
+  1178→   MAIN PAGE
+  1179→   ═══════════════════════════════════════════════════════════════ */
+  1180→
+  1181→/* ═══════════════════════════════════════════════════════════════
+  1182→   RECENT COMMENTS — Community discussion from all anime
+  1183→   ═══════════════════════════════════════════════════════════════ */
+  1184→
+  1185→// Placeholder comments shown until real ones exist — swapped out
+  1186→// automatically once the API/local store returns actual comments.
+  1187→const FAKE_COMMENTS = [
+  1188→  { id: "fake-1", username: "Fundraizer", createdAt: new Date(Date.now() - 60 * 60000).toISOString(), episode: 12, content: "This pose is so tuff", animeTitle: "The Irregular at Magic High School", animeId: "20507", likes: 3 },
+  1189→  { id: "fake-2", username: "HakariFXX", createdAt: new Date(Date.now() - 60 * 60000).toISOString(), episode: 7, content: "Himeko is badder than Haruki", animeTitle: "Tenkousei no Seiei Karen na", animeId: "", likes: 0 },
+  1190→  { id: "fake-3", username: "tacochoice", createdAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(), episode: 18, content: "why is almight caked up", animeTitle: "My Hero Academia", animeId: "21459", likes: 7 },
+  1191→  { id: "fake-4", username: "tacochoice", createdAt: new Date(Date.now() - 3 * 60 * 60000).toISOString(), episode: 4, content: "HOLY PEAK", animeTitle: "My Hero Academia", animeId: "21459", likes: 12 },
+  1192→];
+  1193→
+  1194→function RecentComments({ navigate, trending }: { navigate: (r: any) => void; trending: AnimeItem[] }) {
+  1195→  const [comments, setComments] = useState<any[]>([]);
+  1196→  const [loading, setLoading] = useState(true);
+  1197→  const scrollRef = useRef<HTMLDivElement>(null);
+  1198→
+  1199→  const scroll = (dir: "left" | "right") => {
+  1200→    if (scrollRef.current) {
+  1201→      scrollRef.current.scrollBy({ left: dir === "right" ? 700 : -700, behavior: "smooth" });
+  1202→    }
+  1203→  };
+  1204→
+  1205→  // Pick a stable pseudo-random anime cover for a comment's avatar (decorative —
+  1206→  // comments don't carry a user profile picture, so we borrow an anime poster).
+  1207→  const randomAvatar = (seed: string) => {
+  1208→    const pool = trending.filter(a => getCover(a));
+  1209→    if (pool.length === 0) return "";
+  1210→    let hash = 0;
+  1211→    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  1212→    return getCover(pool[hash % pool.length]);
+  1213→  };
+  1214→
+  1215→  useEffect(() => {
+  1216→    let cancelled = false;
+  1217→
+  1218→    // 1. Load local comments (instant, works on Vercel where SQLite is read-only)
+  1219→    const LOCAL_KEY = "luffytv_comments";
+  1220→    const localAll: any[] = [];
+  1221→    try {
+  1222→      const raw = localStorage.getItem(LOCAL_KEY);
+  1223→      if (raw) {
+  1224→        const parsed = JSON.parse(raw);
+  1225→        if (typeof parsed === "object" && parsed !== null) {
+  1226→          for (const animeId of Object.keys(parsed)) {
+  1227→            for (const c of parsed[animeId] || []) {
+  1228→              localAll.push({ ...c, animeId });
+  1229→            }
+  1230→          }
+  1231→        }
+  1232→      }
+  1233→    } catch {}
+  1234→    localAll.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  1235→    const localTop = localAll.slice(0, 5).filter(c => c.id && c.id !== "0");
+  1236→
+  1237→    // 2. Try server API for shared comments (in case DB is configured)
+  1238→    fetch("/api/comments/recent?limit=5")
+  1239→      .then(r => r.ok ? r.json() : null)
+  1240→      .then(data => {
+  1241→        if (cancelled) return;
+  1242→        const serverComments = (data?.comments || []).filter((c: any) => c && c.id && c.id !== "0");
+  1243→        const seen = new Set<string>();
+  1244→        const merged: any[] = [];
+  1245→        for (const c of [...localTop, ...serverComments]) {
+  1246→          if (!seen.has(c.id)) {
+  1247→            seen.add(c.id);
+  1248→            merged.push(c);
+  1249→          }
+  1250→        }
+  1251→        merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  1252→        setComments(merged.slice(0, 5));
+  1253→      })
+  1254→      .catch(() => {
+  1255→        if (!cancelled) setComments(localTop);
+  1256→      })
+  1257→      .finally(() => { if (!cancelled) setLoading(false); });
+  1258→
+  1259→    return () => { cancelled = true; };
+  1260→  }, []);
+  1261→
+  1262→  const formatDateTime = (dateStr: string) => {
+  1263→    const d = new Date(dateStr);
+  1264→    const datePart = d.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
+  1265→    const timePart = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  1266→    return `${datePart}, ${timePart}`;
+  1267→  };
+  1268→
+  1269→  const display = loading ? [] : (comments.length > 0 ? comments : FAKE_COMMENTS);
+  1270→
+  1271→  return (
+  1272→    <section className="px-4 md:px-8 lg:px-8 py-6">
+  1273→      {/* Header — neutral accent bar + gradient title, matching the rest of the page */}
+  1274→      <div className="flex items-center justify-between mb-4">
+  1275→        <div className="flex items-center gap-3">
+  1276→          <div className="w-1 h-6 rounded-full bg-white/30" />
+  1277→          <h2
+  1278→            className="font-karla text-2xl font-extrabold bg-clip-text text-transparent"
+  1279→            style={{ backgroundImage: TEXT_GRADIENT }}
+  1280→          >
+  1281→            Latest Comments
+  1282→          </h2>
+  1283→          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#E63946]/10 border border-[#E63946]/30">
+  1284→            <span className="w-1.5 h-1.5 rounded-full bg-[#E63946] animate-pulse" />
+  1285→            <span className="text-[10px] font-bold uppercase tracking-wider text-[#E63946]">Live</span>
+  1286→          </span>
+  1287→        </div>
+  1288→        <div className="flex gap-2">
+  1289→          <button onClick={() => scroll("left")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+  1290→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+  1291→          </button>
+  1292→          <button onClick={() => scroll("right")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+  1293→            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+  1294→          </button>
+  1295→        </div>
+  1296→      </div>
+  1297→
+  1298→      {loading ? (
+  1299→        <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+  1300→          {Array.from({ length: 4 }).map((_, i) => (
+  1301→            <div key={i} className="shrink-0 w-[300px] border border-white/10 bg-white/[0.02] p-4 animate-pulse" style={{ minHeight: "150px" }} />
+  1302→          ))}
+  1303→        </div>
+  1304→      ) : (
+  1305→        /* ── Single horizontal scroll row, art bleeding in from the right
+  1306→            edge of each card — matches the reference design. ── */
+  1307→        <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+  1308→          {display.map((c: any) => {
+  1309→            const avatar = randomAvatar(c.id || c.username || "x");
+  1310→            const art = randomAvatar((c.id || c.username || "x") + "-art");
+  1311→            return (
+  1312→              <button
+  1313→                key={c.id}
+  1314→                onClick={() => c.animeId && navigate({ page: "anime", id: c.animeId })}
+  1315→                className="group relative shrink-0 w-[300px] text-left overflow-hidden border border-white/15 hover:border-white/30 bg-[#0d0d0d] transition-colors p-4"
+  1316→              >
+  1317→                {/* Art bleeding in from the right edge, faded into the card */}
+  1318→                {art && (
+  1319→                  <>
+  1320→                    <img
+  1321→                      src={art}
+  1322→                      alt=""
+  1323→                      className="absolute inset-y-0 right-0 w-28 object-cover opacity-40"
+  1324→                      loading="lazy"
+  1325→                    />
+  1326→                    <div className="absolute inset-y-0 right-0 w-28" style={{ background: "linear-gradient(to right, #0d0d0d 0%, transparent 60%)" }} />
+  1327→                  </>
+  1328→                )}
+  1329→
+  1330→                <div className="relative">
+  1331→                  {/* Row 1: avatar + username */}
+  1332→                  <div className="flex items-center gap-2 mb-1">
+  1333→                    <div className="w-7 h-7 rounded-full bg-white/[0.06] border border-white/10 shrink-0 overflow-hidden">
+  1334→                      {avatar ? (
+  1335→                        <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
+  1336→                      ) : (
+  1337→                        <div className="w-full h-full flex items-center justify-center">
+  1338→                          <span className="text-xs font-bold text-white/60">{(c.username || "A")[0].toUpperCase()}</span>
+  1339→                        </div>
+  1340→                      )}
+  1341→                    </div>
+  1342→                    <p className="text-sm font-semibold text-white truncate">{c.username || "Anonymous"}</p>
+  1343→                  </div>
+  1344→
+  1345→                  {/* Row 2: chapter/episode + anime title */}
+  1346→                  <p className="text-[11px] text-white/50 mb-2.5 truncate pl-[34px]">
+  1347→                    {c.episode != null && Number(c.episode) > 0 ? `Ch ${c.episode} · ` : ""}{c.animeTitle || "Untitled"}
+  1348→                  </p>
+  1349→
+  1350→                  {/* Row 3: comment quote — italic, medium weight */}
+  1351→                  <p className="text-sm font-medium italic text-white/90 leading-snug mb-3 max-w-[85%]">
+  1352→                    &ldquo;{c.content}&rdquo;
+  1353→                  </p>
+  1354→
+  1355→                  {/* Row 4: like + count + date */}
+  1356→                  <div className="flex items-center gap-1.5 text-white/50">
+  1357→                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  1358→                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" />
+  1359→                    </svg>
+  1360→                    <span className="text-xs">{c.likes || 0}</span>
+  1361→                    <span className="text-[11px]">·</span>
+  1362→                    <span className="text-[11px]">{formatDateTime(c.createdAt)}</span>
+  1363→                  </div>
+  1364→                </div>
+  1365→              </button>
+  1366→            );
+  1367→          })}
+  1368→        </div>
+  1369→      )}
+  1370→    </section>
+  1371→  );
+  1372→}
+  1373→
+  1374→/* ═══════════════════════════════════════════════════════════════
+  1375→   MOST WATCHED ANIME + AIRING SCHEDULE — side by side, half/half
+  1376→   ═══════════════════════════════════════════════════════════════ */
+  1377→
+  1378→const RANK_COLORS: Record<number, string> = {
+  1379→  1: "#D4A017",
+  1380→  2: "#E5E5E5",
+  1381→  3: "#C67C3E",
+  1382→};
+  1383→
+  1384→function MostWatchedAnime({ items, navigate }: { items: AnimeItem[]; navigate: (r: any) => void }) {
+  1385→  const ranked = [...items].sort((a, b) => (b.popularity || 0) - (a.popularity || 0)).slice(0, 10);
+  1386→  if (ranked.length === 0) return null;
+  1387→
+  1388→  return (
+  1389→    <div>
+  1390→      <h2
+  1391→        className="font-karla text-lg font-extrabold bg-clip-text text-transparent mb-3"
+  1392→        style={{ backgroundImage: TEXT_GRADIENT }}
+  1393→      >
+  1394→        Most Watched Anime
+  1395→      </h2>
+  1396→      <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+  1397→        {ranked.map((anime, idx) => {
+  1398→          const rank = idx + 1;
+  1399→          const title = getTitle(anime);
+  1400→          const cover = getCover(anime);
+  1401→          return (
+  1402→            <button
+  1403→              key={anime.id}
+  1404→              onClick={() => navigate({ page: "anime", id: String(anime.id) })}
+  1405→              className="w-full flex items-center gap-3 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-colors p-2 text-left"
+  1406→            >
+  1407→              <span
+  1408→                className="text-base font-extrabold w-8 shrink-0 text-center"
+  1409→                style={{ color: RANK_COLORS[rank] || "rgba(255,255,255,0.35)" }}
+  1410→              >
+  1411→                #{rank}
+  1412→              </span>
+  1413→              <div className="w-11 h-11 overflow-hidden shrink-0 bg-white/5">
+  1414→                {cover ? (
+  1415→                  <img src={cover} alt={title} className="w-full h-full object-cover" loading="lazy" />
+  1416→                ) : (
+  1417→                  <div className="w-full h-full flex items-center justify-center text-white/10 font-bold">{title.charAt(0)}</div>
+  1418→                )}
+  1419→              </div>
+  1420→              <div className="min-w-0 flex-1">
+  1421→                <p className="text-[13px] font-bold text-white truncate">{title}</p>
+  1422→                <p className="text-[11px] text-white/40 mt-0.5">Episode 1</p>
+  1423→              </div>
+  1424→              <span className="shrink-0 px-2 py-1 bg-white text-slate-900 text-[11px] font-extrabold">
+  1425→                {formatCount(anime.popularity)}
+  1426→              </span>
+  1427→            </button>
+  1428→          );
+  1429→        })}
+  1430→      </div>
+  1431→    </div>
+  1432→  );
+  1433→}
+  1434→
+  1435→function AiringScheduleWidget({ navigate }: { navigate: (r: any) => void }) {
+  1436→  const [days, setDays] = useState<string[]>([]);
+  1437→  const [dayLabels, setDayLabels] = useState<Record<string, string>>({});
+  1438→  const [schedule, setSchedule] = useState<Record<string, any[]>>({});
+  1439→  const [activeDay, setActiveDay] = useState<string>("");
+  1440→  const [loading, setLoading] = useState(true);
+  1441→
+  1442→  useEffect(() => {
+  1443→    let cancelled = false;
+  1444→    (async () => {
+  1445→      try {
+  1446→        const res = await fetch("/api/anime/anilist-schedule");
+  1447→        if (!res.ok) return;
+  1448→        const data = await res.json();
+  1449→        if (cancelled) return;
+  1450→        setDays(data.days || []);
+  1451→        setDayLabels(data.dayLabels || {});
+  1452→        setSchedule(data.schedule || {});
+  1453→        if (data.days?.length > 0) setActiveDay(data.days[0]);
+  1454→      } catch { /* ignore */ }
+  1455→      finally { if (!cancelled) setLoading(false); }
+  1456→    })();
+  1457→    return () => { cancelled = true; };
+  1458→  }, []);
+  1459→
+  1460→  const items = (schedule[activeDay] || [])
+  1461→    .slice()
+  1462→    .sort((a, b) => a.airingAt - b.airingAt)
+  1463→    .slice(0, 12);
+  1464→  const activeDate = activeDay.split("|")[1];
+  1465→
+  1466→  return (
+  1467→    <div>
+  1468→      <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-1">Estimated</p>
+  1469→      <h2
+  1470→        className="font-karla text-lg font-extrabold bg-clip-text text-transparent mb-3"
+  1471→        style={{ backgroundImage: TEXT_GRADIENT }}
+  1472→      >
+  1473→        Airing Schedule
+  1474→      </h2>
+  1475→
+  1476→      {/* Day tabs — "/ Wed / Thu / Fri /" style, current day emphasized */}
+  1477→      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-1" style={{ scrollbarWidth: "none" }}>
+  1478→        <span className="text-white/15 text-base shrink-0">/</span>
+  1479→        {days.map(dayKey => {
+  1480→          const label = (dayLabels[dayKey] || "").slice(0, 3);
+  1481→          const isActive = dayKey === activeDay;
+  1482→          return (
+  1483→            <button
+  1484→              key={dayKey}
+  1485→              onClick={() => setActiveDay(dayKey)}
+  1486→              className={`shrink-0 transition-all ${isActive ? "text-white text-lg font-extrabold" : "text-white/30 text-sm font-semibold hover:text-white/60"}`}
+  1487→            >
+  1488→              {label}
+  1489→            </button>
+  1490→          );
+  1491→        })}
+  1492→        <span className="text-white/15 text-base shrink-0">/</span>
+  1493→      </div>
+  1494→      {activeDate && (
+  1495→        <p className="text-[11px] text-white/40 mb-3">
+  1496→          {new Date(activeDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+  1497→        </p>
+  1498→      )}
+  1499→
+  1500→      <div className="space-y-0.5 max-h-[400px] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+  1501→        {loading ? (
+  1502→          Array.from({ length: 5 }).map((_, i) => (
+  1503→            <div key={i} className="h-10 bg-white/[0.02] animate-pulse" />
+  1504→          ))
+  1505→        ) : items.length === 0 ? (
+  1506→          <p className="text-xs text-white/30 py-6 text-center">No episodes airing this day</p>
+  1507→        ) : (
+  1508→          items.map((s: any) => {
+  1509→            const media = s.media;
+  1510→            if (!media) return null;
+  1511→            const title = getTitle(media);
+  1512→            const time = new Date(s.airingAt * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  1513→            return (
+  1514→              <button
+  1515→                key={`${media.id}-${s.episode}`}
+  1516→                onClick={() => navigate({ page: "anime", id: String(media.id) })}
+  1517→                className="w-full flex items-center gap-3 hover:bg-white/[0.04] transition-colors px-2 py-2 text-left"
+  1518→              >
+  1519→                <span className="text-[13px] text-white/50 w-12 shrink-0">{time}</span>
+  1520→                <span className="text-[13px] text-white/85 truncate flex-1">{title}</span>
+  1521→                <span className="shrink-0 px-1.5 py-0.5 border border-white/15 text-[10px] font-semibold text-white/70">
+  1522→                  EP {s.episode}
+  1523→                </span>
+  1524→              </button>
+  1525→            );
+  1526→          })
+  1527→        )}
+  1528→      </div>
+  1529→    </div>
+  1530→  );
+  1531→}
+  1532→
+  1533→export default function AnimeSectionPage() {
+  1534→  const navigate = useAppStore(s => s.navigate);
+  1535→  const sectionSubPage = useAppStore(s => s.sectionSubPage);
+  1536→  const setSectionSubPage = useAppStore(s => s.setSectionSubPage);
+  1537→
+  1538→  const [loading, setLoading] = useState(true);
+  1539→  const [featured, setFeatured] = useState<FeaturedAnime[]>([]);
+  1540→  const [trending, setTrending] = useState<AnimeItem[]>([]);
+  1541→  const [popular, setPopular] = useState<AnimeItem[]>([]);
+  1542→  const [topRated, setTopRated] = useState<AnimeItem[]>([]);
+  1543→
+  1544→  // Fetch all data on mount
+  1545→  useEffect(() => {
+  1546→    let cancelled = false;
+  1547→    async function load() {
+  1548→      try {
+  1549→        // Fetch trending + popular separately (different anime sets)
+  1550→        const res = await fetch("/api/anime/anilist-trending?section=all");
+  1551→        if (!res.ok) return;
+  1552→        const data = await res.json();
+  1553→        if (cancelled) return;
+  1554→
+  1555→        // Dedupe by ID AND by base title (remove "Season X" suffix for comparison)
+  1556→        const dedupe = (arr: any[]) => {
+  1557→          const seenIds = new Set();
+  1558→          const seenTitles = new Set();
+  1559→          return arr.filter(a => {
+  1560→            if (!a?.id) return false;
+  1561→            // Dedupe by ID
+  1562→            if (seenIds.has(a.id)) return false;
+  1563→            seenIds.add(a.id);
+  1564→            // Dedupe by base title (e.g. "Wistoria Season 2" and "Wistoria Season 3" = same base)
+  1565→            const title = getTitle(a).toLowerCase().replace(/\s*(season|cour|part)\s*\d+/gi, "").replace(/:\s*.*/g, "").trim();
+  1566→            if (title && seenTitles.has(title)) return false;
+  1567→            seenTitles.add(title);
+  1568→            return true;
+  1569→          });
+  1570→        };
+  1571→
+  1572→        // Filter out Wistoria Season 3 from featured carousel (user request)
+  1573→        const isWistoriaSeason3 = (a: any) => {
+  1574→          const title = getTitle(a).toLowerCase();
+  1575→          if (!title.includes("wistoria")) return false;
+  1576→          // Match any form of season 3 marking
+  1577→          return (
+  1578→            /\bseason\s*3\b/i.test(title) ||
+  1579→            /\bcour\s*3\b/i.test(title) ||
+  1580→            /\bpart\s*3\b/i.test(title) ||
+  1581→            /\biii\b/i.test(title) ||
+  1582→            /\b3rd\b/i.test(title) ||
+  1583→            /\bvol\.?\s*3\b/i.test(title) ||
+  1584→            /\bs3\b/i.test(title)
+  1585→          );
+  1586→        };
+  1587→
+  1588→        // Dedupe, then strip out Wistoria Season 3 entirely from the home page
+  1589→        // (banner carousel, Trending Now, Discover, Sidebar — everywhere on home)
+  1590→        let trend = dedupe(data.trending || []);
+  1591→        // Popular uses its own separate data (different anime set from trending)
+  1592→        let popularData = dedupe(data.popular || trend);
+  1593→        // Remove overlap: exclude any anime already shown in Trending
+  1594→        const trendingIds = new Set(trend.map(a => a.id));
+  1595→        popularData = popularData.filter(a => !trendingIds.has(a.id));
+  1596→        // If popular data is empty after dedup, fall back to trending with offset
+  1597→        if (popularData.length < 5) popularData = trend.slice(10, 30);
+  1598→        trend = trend.filter(a => !isWistoriaSeason3(a));
+  1599→
+  1600→        // Featured carousel: famous anime with description + banner image.
+  1601→        // The trending API races AniList / Miruro / MAL, so items may arrive
+  1602→        // as AniList IDs (with descriptions) OR MAL IDs (without). We backfill
+  1603→        // descriptions/banners from AniList for EVERY candidate missing them —
+  1604→        // querying by BOTH id_in and idMal_in so it works regardless of which
+  1605→        // source won the race. This fixes banners that showed only a title
+  1606→        // (no logo, no description) after the first few slides.
+  1607→        const topCandidates = trend.slice(0, 20);  // check top 20, pick best 8
+  1608→        const idsToFetch = topCandidates
+  1609→          .filter(a => !a?.description || !(a?.bannerImage || a?.coverImage?.extraLarge))
+  1610→          .map(a => a.id)
+  1611→          .filter(Boolean)
+  1612→          .slice(0, 20);
+  1613→
+  1614→        if (idsToFetch.length > 0) {
+  1615→          try {
+  1616→            const descRes = await fetch("https://graphql.anilist.co", {
+  1617→              method: "POST",
+  1618→              headers: { "Content-Type": "application/json" },
+  1619→              body: JSON.stringify({
+  1620→                // Match on AniList id OR MAL id — merge whichever matches.
+  1621→                query: `query($ids:[Int]){Page(page:1,perPage:50){media(id_in:$ids,type:ANIME){id idMal title{romaji english} description(asHtml:false) episodes averageScore genres format season seasonYear status bannerImage coverImage{extraLarge large}} byMal:media(idMal_in:$ids,type:ANIME){id idMal description(asHtml:false) episodes averageScore genres format season seasonYear status bannerImage coverImage{extraLarge large}}}}`,
+  1622→                variables: { ids: idsToFetch },
+  1623→              }),
+  1624→            });
+  1625→            if (descRes.ok) {
+  1626→              const descData = await descRes.json();
+  1627→              const byId = descData?.data?.Page?.media || [];
+  1628→              const byMal = descData?.data?.Page?.byMal || [];
+  1629→              // Index by both AniList id and MAL id so our candidate's `id`
+  1630→              // (which could be either) resolves regardless of source.
+  1631→              const map = new Map<number, any>();
+  1632→              for (const m of [...byId, ...byMal]) {
+  1633→                if (m.id) map.set(m.id, m);
+  1634→                if (m.idMal) map.set(m.idMal, m);
+  1635→              }
+  1636→              topCandidates.forEach(a => {
+  1637→                const al = map.get(a.id);
+  1638→                if (!al) return;
+  1639→                if (!a.description && al.description) a.description = al.description;
+  1640→                if (!a.episodes && al.episodes) a.episodes = al.episodes;
+  1641→                if (!a.averageScore && al.averageScore) a.averageScore = al.averageScore;
+  1642→                if ((!a.genres || a.genres.length === 0) && al.genres) a.genres = al.genres;
+  1643→                if (!a.format && al.format) a.format = al.format;
+  1644→                if (!a.season && al.season) a.season = al.season;
+  1645→                if (!a.seasonYear && al.seasonYear) a.seasonYear = al.seasonYear;
+  1646→                if (!a.status && al.status) a.status = al.status;
+  1647→                if (!a.bannerImage && al.bannerImage) a.bannerImage = al.bannerImage;
+  1648→                if (!a.coverImage && al.coverImage) a.coverImage = al.coverImage;
+  1649→              });
+  1650→            }
+  1651→          } catch (e) {
+  1652→            console.error("Failed to backfill featured descriptions:", e);
+  1653→          }
+  1654→        }
+  1655→
+  1656→        // Keep only banners that have BOTH a real description and a banner
+  1657→        // image — so the carousel never shows a bare title-only slide.
+  1658→        const featuredCandidates = topCandidates.filter(a => {
+  1659→          const hasDesc = a?.description && a.description.replace(/<[^>]*>/g, "").trim().length >= 50;
+  1660→          const hasBanner = a?.bannerImage || a?.coverImage?.extraLarge || a?.coverImage?.large;
+  1661→          return hasDesc && hasBanner;
+  1662→        });
+  1663→
+  1664→        // Featured = only complete items. If the backfill totally failed
+  1665→        // (e.g. AniList fully down), fall back to anything with a banner
+  1666→        // rather than showing an empty carousel.
+  1667→        let finalFeatured: FeaturedAnime[] = [];
+  1668→        if (featuredCandidates.length > 0) finalFeatured = featuredCandidates.slice(0, 8);
+  1669→        else if (trend.length > 0) finalFeatured = trend.filter(a => a?.bannerImage || a?.coverImage?.extraLarge).slice(0, 8);
+  1670→
+  1671→        // One Piece permanent first banner with TVDB background art
+  1672→        const ONE_PIECE_TVDB_BG = "https://artworks.thetvdb.com/banners/v4/series/81797/backgrounds/616009a8bd688.jpg";
+  1673→        const onePieceFromList = finalFeatured.find(a => a.id === 21) || trend.find(a => a.id === 21);
+  1674→        const onePieceBanner: FeaturedAnime = onePieceFromList
+  1675→          ? { ...onePieceFromList, bannerImage: ONE_PIECE_TVDB_BG }
+  1676→          : {
+  1677→              id: 21,
+  1678→              title: { english: "ONE PIECE", romaji: "ONE PIECE" },
+  1679→              bannerImage: ONE_PIECE_TVDB_BG,
+  1680→              coverImage: { extraLarge: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-2YLkS1QzAyY7.jpg" },
+  1681→              description: "Gold Roger was known as the Pirate King, the strongest and most infamous being to have sailed the Grand Line. The capture and execution of Roger by the World Government brought a change throughout the world. His last words before his death revealed the existence of the greatest treasure in the world, One Piece.",
+  1682→              format: "TV",
+  1683→              episodes: 1100,
+  1684→              averageScore: 87,
+  1685→              genres: ["Action", "Adventure", "Comedy", "Drama", "Fantasy"],
+  1686→              season: "FALL",
+  1687→              seasonYear: 1999,
+  1688→              status: "RELEASING",
+  1689→            };
+  1690→        // Remove any existing One Piece from the list, then prepend it
+  1691→        finalFeatured = [onePieceBanner, ...finalFeatured.filter(a => a.id !== 21)].slice(0, 8);
+  1692→
+  1693→        setFeatured(finalFeatured);
+  1694→        if (trend.length > 0) setTrending(trend);
+  1695→        // Popular anime: uses separate data, no duplicates with Trending
+  1696→        if (popularData.length > 0) setPopular(popularData); else setPopular(trend);
+  1697→        setTopRated([...trend].sort((a, b) => getScore(b) - getScore(a)));
+  1698→      } catch (e) {
+  1699→        console.error("Home page load error:", e);
+  1700→      } finally {
+  1701→        if (!cancelled) setLoading(false);
+  1702→      }
+  1703→    }
+  1704→    load();
+  1705→    return () => { cancelled = true; };
+  1706→  }, []);
+  1707→
+  1708→  // If sub-page is browse or genres, show the REAL BrowsePage (full filter UI
+  1709→  // + AniList results). "genres" is the landing target for legacy "#genre/X"
+  1710→  // links — BrowsePage has its own genre filter so users can pick the genre
+  1711→  // they were after.
+  1712→  if (sectionSubPage === "browse" || sectionSubPage === "genres") {
+  1713→    return (
+  1714→      <div className="w-full bg-[#000000] text-white" style={{ paddingTop: "88px", minHeight: "100vh" }}>
+  1715→        <div className="px-4 lg:px-8 pb-16">
+  1716→          <BrowsePage />
+  1717→        </div>
+  1718→      </div>
+  1719→    );
+  1720→  }
+  1721→
+  1722→  // If sub-page is schedule, show the REAL SchedulePage (live airing schedule from AniList)
+  1723→  if (sectionSubPage === "schedule") {
+  1724→    return (
+  1725→      <div className="w-full bg-[#000000] text-white" style={{ paddingTop: "88px", minHeight: "100vh" }}>
+  1726→        <div className="px-4 lg:px-8 pb-16">
+  1727→          <SchedulePage />
+  1728→        </div>
+  1729→      </div>
+  1730→    );
+  1731→  }
+  1732→
+  1733→  // If sub-page is dub or sub, show the DubSubPage with language tabs (Tamil, Hindi, etc.)
+  1734→  if (sectionSubPage === "dub" || sectionSubPage === "sub") {
+  1735→    return (
+  1736→      <div className="w-full bg-[#000000] text-white" style={{ paddingTop: "88px", minHeight: "100vh" }}>
+  1737→        <DubSubPage mode={sectionSubPage as "dub" | "sub"} />
+  1738→      </div>
+  1739→    );
+  1740→  }
+  1741→
+  1742→  return (
+  1743→    <div className="w-full bg-[#000000] text-white" style={{ fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
+  1744→      {/* Hero Carousel — full screen */}
+  1745→      <HeroCarousel items={featured} navigate={navigate} />
+  1746→
+  1747→      {/* Continue Watching */}
+  1748→      <ContinueWatching navigate={navigate} />
+  1749→
+  1750→      {/* Trending Anime */}
+  1751→      <TopTrending trending={trending} topRated={topRated} navigate={navigate} />
+  1752→
+  1753→      {/* Popular Anime */}
+  1754→      <PopularAnime popular={popular} navigate={navigate} />
+  1755→
+  1756→      {/* Trending Manga — self-fetching from /api/manga/home */}
+  1757→      <TrendingManga navigate={navigate} />
+  1758→
+  1759→      {/* Must Watch Anime — curated editorial row with ambient color glow */}
+  1760→      <MustWatchAnime topRated={topRated} navigate={navigate} />
+  1761→
+  1762→      {/* Genre strip — quick-jump pills into Browse */}
+  1763→      <GenreStrip navigate={navigate} />
+  1764→
+  1765→      {/* Latest Comments — right below the genre/browse strip */}
+  1766→      <RecentComments navigate={navigate} trending={trending} />
+  1767→
+  1768→      {/* Genre Spotlight — wide banner rail, sits directly above Most Watched */}
+  1769→      <GenreSpotlight navigate={navigate} />
+  1770→
+  1771→      {/* Most Watched Anime (half) + Airing Schedule (half) — side by side */}
+  1772→      <section className="px-4 md:px-8 lg:px-8 py-4">
+  1773→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  1774→          <MostWatchedAnime items={popular.length > 0 ? popular : trending} navigate={navigate} />
+  1775→          <AiringScheduleWidget navigate={navigate} />
+  1776→        </div>
+  1777→      </section>
+  1778→
+  1779→      {/* Coming Soon */}
+  1780→      <ComingSoon items={trending} navigate={navigate} />
+  1781→
+  1782→      {/* Footer spacing */}
+  1783→      <div className="h-4" />
+  1784→    </div>
+  1785→  );
+  1786→}
+  1787→
+  1788→// Browse and Schedule sub-pages now use the real BrowsePage / SchedulePage components
+  1789→// imported at the top of this file.
+  1790→

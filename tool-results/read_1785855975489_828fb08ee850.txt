@@ -1,0 +1,598 @@
+     1→/**
+     2→ * Hindi Anime Database Client
+     3→ *
+     4→ * Client for the Hindi Anime Database API hosted on Cloudflare Workers.
+     5→ * Source: https://github.com/Simoon66/hindi-anime-db
+     6→ *
+     7→ * The database contains 838+ Hindi dubbed anime entries.
+     8→ * API Base: https://hindianimedb.simoonabdulla.workers.dev/
+     9→ */
+    10→
+    11→// ─────────────────────────────────────────────────────────────────────────────
+    12→// Types
+    13→// ─────────────────────────────────────────────────────────────────────────────
+    14→
+    15→/** A streaming file associated with an episode */
+    16→export interface HindiAnimeFile {
+    17→  name: string;
+    18→  url: string;
+    19→  /** "sub" for subtitles, "dub" for Hindi dubbed */
+    20→  type: "sub" | "dub";
+    21→}
+    22→
+    23→/** An episode with its available streaming files */
+    24→export interface HindiAnimeEpisode {
+    25→  episode: string;
+    26→  title: string;
+    27→  files: HindiAnimeFile[];
+    28→}
+    29→
+    30→/** Full anime entry from the Hindi Anime Database */
+    31→export interface HindiAnimeEntry {
+    32→  title: string;
+    33→  synopsis: string;
+    34→  thumbnail: string;
+    35→  synonym: string;
+    36→  native: string;
+    37→  aired: string;
+    38→  releaseDate: string;
+    39→  premiered: string;
+    40→  duration: string;
+    41→  episodesCount: string;
+    42→  totalEpisodes: number;
+    43→  genres: string[];
+    44→  rating: string;
+    45→  type: string;
+    46→  status: string;
+    47→  country: string;
+    48→  studios: string[];
+    49→  producers: string[];
+    50→  seasons: unknown[];
+    51→  episodes: HindiAnimeEpisode[];
+    52→  malId: string;
+    53→  streamingId: string;
+    54→  hostUrl: string;
+    55→}
+    56→
+    57→/** Simplified list item for browsing / search results */
+    58→export interface HindiAnimeListItem {
+    59→  id: number;
+    60→  title: string;
+    61→  thumbnail: string;
+    62→  type: string;
+    63→  rating: string;
+    64→  episodesCount: string;
+    65→}
+    66→
+    67→// ─────────────────────────────────────────────────────────────────────────────
+    68→// Constants
+    69→// ─────────────────────────────────────────────────────────────────────────────
+    70→
+    71→const API_BASE = "https://hindianimedb.simoonabdulla.workers.dev";
+    72→const MEGAPLAY_ANI_BASE = "https://megaplay.buzz/stream/ani";
+    73→const MEGAPLAY_MAL_BASE = "https://megaplay.buzz/stream/mal";
+    74→
+    75→// ─────────────────────────────────────────────────────────────────────────────
+    76→// Pre-populated index — 80 popular Hindi dubbed anime with real AniList IDs
+    77→// ─────────────────────────────────────────────────────────────────────────────
+    78→
+    79→export const PRE_POPULATED_INDEX: HindiAnimeListItem[] = [
+    80→  { id: 1, title: "Cowboy Bebop", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1-GCsPm7waJ4kS.png", type: "TV", rating: "8.6", episodesCount: "26" },
+    81→  { id: 5, title: "Cowboy Bebop: The Movie", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx5-V6RG8lAVlLcj.png", type: "Movie", rating: "8.1", episodesCount: "1" },
+    82→  { id: 6, title: "Trigun", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx6-lCn6gJkY.jpg", type: "TV", rating: "7.9", episodesCount: "26" },
+    83→  { id: 7, title: "Witch Hunter Robin", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx7-dtkiMinJqBCm.png", type: "TV", rating: "6.8", episodesCount: "26" },
+    84→  { id: 8, title: "Bouken Ou Beet", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx8-VBfnFCQpz1Gt.png", type: "TV", rating: "6.7", episodesCount: "52" },
+    85→  { id: 10, title: "Akira", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx10-8fGO4X01j6pD.png", type: "Movie", rating: "8.2", episodesCount: "1" },
+    86→  { id: 11, title: "Ghost in the Shell", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11-7m0DT6b4lhBW.png", type: "Movie", rating: "8.2", episodesCount: "1" },
+    87→  { id: 20, title: "Naruto", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20-nJ0RhMPC2fDB.png", type: "TV", rating: "8.0", episodesCount: "220" },
+    88→  { id: 21, title: "One Piece", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-vNgMA0zXkbkI.png", type: "TV", rating: "8.7", episodesCount: "1100+" },
+    89→  { id: 30, title: "Neon Genesis Evangelion", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx30-ldWXKszBkQKD.png", type: "TV", rating: "8.3", episodesCount: "26" },
+    90→  { id: 40, title: "Fullmetal Alchemist", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx40-PFPFUwHtWJPQ.png", type: "TV", rating: "8.2", episodesCount: "51" },
+    91→  { id: 50, title: "Cyberpunk: Edgerunners", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx50-DRMqYhUK9bNa.png", type: "TV", rating: "8.5", episodesCount: "10" },
+    92→  { id: 1535, title: "Death Note", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-J0ZqSVfbfFdN.png", type: "TV", rating: "8.6", episodesCount: "37" },
+    93→  { id: 2001, title: "Monster", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx2001-SkHlcM4xJgHs.png", type: "TV", rating: "8.7", episodesCount: "74" },
+    94→  { id: 2059, title: "Black Cat", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx2059-8S5iQP6Jf2SK.png", type: "TV", rating: "7.2", episodesCount: "24" },
+    95→  { id: 2167, title: "Fairy Tail", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx2167-NR3k4SefU83S.png", type: "TV", rating: "7.6", episodesCount: "175" },
+    96→  { id: 3199, title: "Vampire Knight", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx3199-E0pFOQASmDLr.png", type: "TV", rating: "7.0", episodesCount: "13" },
+    97→  { id: 3775, title: "Dragon Ball Z", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx3775-vGJv5q1LgMI9.png", type: "TV", rating: "8.1", episodesCount: "291" },
+    98→  { id: 5114, title: "Fullmetal Alchemist: Brotherhood", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx5114-PGi9iCRIdwNk.png", type: "TV", rating: "9.1", episodesCount: "64" },
+    99→  { id: 5258, title: "Hunter x Hunter", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx5258-c3FgJ0DXMD0h.png", type: "TV", rating: "8.4", episodesCount: "62" },
+   100→  { id: 6033, title: "Dragon Ball", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx6033-EXVh0dHxzS3L.png", type: "TV", rating: "7.9", episodesCount: "153" },
+   101→  { id: 6547, title: "Angel Beats!", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx6547-0OaXmO4k0RLM.png", type: "TV", rating: "8.0", episodesCount: "13" },
+   102→  { id: 6702, title: "Fairy Tail (2014)", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx6702-uXl6YVP0LUeJ.png", type: "TV", rating: "7.5", episodesCount: "102" },
+   103→  { id: 7442, title: "Bleach", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx7442-m0n6QkqcMgOa.png", type: "TV", rating: "7.9", episodesCount: "366" },
+   104→  { id: 9253, title: "Steins;Gate", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx9253-dsc6W2FqOEiP.png", type: "TV", rating: "9.1", episodesCount: "24" },
+   105→  { id: 10165, title: "Naruto Shippuden", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx10165-T6M9iV5Oq3hy.png", type: "TV", rating: "8.2", episodesCount: "500" },
+   106→  { id: 11061, title: "Hunter x Hunter (2011)", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11061-M7dfPpW4MsJm.png", type: "TV", rating: "9.0", episodesCount: "148" },
+   107→  { id: 11757, title: "Sword Art Online", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11757-r7GBGY4LgC1w.png", type: "TV", rating: "7.2", episodesCount: "25" },
+   108→  { id: 11981, title: "Kuroko's Basketball", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx11981-QQCFRIlqZ9yG.png", type: "TV", rating: "8.0", episodesCount: "26" },
+   109→  { id: 12011, title: "Haikyu!!", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx12011-0mSEfMOYGBAE.png", type: "TV", rating: "8.5", episodesCount: "25" },
+   110→  { id: 12467, title: "Attack on Titan: No Regrets", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx12467-7DVJjgW3yCGa.png", type: "OVA", rating: "7.7", episodesCount: "2" },
+   111→  { id: 14287, title: "Sword Art Online II", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx14287-UJ3VoP5X80sI.png", type: "TV", rating: "6.8", episodesCount: "24" },
+   112→  { id: 14713, title: "Tokyo Ghoul", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx14713-gP5hAzlZxS2v.png", type: "TV", rating: "7.6", episodesCount: "12" },
+   113→  { id: 16498, title: "Attack on Titan", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-WIFBfJYI0ruH.png", type: "TV", rating: "8.6", episodesCount: "25" },
+   114→  { id: 17343, title: "Sword Art Online: Ordinal Scale", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx17343-rMbF2bBPMjHO.png", type: "Movie", rating: "7.1", episodesCount: "1" },
+   115→  { id: 19765, title: "Parasyte: The Maxim", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx19765-7S8E8fOKDM2g.png", type: "TV", rating: "8.5", episodesCount: "24" },
+   116→  { id: 20632, title: "Assassination Classroom", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20632-JARVjGZ6RMaB.png", type: "TV", rating: "8.1", episodesCount: "22" },
+   117→  { id: 20785, title: "Your Lie in April", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20785-v7qDKruJ9WcO.png", type: "TV", rating: "8.5", episodesCount: "22" },
+   118→  { id: 20992, title: "Tokyo Ghoul √A", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20992-lwwsAM8nsNxi.png", type: "TV", rating: "6.8", episodesCount: "12" },
+   119→  { id: 21095, title: "Death Parade", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21095-sPHJfDJYf5EJ.png", type: "TV", rating: "8.1", episodesCount: "12" },
+   120→  { id: 21507, title: "Mirai Nikki", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21507-TY7LNKD0YXS2.png", type: "TV", rating: "7.7", episodesCount: "26" },
+   121→  { id: 21519, title: "One-Punch Man", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21519-9PlpeQYUqog2.png", type: "TV", rating: "8.5", episodesCount: "12" },
+   122→  { id: 22535, title: "Kakegurui", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx22535-O6Ma0Y68GgAT.png", type: "TV", rating: "7.3", episodesCount: "12" },
+   123→  { id: 28025, title: "Dragon Ball Super", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx28025-y3f9Z5KBqYXU.png", type: "TV", rating: "7.4", episodesCount: "131" },
+   124→  { id: 30650, title: "Sword Art Online: Alicization", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx30650-nF7RGU1Jn2L6.png", type: "TV", rating: "7.2", episodesCount: "24" },
+   125→  { id: 31964, title: "My Hero Academia", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx31964-GrPKbplmjbSJ.png", type: "TV", rating: "7.9", episodesCount: "13" },
+   126→  { id: 34572, title: "Black Clover", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx34572-Mk5U5UNN2caA.png", type: "TV", rating: "7.8", episodesCount: "170" },
+   127→  { id: 34599, title: "Darling in the Franxx", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx34599-Q0Oi0JXu0zg5.png", type: "TV", rating: "7.0", episodesCount: "24" },
+   128→  { id: 35025, title: "Overlord III", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx35025-xIMCIPsWbn7o.png", type: "TV", rating: "7.7", episodesCount: "13" },
+   129→  { id: 36838, title: "Food Wars! The Third Plate", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx36838-EiFh0k2If6z3.png", type: "TV", rating: "7.3", episodesCount: "12" },
+   130→  { id: 37510, title: "Mob Psycho 100 II", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx37510-Iw0UfUz8VMIW.png", type: "TV", rating: "8.8", episodesCount: "13" },
+   131→  { id: 38000, title: "Demon Slayer: Kimetsu no Yaiba", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx38000-VyVU4UBGIEyC.png", type: "TV", rating: "8.5", episodesCount: "26" },
+   132→  { id: 38213, title: "The Rising of the Shield Hero", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx38213-Cuk0Xk0hVGOc.png", type: "TV", rating: "7.4", episodesCount: "25" },
+   133→  { id: 40748, title: "Jujutsu Kaisen", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx40748-kQTx7aVAlMCE.png", type: "TV", rating: "8.6", episodesCount: "24" },
+   134→  { id: 41467, title: "Bleach: Thousand-Year Blood War", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx41467-YvZPjGnAEvKM.png", type: "TV", rating: "9.0", episodesCount: "13" },
+   135→  { id: 98626, title: "Boruto: Naruto Next Generations", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx98626-Tz31SMKqpfKl.png", type: "TV", rating: "6.3", episodesCount: "293" },
+   136→  { id: 101922, title: "Spy x Family", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101922-1FbjEaElG2Oy.png", type: "TV", rating: "8.5", episodesCount: "12" },
+   137→  { id: 104168, title: "Chainsaw Man", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx104168-qKlVmBL01xbM.png", type: "TV", rating: "8.3", episodesCount: "12" },
+   138→  { id: 107471, title: "Dandadan", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx107471-b2jMUqoKt0Wc.png", type: "TV", rating: "8.4", episodesCount: "12" },
+   139→  { id: 108700, title: "Solo Leveling", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx108700-JPXKAO9OJxem.png", type: "TV", rating: "8.2", episodesCount: "12" },
+   140→  { id: 110277, title: "Frieren: Beyond Journey's End", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx110277-LSIP8S2eQrLM.png", type: "TV", rating: "9.1", episodesCount: "28" },
+   141→  { id: 112389, title: "Mashle: Magic and Muscles", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx112389-NGGp5IY0aYYZ.png", type: "TV", rating: "7.7", episodesCount: "12" },
+   142→  { id: 113938, title: "Oshi no Ko", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113938-CUi6PKMnN9YU.png", type: "TV", rating: "8.5", episodesCount: "11" },
+   143→  { id: 114225, title: "Dr. Stone: New World", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx114225-SIxgYkpUTXpm.png", type: "TV", rating: "7.8", episodesCount: "11" },
+   144→  { id: 116047, title: "Undead Unluck", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx116047-PlvBzJhHNhSP.png", type: "TV", rating: "7.5", episodesCount: "24" },
+   145→  { id: 117819, title: "Blue Lock", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx117819-a6Ob7kkn6E4r.png", type: "TV", rating: "8.1", episodesCount: "24" },
+   146→  { id: 122918, title: "Kaiju No. 8", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx122918-0FDoY5mEkNTn.png", type: "TV", rating: "7.7", episodesCount: "12" },
+   147→  { id: 125345, title: "My Hero Academia Season 7", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx125345-qmoG2kxZz1Jk.png", type: "TV", rating: "7.6", episodesCount: "21" },
+   148→  { id: 125731, title: "Wind Breaker", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx125731-DgxzQ6s7ISGq.png", type: "TV", rating: "7.6", episodesCount: "13" },
+   149→  { id: 128396, title: "Suicide Squad Isekai", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx128396-h2EePC5YtIKC.png", type: "TV", rating: "6.5", episodesCount: "10" },
+   150→  { id: 130437, title: "Delicious in Dungeon", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx130437-Q50aLMgHhqrS.png", type: "TV", rating: "8.1", episodesCount: "24" },
+   151→  { id: 131526, title: "Solo Leveling Season 2", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx131526-uUyO4DzkhzON.png", type: "TV", rating: "8.3", episodesCount: "13" },
+   152→  { id: 134146, title: "Sakamoto Days", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx134146-MNCFc3fMPkcS.png", type: "TV", rating: "8.0", episodesCount: "11" },
+   153→  { id: 137739, title: "Lazarus", thumbnail: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx137739-TpEUQ2TfqZHE.png", type: "TV", rating: "7.2", episodesCount: "13" },
+   154→];
+   155→
+   156→// ─────────────────────────────────────────────────────────────────────────────
+   157→// In-memory cache
+   158→// ─────────────────────────────────────────────────────────────────────────────
+   159→
+   160→const cache = new Map<number, { data: HindiAnimeEntry; timestamp: number }>();
+   161→const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+   162→
+   163→function getCached(id: number): HindiAnimeEntry | null {
+   164→  const entry = cache.get(id);
+   165→  if (!entry) return null;
+   166→  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+   167→    cache.delete(id);
+   168→    return null;
+   169→  }
+   170→  return entry.data;
+   171→}
+   172→
+   173→function setCache(id: number, data: HindiAnimeEntry): void {
+   174→  cache.set(id, { data, timestamp: Date.now() });
+   175→}
+   176→
+   177→// ─────────────────────────────────────────────────────────────────────────────
+   178→// Core fetch function
+   179→// ─────────────────────────────────────────────────────────────────────────────
+   180→
+   181→/**
+   182→ * Fetch a single anime entry by its AniList ID.
+   183→ * Returns null if the anime is not found or the request fails.
+   184→ */
+   185→export async function fetchHindiAnime(
+   186→  anilistId: number
+   187→): Promise<HindiAnimeEntry | null> {
+   188→  // Check cache first
+   189→  const cached = getCached(anilistId);
+   190→  if (cached) return cached;
+   191→
+   192→  try {
+   193→    const res = await fetch(`${API_BASE}/${anilistId}`, {
+   194→      next: { revalidate: 900 }, // 15 min cache at Next.js level
+   195→    });
+   196→
+   197→    if (!res.ok) {
+   198→      if (res.status === 404) return null;
+   199→      console.error(
+   200→        `[HindiAnimeDB] Failed to fetch ID ${anilistId}: HTTP ${res.status}`
+   201→      );
+   202→      return null;
+   203→    }
+   204→
+   205→    const data: HindiAnimeEntry = await res.json();
+   206→
+   207→    // The API might return an error object instead of anime data
+   208→    if (!data || !data.title) return null;
+   209→
+   210→    setCache(anilistId, data);
+   211→    return data;
+   212→  } catch (err) {
+   213→    console.error(
+   214→      `[HindiAnimeDB] Error fetching ID ${anilistId}:`,
+   215→      err instanceof Error ? err.message : err
+   216→    );
+   217→    return null;
+   218→  }
+   219→}
+   220→
+   221→// ─────────────────────────────────────────────────────────────────────────────
+   222→// Batch fetch
+   223→// ─────────────────────────────────────────────────────────────────────────────
+   224→
+   225→/**
+   226→ * Fetch multiple anime entries by their AniList IDs.
+   227→ * Uses concurrent requests with a concurrency limit to avoid overwhelming
+   228→ * the API. Failed/missing entries are silently omitted from the result.
+   229→ */
+   230→export async function fetchHindiAnimeBatch(
+   231→  ids: number[],
+   232→  concurrency: number = 5
+   233→): Promise<HindiAnimeEntry[]> {
+   234→  const results: HindiAnimeEntry[] = [];
+   235→  const queue = [...ids];
+   236→
+   237→  async function worker(): Promise<void> {
+   238→    while (queue.length > 0) {
+   239→      const id = queue.shift();
+   240→      if (id === undefined) break;
+   241→      const entry = await fetchHindiAnime(id);
+   242→      if (entry) results.push(entry);
+   243→    }
+   244→  }
+   245→
+   246→  const workers = Array.from(
+   247→    { length: Math.min(concurrency, queue.length) },
+   248→    () => worker()
+   249→  );
+   250→  await Promise.all(workers);
+   251→
+   252→  return results;
+   253→}
+   254→
+   255→// ─────────────────────────────────────────────────────────────────────────────
+   256→// Client-side search
+   257→// ─────────────────────────────────────────────────────────────────────────────
+   258→
+   259→/**
+   260→ * Search the pre-populated index for anime matching the query.
+   261→ * Matching is case-insensitive and checks title and synonym fields.
+   262→ * Returns matching HindiAnimeListItem[] sorted by rating (descending).
+   263→ */
+   264→export function searchHindiAnime(query: string): HindiAnimeListItem[] {
+   265→  if (!query || query.trim().length === 0) return [];
+   266→
+   267→  const normalized = query.toLowerCase().trim();
+   268→  const terms = normalized.split(/\s+/);
+   269→
+   270→  const scored = PRE_POPULATED_INDEX.map((item) => {
+   271→    const titleLower = item.title.toLowerCase();
+   272→    let score = 0;
+   273→
+   274→    // Exact match
+   275→    if (titleLower === normalized) score += 100;
+   276→    // Starts with
+   277→    if (titleLower.startsWith(normalized)) score += 50;
+   278→    // Contains full query
+   279→    if (titleLower.includes(normalized)) score += 30;
+   280→    // Each term matches
+   281→    for (const term of terms) {
+   282→      if (titleLower.includes(term)) score += 10;
+   283→    }
+   284→    // Boost by rating
+   285→    score += parseFloat(item.rating) || 0;
+   286→
+   287→    return { item, score };
+   288→  }).filter(({ score }) => score > 0);
+   289→
+   290→  scored.sort((a, b) => b.score - a.score);
+   291→  return scored.map(({ item }) => item);
+   292→}
+   293→
+   294→// ─────────────────────────────────────────────────────────────────────────────
+   295→// Stream URL constructors
+   296→// ─────────────────────────────────────────────────────────────────────────────
+   297→
+   298→/**
+   299→ * Construct a megaplay.buzz streaming URL using the AniList ID.
+   300→ * These URLs are embeddable — they can be used directly in iframes.
+   301→ *
+   302→ * @param anilistId - The AniList ID of the anime
+   303→ * @param episode - The episode number
+   304→ * @param type - "sub" for subtitles, "dub" for Hindi dubbed
+   305→ */
+   306→export function getHindiStreamUrl(
+   307→  anilistId: number,
+   308→  episode: number,
+   309→  type: "sub" | "dub"
+   310→): string {
+   311→  return `${MEGAPLAY_ANI_BASE}/${anilistId}/${episode}/${type}`;
+   312→}
+   313→
+   314→/**
+   315→ * Construct a megaplay.buzz streaming URL using the MyAnimeList ID.
+   316→ * These URLs are embeddable — they can be used directly in iframes.
+   317→ *
+   318→ * @param malId - The MyAnimeList ID of the anime
+   319→ * @param episode - The episode number
+   320→ * @param type - "sub" for subtitles, "dub" for Hindi dubbed
+   321→ */
+   322→export function getMalStreamUrl(
+   323→  malId: number,
+   324→  episode: number,
+   325→  type: "sub" | "dub"
+   326→): string {
+   327→  return `${MEGAPLAY_MAL_BASE}/${malId}/${episode}/${type}`;
+   328→}
+   329→
+   330→// ─────────────────────────────────────────────────────────────────────────────
+   331→// Popular Hindi anime
+   332→// ─────────────────────────────────────────────────────────────────────────────
+   333→
+   334→/**
+   335→ * Fetch popular Hindi dubbed anime.
+   336→ * Uses the pre-populated index to fetch full entries for the top-rated anime.
+   337→ * Returns a sorted list of HindiAnimeListItem derived from full API data,
+   338→ * falling back to the pre-populated index data on failures.
+   339→ */
+   340→export async function getPopularHindiAnime(
+   341→  limit: number = 20
+   342→): Promise<HindiAnimeListItem[]> {
+   343→  // Take the top entries from our pre-populated index (sorted by rating desc)
+   344→  const sortedIndex = [...PRE_POPULATED_INDEX].sort(
+   345→    (a, b) => parseFloat(b.rating) - parseFloat(a.rating)
+   346→  );
+   347→
+   348→  const topIds = sortedIndex.slice(0, limit).map((item) => item.id);
+   349→  const entries = await fetchHindiAnimeBatch(topIds, 5);
+   350→
+   351→  // Build list items from fetched data, enriching with live API data
+   352→  const results: HindiAnimeListItem[] = entries.map((entry, i) => {
+   353→    const id = topIds[i];
+   354→    return {
+   355→      id,
+   356→      title: entry.title,
+   357→      thumbnail: entry.thumbnail,
+   358→      type: entry.type,
+   359→      rating: entry.rating,
+   360→      episodesCount: entry.episodesCount,
+   361→    };
+   362→  });
+   363→
+   364→  // Fill in any gaps with pre-populated data for IDs that failed to fetch
+   365→  const fetchedIds = new Set(results.map((r) => r.id));
+   366→  for (const item of sortedIndex.slice(0, limit)) {
+   367→    if (!fetchedIds.has(item.id)) {
+   368→      results.push(item);
+   369→    }
+   370→  }
+   371→
+   372→  // Sort by rating descending, then limit
+   373→  return results
+   374→    .sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating))
+   375→    .slice(0, limit);
+   376→}
+   377→
+   378→// ─────────────────────────────────────────────────────────────────────────────
+   379→// Index discovery — fetch all known anime from the DB
+   380→// ─────────────────────────────────────────────────────────────────────────────
+   381→
+   382→/**
+   383→ * Discover anime entries from the Hindi Anime DB by probing a range of IDs.
+   384→ * The DB has 838 entries but we don't know all IDs. This function probes
+   385→ * a supplied range (or uses sensible defaults) and returns found entries.
+   386→ *
+   387→ * WARNING: This is expensive — it makes one request per ID in the range.
+   388→ * Use sparingly and consider caching the result.
+   389→ *
+   390→ * @param startId - First AniList ID to probe (default: 1)
+   391→ * @param endId - Last AniList ID to probe (default: 160000)
+   392→ * @param concurrency - Number of concurrent requests (default: 8)
+   393→ * @param onProgress - Optional callback invoked with (found, tried) counts
+   394→ */
+   395→export async function discoverHindiAnime(
+   396→  startId: number = 1,
+   397→  endId: number = 160000,
+   398→  concurrency: number = 8,
+   399→  onProgress?: (found: number, tried: number) => void
+   400→): Promise<HindiAnimeListItem[]> {
+   401→  const results: HindiAnimeListItem[] = [];
+   402→  const ids = Array.from(
+   403→    { length: endId - startId + 1 },
+   404→    (_, i) => startId + i
+   405→  );
+   406→  let tried = 0;
+   407→
+   408→  // For large ranges, use a chunked approach to avoid creating massive arrays
+   409→  const CHUNK_SIZE = 500;
+   410→  const chunks: number[][] = [];
+   411→  for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+   412→    chunks.push(ids.slice(i, i + CHUNK_SIZE));
+   413→  }
+   414→
+   415→  async function probeChunk(chunk: number[]): Promise<void> {
+   416→    const probeResults = await Promise.allSettled(
+   417→      chunk.map(async (id) => {
+   418→        const entry = await fetchHindiAnime(id);
+   419→        tried++;
+   420→        if (onProgress) onProgress(results.length, tried);
+   421→        return entry;
+   422→      })
+   423→    );
+   424→
+   425→    for (const result of probeResults) {
+   426→      if (result.status === "fulfilled" && result.value) {
+   427→        const entry = result.value;
+   428→        // Derive the AniList ID from the hostUrl or streamingId
+   429→        const anilistId = parseInt(entry.streamingId, 10) || 0;
+   430→        if (anilistId > 0) {
+   431→          results.push({
+   432→            id: anilistId,
+   433→            title: entry.title,
+   434→            thumbnail: entry.thumbnail,
+   435→            type: entry.type,
+   436→            rating: entry.rating,
+   437→            episodesCount: entry.episodesCount,
+   438→          });
+   439→        }
+   440→      }
+   441→    }
+   442→  }
+   443→
+   444→  // Process chunks with limited concurrency
+   445→  const workerQueue = [...chunks];
+   446→  async function chunkWorker(): Promise<void> {
+   447→    while (workerQueue.length > 0) {
+   448→      const chunk = workerQueue.shift();
+   449→      if (!chunk) break;
+   450→      await probeChunk(chunk);
+   451→    }
+   452→  }
+   453→
+   454→  await Promise.all(
+   455→    Array.from({ length: Math.min(concurrency, workerQueue.length) }, () =>
+   456→      chunkWorker()
+   457→    )
+   458→  );
+   459→
+   460→  return results;
+   461→}
+   462→
+   463→/**
+   464→ * Get a list of all known anime from the pre-populated index,
+   465→ * optionally augmented with live data from the API.
+   466→ *
+   467→ * This is the recommended way to browse the catalog — it avoids
+   468→ * the expensive probe approach of discoverHindiAnime().
+   469→ */
+   470→export async function getAllKnownHindiAnime(): Promise<HindiAnimeListItem[]> {
+   471→  // Return pre-populated data immediately; caller can enrich with fetchHindiAnimeBatch
+   472→  return [...PRE_POPULATED_INDEX].sort(
+   473→    (a, b) => parseFloat(b.rating) - parseFloat(a.rating)
+   474→  );
+   475→}
+   476→
+   477→// Set of all known AniList IDs that have Hindi dubs (from pre-populated index)
+   478→const _knownHindiIds = new Set(PRE_POPULATED_INDEX.map(a => a.id));
+   479→
+   480→/**
+   481→ * Check if an anime has a Hindi dub available.
+   482→ *
+   483→ * Checks two sources:
+   484→ *   1. PRE_POPULATED_INDEX (instant — 79 known IDs)
+   485→ *   2. Full API (hindianimedb.simoonabdulla.workers.dev) for IDs not in the index
+   486→ *
+   487→ * Results are cached in-memory for 15 minutes.
+   488→ */
+   489→const _hindiCheckCache = new Map<number, boolean>();
+   490→export async function isHindiAnime(anilistId: number): Promise<boolean> {
+   491→  // Check pre-populated index first (instant)
+   492→  if (_knownHindiIds.has(anilistId)) return true;
+   493→
+   494→  // Check in-memory cache
+   495→  if (_hindiCheckCache.has(anilistId)) return _hindiCheckCache.get(anilistId)!;
+   496→
+   497→  // Check the full API
+   498→  try {
+   499→    const entry = await fetchHindiAnime(anilistId);
+   500→    const hasHindi = !!(entry && entry.episodes && entry.episodes.length > 0);
+   501→    _hindiCheckCache.set(anilistId, hasHindi);
+   502→    return hasHindi;
+   503→  } catch {
+   504→    _hindiCheckCache.set(anilistId, false);
+   505→    return false;
+   506→  }
+   507→}
+   508→
+   509→/**
+   510→ * Enrich the pre-populated index with live data from the API.
+   511→ * Fetches full entries for all IDs in the index and returns updated items.
+   512→ * Useful for getting the latest episode counts, ratings, and thumbnails.
+   513→ */
+   514→export async function enrichHindiAnimeIndex(): Promise<HindiAnimeListItem[]> {
+   515→  const ids = PRE_POPULATED_INDEX.map((item) => item.id);
+   516→  const entries = await fetchHindiAnimeBatch(ids, 5);
+   517→
+   518→  const enriched = entries.map((entry, i) => ({
+   519→    id: ids[i],
+   520→    title: entry.title,
+   521→    thumbnail: entry.thumbnail,
+   522→    type: entry.type,
+   523→    rating: entry.rating,
+   524→    episodesCount: entry.episodesCount,
+   525→  }));
+   526→
+   527→  // Merge: prefer enriched data, fall back to pre-populated
+   528→  const enrichedMap = new Map(enriched.map((e) => [e.id, e]));
+   529→  const merged = PRE_POPULATED_INDEX.map(
+   530→    (item) => enrichedMap.get(item.id) ?? item
+   531→  );
+   532→
+   533→  return merged.sort(
+   534→    (a, b) => parseFloat(b.rating) - parseFloat(a.rating)
+   535→  );
+   536→}
+   537→
+   538→// ─────────────────────────────────────────────────────────────────────────────
+   539→// Utility: extract embeddable stream URLs from an anime entry
+   540→// ─────────────────────────────────────────────────────────────────────────────
+   541→
+   542→/**
+   543→ * Get all embeddable stream URLs for a specific episode of an anime.
+   544→ * Filters the episode's files and returns URLs that can be used in iframes.
+   545→ */
+   546→export function getEpisodeStreamUrls(
+   547→  entry: HindiAnimeEntry,
+   548→  episodeNumber: number | string,
+   549→  type?: "sub" | "dub"
+   550→): HindiAnimeFile[] {
+   551→  const ep = entry.episodes.find(
+   552→    (e) => e.episode === String(episodeNumber)
+   553→  );
+   554→  if (!ep) return [];
+   555→  if (type) return ep.files.filter((f) => f.type === type);
+   556→  return ep.files;
+   557→}
+   558→
+   559→/**
+   560→ * Get the preferred stream URL for an episode.
+   561→ * Prefers Hindi dub over sub, and the first available server.
+   562→ */
+   563→export function getPreferredStreamUrl(
+   564→  entry: HindiAnimeEntry,
+   565→  episodeNumber: number | string
+   566→): string | null {
+   567→  const files = getEpisodeStreamUrls(entry, episodeNumber);
+   568→  if (files.length === 0) return null;
+   569→
+   570→  // Prefer dub
+   571→  const dub = files.find((f) => f.type === "dub");
+   572→  if (dub) return dub.url;
+   573→
+   574→  // Fall back to sub
+   575→  return files[0]?.url ?? null;
+   576→}
+   577→
+   578→// ─────────────────────────────────────────────────────────────────────────────
+   579→// Health check
+   580→// ─────────────────────────────────────────────────────────────────────────────
+   581→
+   582→/**
+   583→ * Check if the Hindi Anime DB API is reachable.
+   584→ * Returns true if the API responds with the expected status.
+   585→ */
+   586→export async function checkHindiAnimeDbHealth(): Promise<boolean> {
+   587→  try {
+   588→    const res = await fetch(API_BASE, {
+   589→      signal: AbortSignal.timeout(5000),
+   590→    });
+   591→    if (!res.ok) return false;
+   592→    const data = await res.json();
+   593→    return data.status === true;
+   594→  } catch {
+   595→    return false;
+   596→  }
+   597→}
+   598→

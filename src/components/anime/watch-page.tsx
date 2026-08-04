@@ -1493,14 +1493,20 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     // are still passed below for our own HLS player overlay (non-embed servers).
     //
     // For embed servers (AnixTV, AniWaves, etc.): load the URL directly in an iframe.
-    // AnixTV watch pages are playable embeds — just put them in an iframe.
-    // Route through our Cloudflare Worker proxy so CF-protected sites (anixtv.in)
-    // don't block the request. The worker fetches the page with proper headers
-    // and serves it back with permissive X-Frame-Options.
-    // Servers that set `noProxy` are known-frameable hosts that ignore Referer
-    // (AnixTV) — sending those through the worker only adds a hop and a point
-    // of failure, so they go straight into the iframe.
+    // Hindi embed servers (AnixTV, AnimoStream) use /api/embed/proxy which:
+    //   1. Fetches the page server-side (bypasses CF bot protection via worker)
+    //   2. Strips sandbox/iframe detection scripts
+    //   3. Injects anti-sandbox overrides (window.self===window.top, etc.)
+    //   4. Rewrites relative URLs and injects fill CSS
+    //   5. Serves with X-Frame-Options: ALLOWALL
+    // This is the same approach as the reference Vercel app (luffytv2) and is
+    // far more robust than the raw CF Worker proxy which only sets headers.
+    // Other embed servers use the CF Worker proxy directly (no anti-sandbox needed).
+    // Servers that set `noProxy` are known-frameable hosts that ignore Referer —
+    // sending those through the worker only adds a hop and a point of failure.
     const noProxy = (server as any).noProxy === true;
+    const useEmbedProxy = (server as any).useEmbedProxy === true;
+    const isHindiEmbedSource = (server as any).source === "anixtv" || (server as any).source === "animostream";
     let finalStreamUrl = streamUrl;
     if (isEmbed) {
       try {
@@ -1509,6 +1515,12 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
         ["sub", "subtitle", "captions", "caption_1", "caption_2", "c1_file", "c2_file", "c1_label", "c2_label", "sub_1", "sub_2", "sub_label"].forEach(p => u.searchParams.delete(p));
         if (noProxy) {
           finalStreamUrl = u.toString();
+        } else if (useEmbedProxy || isHindiEmbedSource) {
+          // Route through /api/embed/proxy — our anti-sandbox embed proxy.
+          // This fetches server-side, strips frame-busting, injects overrides,
+          // and serves with ALLOWALL. For CF-protected sites like anixtv.in,
+          // the proxy internally routes through the CF Worker to bypass bot protection.
+          finalStreamUrl = `/api/embed/proxy?url=${encodeURIComponent(u.toString())}&ref=${encodeURIComponent(u.origin + "/")}`;
         } else {
           // Route through our Cloudflare Worker proxy — it sends the correct
           // Referer/Origin and serves the page with X-Frame-Options: ALLOWALL

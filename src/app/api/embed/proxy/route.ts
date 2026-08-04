@@ -414,9 +414,41 @@ function injectAntiSandboxScript(html: string): string {
 }
 
 /**
- * Fetch with timeout and retry logic
+ * Cloudflare-protected domains that block Vercel IPs.
+ * For these, we route through the CF Worker proxy first.
  */
-async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
+const CF_PROTECTED_DOMAINS = [
+  "anixtv.in",
+];
+
+const CF_WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+
+/**
+ * Check if a URL points to a Cloudflare-protected domain.
+ */
+function isCFProtected(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname;
+    return CF_PROTECTED_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetch with timeout and retry logic.
+ * Optionally sends a Referer header.
+ * For CF-protected sites, routes through the Cloudflare Worker proxy.
+ */
+async function fetchWithRetry(url: string, retries = 2, referer?: string): Promise<Response> {
+  // For CF-protected domains, route through the Cloudflare Worker
+  // which runs on Cloudflare's network and bypasses bot protection.
+  if (isCFProtected(url)) {
+    const workerUrl = `${CF_WORKER_BASE}/proxy?url=${encodeURIComponent(url)}&ref=${encodeURIComponent(referer || new URL(url).origin + "/")}`;
+    console.log(`[embed-proxy] Routing through CF Worker for: ${new URL(url).hostname}`);
+    return fetchHtmlViaWorker(workerUrl);
+  }
+
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -424,14 +456,19 @@ async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
+      const headers: Record<string, string> = {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "identity",
+      };
+      if (referer) {
+        headers["Referer"] = referer;
+      }
+
       const res = await fetch(url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Accept-Encoding": "identity",
-        },
+        headers,
         signal: controller.signal,
         redirect: "follow",
       });
@@ -458,11 +495,42 @@ async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
   throw lastError || new Error("Max retries exceeded");
 }
 
+/**
+ * Fetch HTML content through the Cloudflare Worker proxy.
+ * The worker returns the HTML with permissive frame headers already set,
+ * but we still need to process it through our anti-sandbox pipeline.
+ */
+async function fetchHtmlViaWorker(workerUrl: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const res = await fetch(workerUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+      },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+
+    clearTimeout(timeout);
+    return res;
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
   if (!url) {
     return NextResponse.json({ error: "url required" }, { status: 400 });
   }
+
+  // Optional Referer header — many embed sites check this
+  const ref = req.nextUrl.searchParams.get("ref") || undefined;
 
   // Validate URL format
   try {
@@ -475,7 +543,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const res = await fetchWithRetry(url);
+    // Use the target's origin as Referer if none provided
+    const referer = ref || (new URL(url).origin + "/");
+    const res = await fetchWithRetry(url, 2, referer);
 
     if (!res.ok) {
       return NextResponse.json(
