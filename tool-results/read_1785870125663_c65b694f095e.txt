@@ -1,0 +1,615 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from "react";
+     4→import { useAppStore, type TMDBContentItem } from "./store";
+     5→
+     6→interface SearchPageProps {
+     7→  initialQuery?: string;
+     8→}
+     9→
+    10→// ── Unified search result type ──
+    11→interface SearchResult {
+    12→  id: number | string;  // number for AniList, "mal_XXX" for MAL fallback, negative for TMDB
+    13→  title: string;
+    14→  subTitle?: string;   // romaji/native title
+    15→  image: string;
+    16→  format?: string;
+    17→  type?: string;
+    18→  status?: string;
+    19→  episodes?: number;
+    20→  seasonYear?: number;
+    21→  genres?: string[];
+    22→  averageScore?: number;
+    23→  description?: string;
+    24→  source: "anilist" | "tmdb" | "mal";
+    25→  mediaType?: "anime" | "movie" | "tv";
+    26→  tmdbId?: number;
+    27→}
+    28→
+    29→const mono = "'Space Mono', 'Courier New', monospace";
+    30→const outfit = "var(--font-outfit), 'Outfit', sans-serif";
+    31→
+    32→// ── Genre list for filter panel ──
+    33→const GENRE_OPTIONS = [
+    34→  "Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror",
+    35→  "Mystery", "Psychological", "Romance", "Sci-Fi", "Slice of Life",
+    36→  "Sports", "Supernatural", "Thriller", "Isekai", "Mecha",
+    37→  "Music", "Ecchi", "Mahou Shoujo", "Historical",
+    38→];
+    39→
+    40→const FORMAT_OPTIONS = ["TV", "MOVIE", "OVA", "ONA", "TV_SHORT", "SPECIAL"];
+    41→
+    42→export default function SearchPage({ initialQuery }: SearchPageProps) {
+    43→  const navigate = useAppStore(s => s.navigate);
+    44→  const [query, setQuery] = useState(initialQuery || "");
+    45→  const [results, setResults] = useState<SearchResult[]>([]);
+    46→  const [loading, setLoading] = useState(false);
+    47→  const [searched, setSearched] = useState(false);
+    48→  const [showFilters, setShowFilters] = useState(false);
+    49→  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+    50→  const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
+    51→  const [activeFilterTab, setActiveFilterTab] = useState<"all" | "anime" | "movies" | "tv">("all");
+    52→  const inputRef = useRef<HTMLInputElement>(null);
+    53→  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+    54→  const abortRef = useRef<AbortController | null>(null);
+    55→
+    56→  // ── Real-time search with debounce ──
+    57→  const performSearch = useCallback(async (q: string, tab?: string) => {
+    58→    if (!q.trim()) {
+    59→      setResults([]);
+    60→      setSearched(false);
+    61→      return;
+    62→    }
+    63→
+    64→    // Cancel previous request
+    65→    if (abortRef.current) abortRef.current.abort();
+    66→    const controller = new AbortController();
+    67→    abortRef.current = controller;
+    68→
+    69→    setLoading(true);
+    70→    setSearched(true);
+    71→
+    72→    const currentTab = tab || activeFilterTab;
+    73→    const searchResults: SearchResult[] = [];
+    74→
+    75→    try {
+    76→      const promises: Promise<void>[] = [];
+    77→
+    78→      // Search AniList (anime)
+    79→      if (currentTab === "all" || currentTab === "anime") {
+    80→        promises.push(
+    81→          fetch(`/api/anime/search?q=${encodeURIComponent(q)}&page=1`, { signal: controller.signal })
+    82→            .then(r => r.ok ? r.json() : null)
+    83→            .then(data => {
+    84→              if (data?.results) {
+    85→                const isMal = data._source === "mal";
+    86→                for (const item of data.results) {
+    87→                  searchResults.push({
+    88→                    id: item.id,  // may be "mal_XXX" if MAL fallback
+    89→                    title: item.title?.english || item.title?.romaji || "Unknown",
+    90→                    subTitle: item.title?.native || item.title?.romaji,
+    91→                    image: item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || "",
+    92→                    format: item.format,
+    93→                    type: item.type,
+    94→                    status: item.status,
+    95→                    episodes: item.episodes,
+    96→                    seasonYear: item.seasonYear,
+    97→                    genres: item.genres,
+    98→                    averageScore: item.averageScore,
+    99→                    description: item.description,
+   100→                    source: isMal ? "mal" : "anilist",
+   101→                    mediaType: "anime",
+   102→                  });
+   103→                }
+   104→              }
+   105→            })
+   106→            .catch(() => {})
+   107→        );
+   108→      }
+   109→
+   110→      // Search TMDB (movies & TV)
+   111→      if (currentTab === "all" || currentTab === "movies" || currentTab === "tv") {
+   112→        const searchType = currentTab === "movies" ? "movie" : currentTab === "tv" ? "tv" : "multi";
+   113→        promises.push(
+   114→          fetch(`/api/tmdb/search?q=${encodeURIComponent(q)}&type=${searchType}`, { signal: controller.signal })
+   115→            .then(r => r.ok ? r.json() : null)
+   116→            .then(data => {
+   117→              if (data?.results) {
+   118→                for (const item of data.results as TMDBContentItem[]) {
+   119→                  if ((item.media_type as any) === "person") continue;
+   120→                  searchResults.push({
+   121→                    id: item.id * -1, // negative to avoid collision with anilist ids
+   122→                    title: item.title || item.name || "Unknown",
+   123→                    image: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "",
+   124→                    format: item.media_type === "movie" ? "MOVIE" : "TV",
+   125→                    type: item.media_type === "movie" ? "Movie" : "TV Show",
+   126→                    seasonYear: item.release_date ? parseInt(item.release_date.split("-")[0]) : item.first_air_date ? parseInt(item.first_air_date.split("-")[0]) : undefined,
+   127→                    averageScore: item.vote_average ? Math.round(item.vote_average * 10) : undefined,
+   128→                    description: item.overview,
+   129→                    source: "tmdb",
+   130→                    mediaType: item.media_type === "movie" ? "movie" : "tv",
+   131→                    tmdbId: item.id,
+   132→                  });
+   133→                }
+   134→              }
+   135→            })
+   136→            .catch(() => {})
+   137→        );
+   138→      }
+   139→
+   140→      await Promise.all(promises);
+   141→
+   142→      if (!controller.signal.aborted) {
+   143→        // Apply filters
+   144→        let filtered = searchResults;
+   145→
+   146→        if (selectedGenres.length > 0) {
+   147→          filtered = filtered.filter(r =>
+   148→            r.genres?.some(g => selectedGenres.includes(g))
+   149→          );
+   150→        }
+   151→
+   152→        if (selectedFormats.length > 0) {
+   153→          filtered = filtered.filter(r =>
+   154→            r.format && selectedFormats.includes(r.format)
+   155→          );
+   156→        }
+   157→
+   158→        // Sort: AniList first, then by score
+   159→        filtered.sort((a, b) => {
+   160→          if (a.source === "anilist" && b.source !== "anilist") return -1;
+   161→          if (a.source !== "anilist" && b.source === "anilist") return 1;
+   162→          return (b.averageScore || 0) - (a.averageScore || 0);
+   163→        });
+   164→
+   165→        setResults(filtered);
+   166→        setLoading(false);
+   167→      }
+   168→    } catch {
+   169→      if (!controller.signal.aborted) {
+   170→        setLoading(false);
+   171→      }
+   172→    }
+   173→  }, [activeFilterTab, selectedGenres, selectedFormats]);
+   174→
+   175→  // Debounced input handler
+   176→  const handleInputChange = (value: string) => {
+   177→    setQuery(value);
+   178→    if (debounceRef.current) clearTimeout(debounceRef.current);
+   179→    debounceRef.current = setTimeout(() => {
+   180→      performSearch(value);
+   181→    }, 350);
+   182→  };
+   183→
+   184→  // Initial search from URL
+   185→  useEffect(() => {
+   186→    if (initialQuery) {
+   187→      setQuery(initialQuery);
+   188→      performSearch(initialQuery);
+   189→    }
+   190→  // eslint-disable-next-line react-hooks/exhaustive-deps
+   191→  }, [initialQuery]);
+   192→
+   193→  // Re-search when filter tab changes
+   194→  const handleTabChange = (tab: "all" | "anime" | "movies" | "tv") => {
+   195→    setActiveFilterTab(tab);
+   196→    if (query.trim()) {
+   197→      performSearch(query, tab);
+   198→    }
+   199→  };
+   200→
+   201→  // Re-search when genre/format filters change
+   202→  useEffect(() => {
+   203→    if (query.trim() && searched) {
+   204→      performSearch(query);
+   205→    }
+   206→  // eslint-disable-next-line react-hooks/exhaustive-deps
+   207→  }, [selectedGenres, selectedFormats]);
+   208→
+   209→  const handleResultClick = (result: SearchResult) => {
+   210→    if (result.source === "anilist" || result.source === "mal") {
+   211→      navigate({ page: "anime", id: String(result.id) });  // "mal_XXX" prefix routes to MAL in info API
+   212→    } else if (result.mediaType === "movie") {
+   213→      navigate({ page: "movie-detail", id: result.tmdbId! });
+   214→    } else {
+   215→      navigate({ page: "tv-detail", id: result.tmdbId! });
+   216→    }
+   217→  };
+   218→
+   219→  const handlePlayClick = (e: React.MouseEvent, result: SearchResult) => {
+   220→    e.stopPropagation();
+   221→    if (result.source === "anilist" || result.source === "mal") {
+   222→      navigate({ page: "watch", id: String(result.id), episode: 1 });
+   223→    } else if (result.mediaType === "movie") {
+   224→      navigate({ page: "movie-watch", id: result.tmdbId! });
+   225→    } else {
+   226→      navigate({ page: "tv-watch", id: result.tmdbId!, season: 1, episode: 1 });
+   227→    }
+   228→  };
+   229→
+   230→  const clearAll = () => {
+   231→    setQuery("");
+   232→    setResults([]);
+   233→    setSearched(false);
+   234→    setSelectedGenres([]);
+   235→    setSelectedFormats([]);
+   236→    inputRef.current?.focus();
+   237→  };
+   238→
+   239→  const toggleGenre = (genre: string) => {
+   240→    setSelectedGenres(prev =>
+   241→      prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
+   242→    );
+   243→  };
+   244→
+   245→  const toggleFormat = (format: string) => {
+   246→    setSelectedFormats(prev =>
+   247→      prev.includes(format) ? prev.filter(f => f !== format) : [...prev, format]
+   248→    );
+   249→  };
+   250→
+   251→  // ── Result row component ──
+   252→  const ResultRow = ({ result, index }: { result: SearchResult; index: number }) => (
+   253→    <div
+   254→      onClick={() => handleResultClick(result)}
+   255→      className="flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06] group"
+   256→      style={{ animationDelay: `${index * 30}ms` }}
+   257→    >
+   258→      {/* Thumbnail */}
+   259→      <div className="relative w-16 h-22 sm:w-20 sm:h-[110px] rounded-lg overflow-hidden bg-[#0a0a0a] shrink-0 border border-white/[0.06]">
+   260→        {result.image ? (
+   261→          <img
+   262→            src={result.image}
+   263→            alt={result.title}
+   264→            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+   265→            loading="lazy"
+   266→          />
+   267→        ) : (
+   268→          <div className="w-full h-full flex items-center justify-center">
+   269→            <svg className="w-6 h-6 text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+   270→              <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+   271→            </svg>
+   272→          </div>
+   273→        )}
+   274→        {/* Format badge */}
+   275→        {result.format && (
+   276→          <div className="absolute top-1 left-1 text-[7px] font-bold px-1.5 py-0.5 rounded bg-[#D4A017]/90 text-white backdrop-blur-sm">
+   277→            {result.format === "TV_SHORT" ? "TV SHORT" : result.format}
+   278→          </div>
+   279→        )}
+   280→        {/* Hover play overlay */}
+   281→        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+   282→          <div className="w-8 h-8 rounded-full bg-[#D4A017]/90 flex items-center justify-center shadow-lg shadow-[#D4A017]/30">
+   283→            <svg className="w-3.5 h-3.5 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+   284→              <polygon points="5 3 19 12 5 21 5 3" />
+   285→            </svg>
+   286→          </div>
+   287→        </div>
+   288→      </div>
+   289→
+   290→      {/* Info */}
+   291→      <div className="flex-1 min-w-0">
+   292→        <h3 className="text-sm sm:text-base font-semibold text-white line-clamp-1 group-hover:text-[#D4A017] transition-colors">
+   293→          {result.title}
+   294→        </h3>
+   295→        {result.subTitle && result.subTitle !== result.title && (
+   296→          <p className="text-[11px] text-white/30 line-clamp-1 mt-0.5">{result.subTitle}</p>
+   297→        )}
+   298→
+   299→        {/* Metadata row */}
+   300→        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+   301→          {result.format && (
+   302→            <span className="text-[10px] font-bold text-white/50 bg-white/[0.05] px-2 py-0.5 rounded-full">
+   303→              {result.format === "TV_SHORT" ? "TV Short" : result.format === "ONA" ? "ONA" : result.format === "OVA" ? "OVA" : result.format === "MOVIE" ? "Movie" : result.format === "SPECIAL" ? "Special" : result.format}
+   304→            </span>
+   305→          )}
+   306→          {result.seasonYear && (
+   307→            <span className="text-[10px] text-white/40">{result.seasonYear}</span>
+   308→          )}
+   309→          {result.episodes != null && result.episodes > 0 && (
+   310→            <span className="text-[10px] text-white/40">{result.episodes} eps</span>
+   311→          )}
+   312→          {result.averageScore != null && result.averageScore > 0 && (
+   313→            <span className="flex items-center gap-0.5 text-[10px] text-[#FFD700] font-bold">
+   314→              <svg className="w-3 h-3 text-[#FFD700]" fill="currentColor" viewBox="0 0 20 20">
+   315→                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+   316→              </svg>
+   317→              {result.averageScore}%
+   318→            </span>
+   319→          )}
+   320→          {result.status && (
+   321→            <span className={`text-[10px] font-medium ${result.status === "RELEASING" ? "text-emerald-400" : result.status === "FINISHED" ? "text-white/30" : "text-white/25"}`}>
+   322→              {result.status === "RELEASING" ? "Airing" : result.status === "FINISHED" ? "Complete" : result.status === "NOT_YET_RELEASED" ? "Upcoming" : result.status}
+   323→            </span>
+   324→          )}
+   325→        </div>
+   326→
+   327→        {/* Genre tags */}
+   328→        {result.genres && result.genres.length > 0 && (
+   329→          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+   330→            {result.genres.slice(0, 4).map(g => (
+   331→              <span key={g} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D4A017]/10 text-[#D4A017]/80 border border-[#D4A017]/15">
+   332→                {g}
+   333→              </span>
+   334→            ))}
+   335→          </div>
+   336→        )}
+   337→
+   338→        {/* Description snippet */}
+   339→        {result.description && (
+   340→          <p className="hidden sm:block text-[11px] text-white/25 line-clamp-1 mt-1.5">
+   341→            {result.description.replace(/<[^>]+>/g, "").slice(0, 120)}
+   342→          </p>
+   343→        )}
+   344→      </div>
+   345→
+   346→      {/* Right side: Source badge + Play button */}
+   347→      <div className="hidden sm:flex flex-col items-center gap-2 shrink-0">
+   348→        <span className="text-[8px] font-bold uppercase tracking-wider text-white/15" style={{ fontFamily: mono }}>
+   349→          {result.source === "anilist" ? "AniList" : "TMDB"}
+   350→        </span>
+   351→        <button
+   352→          onClick={(e) => handlePlayClick(e, result)}
+   353→          className="w-9 h-9 rounded-full bg-[#D4A017]/15 hover:bg-[#D4A017] flex items-center justify-center transition-all duration-200 group-hover:bg-[#D4A017] shadow-lg shadow-[#D4A017]/0 group-hover:shadow-[#D4A017]/20 cursor-pointer"
+   354→        >
+   355→          <svg className="w-4 h-4 text-[#D4A017] group-hover:text-white ml-0.5 transition-colors" viewBox="0 0 24 24" fill="currentColor">
+   356→            <polygon points="5 3 19 12 5 21 5 3" />
+   357→          </svg>
+   358→        </button>
+   359→      </div>
+   360→    </div>
+   361→  );
+   362→
+   363→  // ── Loading skeleton rows ──
+   364→  const SkeletonRow = () => (
+   365→    <div className="flex items-center gap-4 p-3 rounded-xl">
+   366→      <div className="w-16 h-22 sm:w-20 sm:h-[110px] rounded-lg skeleton shrink-0" />
+   367→      <div className="flex-1 space-y-2.5">
+   368→        <div className="h-4 w-3/4 rounded skeleton" />
+   369→        <div className="h-3 w-1/2 rounded skeleton" />
+   370→        <div className="flex gap-2">
+   371→          <div className="h-5 w-12 rounded-full skeleton" />
+   372→          <div className="h-5 w-8 rounded-full skeleton" />
+   373→          <div className="h-5 w-10 rounded-full skeleton" />
+   374→        </div>
+   375→        <div className="flex gap-1.5">
+   376→          <div className="h-4 w-14 rounded-full skeleton" />
+   377→          <div className="h-4 w-12 rounded-full skeleton" />
+   378→        </div>
+   379→      </div>
+   380→    </div>
+   381→  );
+   382→
+   383→  return (
+   384→    <div style={{ paddingTop: '90px', overflowX: 'hidden', width: '100%', maxWidth: '100vw', boxSizing: 'border-box', minHeight: '100vh' }}>
+   385→      {/* Background gold ambient glow */}
+   386→      <div style={{
+   387→        position: "fixed",
+   388→        top: "15%",
+   389→        left: "50%",
+   390→        transform: "translateX(-50%)",
+   391→        width: "50%",
+   392→        height: 350,
+   393→        background: "radial-gradient(ellipse, rgba(212,160,23,0.03) 0%, rgba(212,160,23,0.008) 40%, transparent 65%)",
+   394→        filter: "blur(80px)",
+   395→        pointerEvents: "none",
+   396→        zIndex: 0,
+   397→      }} />
+   398→
+   399→      <div style={{ position: "relative", zIndex: 1 }}>
+   400→        {/* ── Search Header ── */}
+   401→        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+   402→          {/* Title */}
+   403→          <div className="text-center mb-6">
+   404→            <h1 style={{ fontFamily: outfit, fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, lineHeight: 1.15, marginBottom: 8 }}>
+   405→              <span className="text-white">Find your next </span>
+   406→              <span style={{ color: "#D4A017" }}>adventure</span>
+   407→            </h1>
+   408→            <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.05em" }}>
+   409→              Search anime, movies & TV shows
+   410→            </p>
+   411→          </div>
+   412→
+   413→          {/* Search Bar */}
+   414→          <div className="mb-4">
+   415→            <div className="flex items-center gap-2 p-1.5 rounded-xl bg-[#0d0a04]/80 border border-[#D4A017]/15 focus-within:border-[#D4A017]/30 focus-within:shadow-[0_0_12px_rgba(212,160,23,0.04)] transition-all backdrop-blur-sm">
+   416→              <div className="flex items-center gap-2.5 flex-1 pl-3">
+   417→                <svg className="w-4.5 h-4.5 text-[#D4A017]/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   418→                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+   419→                </svg>
+   420→                <input
+   421→                  ref={inputRef}
+   422→                  autoFocus
+   423→                  value={query}
+   424→                  onChange={e => handleInputChange(e.target.value)}
+   425→                  placeholder="Search anime, movies, TV shows..."
+   426→                  className="flex-1 bg-transparent text-white placeholder-white/20 text-sm outline-none"
+   427→                  style={{ fontFamily: outfit }}
+   428→                />
+   429→                {loading && (
+   430→                  <svg className="w-4 h-4 text-[#D4A017] animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+   431→                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+   432→                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+   433→                  </svg>
+   434→                )}
+   435→                {query && !loading && (
+   436→                  <button type="button" onClick={clearAll} className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-white/25 hover:text-white/60 hover:bg-white/[0.08] transition-colors">
+   437→                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M18 6L6 18M6 6l12 12" /></svg>
+   438→                  </button>
+   439→                )}
+   440→              </div>
+   441→              {/* Filters button */}
+   442→              <button
+   443→                onClick={() => setShowFilters(!showFilters)}
+   444→                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+   445→                  showFilters || selectedGenres.length > 0 || selectedFormats.length > 0
+   446→                    ? "bg-[#D4A017]/15 text-[#D4A017] border border-[#D4A017]/30"
+   447→                    : "bg-white/[0.04] text-white/35 border border-white/[0.06] hover:text-white/60 hover:bg-white/[0.06]"
+   448→                }`}
+   449→                style={{ fontFamily: mono }}
+   450→              >
+   451→                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   452→                  <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+   453→                </svg>
+   454→                Filters
+   455→                {(selectedGenres.length > 0 || selectedFormats.length > 0) && (
+   456→                  <span className="w-4 h-4 rounded-full bg-[#D4A017] text-black text-[8px] flex items-center justify-center font-bold">
+   457→                    {selectedGenres.length + selectedFormats.length}
+   458→                  </span>
+   459→                )}
+   460→              </button>
+   461→            </div>
+   462→          </div>
+   463→
+   464→          {/* Filter Tabs */}
+   465→          <div className="flex items-center gap-2 justify-center mb-4">
+   466→            {(["all", "anime", "movies", "tv"] as const).map(tab => (
+   467→              <button
+   468→                key={tab}
+   469→                onClick={() => handleTabChange(tab)}
+   470→                className={`px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all border ${
+   471→                  activeFilterTab === tab
+   472→                    ? "bg-[#D4A017]/15 text-[#D4A017] border-[#D4A017]/30"
+   473→                    : "bg-white/[0.02] text-white/30 border-white/[0.06] hover:text-white/50 hover:bg-white/[0.04]"
+   474→                }`}
+   475→                style={{ fontFamily: mono }}
+   476→              >
+   477→                {tab === "all" ? "All" : tab === "anime" ? "Anime" : tab === "movies" ? "Movies" : "TV Shows"}
+   478→              </button>
+   479→            ))}
+   480→          </div>
+   481→
+   482→          {/* Expandable Filters Panel */}
+   483→          {showFilters && (
+   484→            <div className="mb-6 p-4 rounded-xl bg-[#0a0a04]/80 border border-[#D4A017]/15 backdrop-blur-sm space-y-4">
+   485→              {/* Genres */}
+   486→              <div>
+   487→                <div className="flex items-center gap-2 mb-2.5">
+   488→                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#D4A017]/60" style={{ fontFamily: mono }}>Genres</span>
+   489→                  {selectedGenres.length > 0 && (
+   490→                    <button onClick={() => setSelectedGenres([])} className="text-[8px] text-white/20 hover:text-white/40 transition-colors" style={{ fontFamily: mono }}>CLEAR</button>
+   491→                  )}
+   492→                </div>
+   493→                <div className="flex flex-wrap gap-1.5">
+   494→                  {GENRE_OPTIONS.map(genre => (
+   495→                    <button
+   496→                      key={genre}
+   497→                      onClick={() => toggleGenre(genre)}
+   498→                      className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all border ${
+   499→                        selectedGenres.includes(genre)
+   500→                          ? "bg-[#D4A017]/20 text-[#D4A017] border-[#D4A017]/30"
+   501→                          : "bg-white/[0.03] text-white/25 border-white/[0.06] hover:text-white/40 hover:bg-white/[0.05]"
+   502→                      }`}
+   503→                    >
+   504→                      {genre}
+   505→                    </button>
+   506→                  ))}
+   507→                </div>
+   508→              </div>
+   509→
+   510→              {/* Format */}
+   511→              <div>
+   512→                <div className="flex items-center gap-2 mb-2.5">
+   513→                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#D4A017]/60" style={{ fontFamily: mono }}>Format</span>
+   514→                  {selectedFormats.length > 0 && (
+   515→                    <button onClick={() => setSelectedFormats([])} className="text-[8px] text-white/20 hover:text-white/40 transition-colors" style={{ fontFamily: mono }}>CLEAR</button>
+   516→                  )}
+   517→                </div>
+   518→                <div className="flex flex-wrap gap-1.5">
+   519→                  {FORMAT_OPTIONS.map(format => (
+   520→                    <button
+   521→                      key={format}
+   522→                      onClick={() => toggleFormat(format)}
+   523→                      className={`px-2.5 py-1 rounded-full text-[9px] font-bold transition-all border ${
+   524→                        selectedFormats.includes(format)
+   525→                          ? "bg-[#D4A017]/20 text-[#D4A017] border-[#D4A017]/30"
+   526→                          : "bg-white/[0.03] text-white/25 border-white/[0.06] hover:text-white/40 hover:bg-white/[0.05]"
+   527→                      }`}
+   528→                    >
+   529→                      {format === "TV_SHORT" ? "TV Short" : format}
+   530→                    </button>
+   531→                  ))}
+   532→                </div>
+   533→              </div>
+   534→
+   535→              {/* Clear all filters */}
+   536→              {(selectedGenres.length > 0 || selectedFormats.length > 0) && (
+   537→                <button
+   538→                  onClick={() => { setSelectedGenres([]); setSelectedFormats([]); }}
+   539→                  className="w-full py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[10px] font-bold uppercase tracking-wider text-white/30 hover:text-white/50 hover:bg-white/[0.05] transition-all"
+   540→                  style={{ fontFamily: mono }}
+   541→                >
+   542→                  Clear All Filters
+   543→                </button>
+   544→              )}
+   545→            </div>
+   546→          )}
+   547→        </div>
+   548→
+   549→        {/* ── Gold Divider ── */}
+   550→        <div className="max-w-3xl mx-auto px-4 sm:px-6" style={{ position: "relative", height: 2, marginBottom: 24, marginTop: 8 }}>
+   551→          <div style={{ position: "absolute", top: -6, left: "20%", right: "20%", height: 12, background: "radial-gradient(ellipse at 50% 50%, rgba(212,160,23,0.04) 0%, transparent 70%)", filter: "blur(8px)", pointerEvents: "none" }} />
+   552→          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 5%, rgba(212,160,23,0.1) 15%, rgba(212,160,23,0.25) 35%, rgba(212,160,23,0.35) 50%, rgba(212,160,23,0.25) 65%, rgba(212,160,23,0.1) 85%, transparent 95%)" }} />
+   553→        </div>
+   554→
+   555→        {/* ── Results ── */}
+   556→        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+   557→          {loading ? (
+   558→            <div className="space-y-2">
+   559→              {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
+   560→            </div>
+   561→          ) : results.length > 0 ? (
+   562→            <div className="space-y-1">
+   563→              {/* Result count */}
+   564→              <div className="flex items-center gap-3 mb-3">
+   565→                <span className="text-[9px] font-bold uppercase tracking-wider text-white/20" style={{ fontFamily: mono }}>
+   566→                  {results.length} result{results.length !== 1 ? 's' : ''}
+   567→                </span>
+   568→                <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(212,160,23,0.15), transparent)" }} />
+   569→              </div>
+   570→
+   571→              {/* Results list */}
+   572→              {results.map((result, i) => (
+   573→                <ResultRow key={`${result.source}-${result.id}`} result={result} index={i} />
+   574→              ))}
+   575→
+   576→              {/* Load more hint */}
+   577→              {results.length >= 20 && (
+   578→                <div className="text-center py-6">
+   579→                  <p className="text-[10px] text-white/15" style={{ fontFamily: mono }}>
+   580→                    Showing top results. Try a more specific search for better results.
+   581→                  </p>
+   582→                </div>
+   583→              )}
+   584→            </div>
+   585→          ) : query && searched ? (
+   586→            <div className="text-center py-16">
+   587→              <div className="space-y-3">
+   588→                <div className="w-14 h-14 mx-auto rounded-full bg-[#D4A017]/8 flex items-center justify-center">
+   589→                  <svg className="w-7 h-7 text-[#D4A017]/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+   590→                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+   591→                  </svg>
+   592→                </div>
+   593→                <p className="text-white/25 text-sm" style={{ fontFamily: outfit }}>No results for &quot;{query}&quot;</p>
+   594→                <p className="text-white/12 text-xs" style={{ fontFamily: mono }}>Try different keywords or check the spelling</p>
+   595→              </div>
+   596→            </div>
+   597→          ) : (
+   598→            <div className="text-center py-16">
+   599→              <div className="space-y-3">
+   600→                <div className="w-14 h-14 mx-auto rounded-full bg-[#D4A017]/6 flex items-center justify-center">
+   601→                  <svg className="w-7 h-7 text-[#D4A017]/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+   602→                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+   603→                  </svg>
+   604→                </div>
+   605→                <p className="text-white/25 text-sm" style={{ fontFamily: outfit }}>Type to start searching</p>
+   606→                <p className="text-white/12 text-[10px]" style={{ fontFamily: mono }}>Results appear as you type</p>
+   607→              </div>
+   608→            </div>
+   609→          )}
+   610→        </div>
+   611→      </div>
+   612→    </div>
+   613→  );
+   614→}
+   615→

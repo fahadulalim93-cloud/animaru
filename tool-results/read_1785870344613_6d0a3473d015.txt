@@ -1,0 +1,1138 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect } from "react";
+     4→import { useAppStore } from "./store";
+     5→import type { AnimeItem } from "./store";
+     6→import type { MiruroAnimeResult } from "@/lib/miruro-api";
+     7→import type { AniListMedia } from "@/lib/anilist-api";
+     8→import AnimeComments from "./anime-comments";
+     9→import MusicTab from "./music-tab";
+    10→
+    11→// ============================================================
+    12→// Types
+    13→// ============================================================
+    14→interface AnimeDetailProps {
+    15→  animeId: string;
+    16→}
+    17→
+    18→interface EpisodeData {
+    19→  episodeIdNum: number;
+    20→  notes?: string | null;
+    21→  thumbnails?: string[];
+    22→  title?: string | null;
+    23→  thumbnail?: string | null;
+    24→  description?: string | null;
+    25→  source?: string;
+    26→  subSlug?: string;
+    27→  dubSlug?: string | null;
+    28→  anitakuSlug?: string | null;
+    29→}
+    30→
+    31→interface MiruroEpData {
+    32→  sub: Array<{ number: number; slug: string; title?: string; thumbnail?: string }>;
+    33→  dub: Array<{ number: number; slug: string; title?: string; thumbnail?: string }>;
+    34→}
+    35→
+    36→interface AniListRelation {
+    37→  relationType: string;
+    38→  id: number;
+    39→  title: { romaji?: string; english?: string; native?: string };
+    40→  coverImage: { extraLarge?: string; large?: string; medium?: string };
+    41→  type?: string;
+    42→  format?: string;
+    43→  episodes?: number;
+    44→  status?: string;
+    45→}
+    46→
+    47→interface AniListRecommendation {
+    48→  id: number;
+    49→  title: { romaji?: string; english?: string; native?: string };
+    50→  coverImage: { extraLarge?: string; large?: string; medium?: string };
+    51→  type?: string;
+    52→  episodes?: number;
+    53→  averageScore?: number;
+    54→  status?: string;
+    55→}
+    56→
+    57→interface CharacterData {
+    58→  id: number;
+    59→  name: { full: string; native?: string };
+    60→  image: { large?: string; medium?: string };
+    61→  role: string;
+    62→  voiceActors?: Array<{ name: { full: string }; image?: { medium?: string } }>;
+    63→}
+    64→
+    65→// ── Tab type ──
+    66→type DetailTab = "episodes" | "characters" | "seasons" | "music" | "related" | "morelikethis";
+    67→
+    68→// ── Status label helper ──
+    69→const statusLabel = (s: string) => {
+    70→  if (s === "RELEASING") return "Airing";
+    71→  if (s === "FINISHED") return "Complete";
+    72→  if (s === "NOT_YET_RELEASED") return "Upcoming";
+    73→  return s || "—";
+    74→};
+    75→
+    76→// ── Countdown Timer — pure B/W ──
+    77→function CountdownTimer({ airingAt, episode }: { airingAt: number; episode: number }) {
+    78→  const [timeLeft, setTimeLeft] = useState("");
+    79→  const [expired, setExpired] = useState(false);
+    80→
+    81→  useEffect(() => {
+    82→    function update() {
+    83→      const now = Math.floor(Date.now() / 1000);
+    84→      const diff = airingAt - now;
+    85→      if (diff <= 0) {
+    86→        setExpired(true);
+    87→        setTimeLeft("");
+    88→        return;
+    89→      }
+    90→      const d = Math.floor(diff / 86400);
+    91→      const h = Math.floor((diff % 86400) / 3600);
+    92→      const m = Math.floor((diff % 3600) / 60);
+    93→      const s = diff % 60;
+    94→      setTimeLeft(`${d > 0 ? `${d}d ` : ""}${h}h ${m}m ${s}s`);
+    95→    }
+    96→    update();
+    97→    const interval = setInterval(update, 1000);
+    98→    return () => clearInterval(interval);
+    99→  }, [airingAt]);
+   100→
+   101→  if (expired) return null;
+   102→
+   103→  return (
+   104→    <div className="inline-flex items-center gap-2 px-4 h-10 rounded-full bg-white/[0.06] hover:bg-white/10 transition-colors">
+   105→      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" /></svg>
+   106→      <span className="text-sm font-bold text-white tabular-nums">Ep {episode} in {timeLeft}</span>
+   107→    </div>
+   108→  );
+   109→}
+   110→
+   111→// ============================================================
+   112→// MAIN — Pure Black & White Detail Page (Miruro-inspired)
+   113→// Layout: left rail (poster + facts) | right content (title + tabs)
+   114→// ============================================================
+   115→export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
+   116→  const navigate = useAppStore(s => s.navigate);
+   117→  const anilistToken = useAppStore(s => s.anilistToken);
+   118→  const openEditListModal = useAppStore(s => s.openEditListModal);
+   119→  const openConnectListModal = useAppStore(s => s.openConnectListModal);
+   120→
+   121→  // ── Core state ──
+   122→  const [anime, setAnime] = useState<AnimeItem | null>(null);
+   123→  const [miruroInfo, setMiruroInfo] = useState<MiruroAnimeResult | null>(null);
+   124→  const [anilistMedia, setAnilistMedia] = useState<AniListMedia | null>(null);
+   125→  const [anilistInfo, setAnilistInfo] = useState<any>(null);
+   126→  const [loading, setLoading] = useState(true);
+   127→
+   128→  const [anilistId, setAnilistId] = useState<number | null>(null);
+   129→  const [totalEpisodes, setTotalEpisodes] = useState<number | null>(null);
+   130→
+   131→  const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
+   132→  const [miruroEps, setMiruroEps] = useState<MiruroEpData>({ sub: [], dub: [] });
+   133→  const [activeEpiTab, setActiveEpiTab] = useState<"sub" | "dub">("sub");
+   134→
+   135→  const [anilistRelations, setAnilistRelations] = useState<AniListRelation[]>([]);
+   136→  const [franchiseSeasons, setFranchiseSeasons] = useState<AniListRelation[]>([]);
+   137→  const [franchiseRelated, setFranchiseRelated] = useState<AniListRelation[]>([]);
+   138→  const [anilistRecommendations, setAnilistRecommendations] = useState<AniListRecommendation[]>([]);
+   139→  const [anilistStudios, setAnilistStudios] = useState<Array<{ id: number; name: string; isAnimationStudio: boolean }>>([]);
+   140→  const [anilistTrailer, setAnilistTrailer] = useState<{ id: string; site: string; thumbnail: string } | null>(null);
+   141→
+   142→  const [nextAiring, setNextAiring] = useState<{ episode: number; airingAt: number } | null>(null);
+   143→  const [characters, setCharacters] = useState<CharacterData[]>([]);
+   144→  const [source, setSource] = useState<string>("");
+   145→
+   146→  // TMDB logo + backdrop (fetched separately, like the home page hero)
+   147→  const [tmdbLogo, setTmdbLogo] = useState<string>("");
+   148→  const [tmdbBackdrop, setTmdbBackdrop] = useState<string>("");
+   149→  const [descExpanded, setDescExpanded] = useState(false);
+   150→
+   151→  // UI state
+   152→  const [activeTab, setActiveTab] = useState<DetailTab>("episodes");
+   153→  const [epSearch, setEpSearch] = useState("");
+   154→  const [epPage, setEpPage] = useState(1);
+   155→  const EPS_PER_PAGE = 24;
+   156→
+   157→  // ── Reset on animeId change ──
+   158→  useEffect(() => {
+   159→    setAnime(null);
+   160→    setMiruroInfo(null);
+   161→    setAnilistMedia(null);
+   162→    setAnilistInfo(null);
+   163→    setAnilistId(null);
+   164→    setTotalEpisodes(null);
+   165→    setEpisodes([]);
+   166→    setMiruroEps({ sub: [], dub: [] });
+   167→    setActiveEpiTab("sub");
+   168→    setAnilistRelations([]);
+   169→    setFranchiseSeasons([]);
+   170→    setFranchiseRelated([]);
+   171→    setAnilistRecommendations([]);
+   172→    setAnilistStudios([]);
+   173→    setAnilistTrailer(null);
+   174→    setNextAiring(null);
+   175→    setCharacters([]);
+   176→    setSource("");
+   177→    setTmdbLogo("");
+   178→    setTmdbBackdrop("");
+   179→    setDescExpanded(false);
+   180→    setActiveTab("episodes");
+   181→    setEpSearch("");
+   182→    setEpPage(1);
+   183→  }, [animeId]);
+   184→
+   185→  // ── Load core data ──
+   186→  useEffect(() => {
+   187→    let cancelled = false;
+   188→    async function load() {
+   189→      setLoading(true);
+   190→
+   191→      const cleanId = animeId.replace(/^miruro_/, "").replace(/^mal_/, "");
+   192→      if (/^\d+$/.test(cleanId)) setAnilistId(parseInt(cleanId));
+   193→
+   194→      try {
+   195→        const infoRes = await fetch(`/api/anime/info?id=${encodeURIComponent(animeId)}`);
+   196→        if (infoRes.ok && !cancelled) {
+   197→          const data = await infoRes.json();
+   198→          setAnime(data.anime);
+   199→          setMiruroInfo(data.miruroInfo);
+   200→          if (data.anilistInfo) {
+   201→            setAnilistInfo(data.anilistInfo);
+   202→            if (data.anilistInfo.characters && Array.isArray(data.anilistInfo.characters)) {
+   203→              setCharacters(data.anilistInfo.characters);
+   204→            }
+   205→            const studiosRaw = Array.isArray(data.anilistInfo.studios) ? data.anilistInfo.studios : (data.anilistInfo.studios?.nodes || []);
+   206→            if (studiosRaw.length > 0) {
+   207→              setAnilistStudios(studiosRaw.map((s: any) => ({
+   208→                id: s.id, name: s.name, isAnimationStudio: s.isAnimationStudio
+   209→              })));
+   210→            }
+   211→            const mapRelation = (edge: any) => {
+   212→              const node = edge.node || edge;
+   213→              return {
+   214→                relationType: edge.relationType,
+   215→                id: node.id,
+   216→                title: node.title,
+   217→                coverImage: node.coverImage,
+   218→                type: node.type,
+   219→                format: node.format,
+   220→                episodes: node.episodes,
+   221→                status: node.status,
+   222→              };
+   223→            };
+   224→            if (data.anilistInfo.franchiseSeasons || data.anilistInfo.franchiseRelated) {
+   225→              const seasons = (data.anilistInfo.franchiseSeasons || []).map(mapRelation);
+   226→              const related = (data.anilistInfo.franchiseRelated || []).map(mapRelation);
+   227→              setFranchiseSeasons(seasons);
+   228→              setFranchiseRelated(related);
+   229→              setAnilistRelations([...seasons, ...related]);
+   230→            } else {
+   231→              const relsRaw = Array.isArray(data.anilistInfo.relations) && data.anilistInfo.relations[0]?.relationType
+   232→                ? data.anilistInfo.relations
+   233→                : (data.anilistInfo.relations?.edges || []);
+   234→              if (relsRaw.length > 0) {
+   235→                const mapped = relsRaw.map(mapRelation);
+   236→                setAnilistRelations(mapped);
+   237→                const seasons = mapped.filter(r =>
+   238→                  (r.relationType === "SEQUEL" || r.relationType === "PREQUEL") &&
+   239→                  (!r.format || r.format === "TV" || r.format === "TV_SHORT" || r.format === "OVA" || r.format === "ONA")
+   240→                );
+   241→                const related = mapped.filter(r => !seasons.some(s => s.id === r.id));
+   242→                setFranchiseSeasons(seasons);
+   243→                setFranchiseRelated(related);
+   244→              }
+   245→            }
+   246→            const recsRaw = Array.isArray(data.anilistInfo.recommendations) ? data.anilistInfo.recommendations : (data.anilistInfo.recommendations?.nodes || []);
+   247→            if (recsRaw.length > 0) {
+   248→              setAnilistRecommendations(
+   249→                recsRaw
+   250→                  .filter((r: any) => r.mediaRecommendation || r.id)
+   251→                  .map((r: any) => {
+   252→                    const m = r.mediaRecommendation || r;
+   253→                    return {
+   254→                      id: m.id,
+   255→                      title: m.title,
+   256→                      coverImage: m.coverImage,
+   257→                      type: m.type,
+   258→                      episodes: m.episodes,
+   259→                      averageScore: m.averageScore,
+   260→                      status: m.status,
+   261→                    };
+   262→                  })
+   263→              );
+   264→            }
+   265→            if (data.anilistInfo.trailer) setAnilistTrailer(data.anilistInfo.trailer);
+   266→            if (data.anilistInfo.nextAiringEpisode) setNextAiring(data.anilistInfo.nextAiringEpisode);
+   267→            else if (data.nextAiringEpisode) setNextAiring(data.nextAiringEpisode);
+   268→          }
+   269→          if (data.totalEpisodes != null && data.totalEpisodes > 0) setTotalEpisodes(data.totalEpisodes);
+   270→          if (data.anilistInfo?.source) setSource(data.anilistInfo.source);
+   271→        }
+   272→      } catch { /* ignore */ }
+   273→
+   274→      if (!cancelled) setLoading(false);
+   275→
+   276→      // Load episodes
+   277→      try {
+   278→        let aid = anilistId;
+   279→        if (!aid) {
+   280→          try {
+   281→            const infoRes = await fetch(`/api/anime/info?id=${encodeURIComponent(animeId)}`);
+   282→            if (infoRes.ok) {
+   283→              const info = await infoRes.json();
+   284→              aid = info?.anilistInfo?.id ? Number(info.anilistInfo.id) : null;
+   285→              if (aid && !cancelled) setAnilistId(aid);
+   286→            }
+   287→          } catch { /* ignore */ }
+   288→        }
+   289→        if (aid && !cancelled) {
+   290→          // Use the aggregated episodes endpoint which pulls thumbnails
+   291→          // from TMDB + TVMaze + AniList + Miruro (much better images
+   292→          // than miruro-direct alone which often has no thumbnails)
+   293→          const epRes = await fetch(`/api/anime/episodes?id=${encodeURIComponent(animeId)}`);
+   294→          if (epRes.ok && !cancelled) {
+   295→            const data = await epRes.json();
+   296→            const rawEps: any[] = data.episodes || [];
+   297→            const eps: EpisodeData[] = rawEps.map((ep: any) => ({
+   298→              episodeIdNum: Number(ep.episodeIdNum || ep.number || 0),
+   299→              title: ep.title || null,
+   300→              thumbnail: ep.thumbnail || null,
+   301→              description: ep.description || null,
+   302→              source: ep.source || "miruro",
+   303→              subSlug: ep.subSlug || String(ep.episodeIdNum || ep.number),
+   304→              dubSlug: ep.dubSlug || null,
+   305→            })).filter((ep: EpisodeData) => ep.episodeIdNum > 0)
+   306→               .sort((a, b) => a.episodeIdNum - b.episodeIdNum);
+   307→
+   308→            if (eps.length > 0) setEpisodes(eps);
+   309→
+   310→            // Derive sub/dub from episode data
+   311→            const hasDub = eps.some(ep => ep.dubSlug);
+   312→            if (hasDub) {
+   313→              setMiruroEps({
+   314→                sub: eps.map(ep => ({ number: ep.episodeIdNum, slug: ep.subSlug || String(ep.episodeIdNum), title: ep.title || `Episode ${ep.episodeIdNum}`, thumbnail: ep.thumbnail || undefined })),
+   315→                dub: eps.filter(ep => ep.dubSlug).map(ep => ({ number: ep.episodeIdNum, slug: ep.dubSlug!, title: ep.title || `Episode ${ep.episodeIdNum}`, thumbnail: ep.thumbnail || undefined })),
+   316→              });
+   317→            }
+   318→            const epTotal = data.totalEpisodes ?? eps.length;
+   319→            if (epTotal && !cancelled) setTotalEpisodes(epTotal);
+   320→          }
+   321→        }
+   322→      } catch { /* ignore */ }
+   323→    }
+   324→    load();
+   325→    return () => { cancelled = true; };
+   326→  }, [animeId]);
+   327→
+   328→  // ── Load full franchise in background ──
+   329→  useEffect(() => {
+   330→    if (!anilistId) return;
+   331→    async function loadFranchise() {
+   332→      try {
+   333→        const res = await fetch(`/api/anime/franchise?id=${anilistId}`);
+   334→        if (res.ok) {
+   335→          const data = await res.json();
+   336→          if (data.seasons?.length > franchiseSeasons.length) {
+   337→            const mapRelation = (edge: any) => ({
+   338→              relationType: edge.relationType,
+   339→              id: edge.id,
+   340→              title: edge.title,
+   341→              coverImage: edge.coverImage,
+   342→              type: edge.type,
+   343→              format: edge.format,
+   344→              episodes: edge.episodes,
+   345→              status: edge.status,
+   346→            });
+   347→            setFranchiseSeasons(data.seasons.map(mapRelation));
+   348→            setFranchiseRelated(data.related.map(mapRelation));
+   349→            setAnilistRelations([...data.seasons, ...data.related].map(mapRelation));
+   350→          }
+   351→        }
+   352→      } catch { /* ignore */ }
+   353→    }
+   354→    loadFranchise();
+   355→  }, [anilistId]);
+   356→
+   357→  // ── Load deferred data ──
+   358→  useEffect(() => {
+   359→    if (!anilistId) return;
+   360→    if (anilistRelations.length > 0 || characters.length > 0) return;
+   361→    async function loadDeferred() {
+   362→      try {
+   363→        const res = await fetch(`/api/anime/anilist-detail?id=${anilistId}`);
+   364→        if (res.ok) {
+   365→          const data = await res.json();
+   366→          if (data.relations?.length) setAnilistRelations(data.relations);
+   367→          if (data.recommendations?.length) setAnilistRecommendations(data.recommendations);
+   368→          if (data.studios?.length) setAnilistStudios(data.studios);
+   369→          if (data.trailer) setAnilistTrailer(data.trailer);
+   370→          if (data.characters?.length) setCharacters(data.characters);
+   371→          if (data.details) {
+   372→            setAnilistMedia(data.details);
+   373→            if (data.details.episodes) setTotalEpisodes(prev => prev ?? data.details.episodes);
+   374→            if (data.details.nextAiringEpisode) setNextAiring(data.details.nextAiringEpisode);
+   375→          }
+   376→          if (data.details?.source) setSource(data.details.source);
+   377→        }
+   378→      } catch { /* ignore */ }
+   379→    }
+   380→    loadDeferred();
+   381→  }, [anilistId]);
+   382→
+   383→  // ── Fetch TVDB logo + backdrop (clearlogos from thetvdb.com) ──
+   384→  // TVDB has the best anime clearlogos (transparent PNG logos).
+   385→  // Falls back to AniList banner if TVDB has no background.
+   386→  useEffect(() => {
+   387→    if (!anilistId) return;
+   388→    let cancelled = false;
+   389→    async function fetchTvdb() {
+   390→      try {
+   391→        const alTitleObj = anilistInfo?.title || anilistMedia?.title || null;
+   392→        const titleForSearch =
+   393→          alTitleObj?.english || alTitleObj?.romaji ||
+   394→          miruroInfo?.title?.english || miruroInfo?.title?.romaji ||
+   395→          anime?.englishName || anime?.name ||
+   396→          "";
+   397→        if (!titleForSearch) return;
+   398→        const res = await fetch(
+   399→          `/api/anime/tmdb-images?anilistId=${anilistId}&title=${encodeURIComponent(titleForSearch)}`
+   400→        );
+   401→        if (!res.ok || cancelled) return;
+   402→        const data = await res.json();
+   403→        if (cancelled) return;
+   404→        if (data.logoUrl) setTmdbLogo(data.logoUrl);
+   405→        if (data.backdropUrl) setTmdbBackdrop(data.backdropUrl);
+   406→      } catch { /* ignore — page still works with AniList banner */ }
+   407→    }
+   408→    fetchTvdb();
+   409→    return () => { cancelled = true; };
+   410→  }, [anilistId, anilistInfo, anilistMedia, miruroInfo, anime]);
+   411→
+   412→  // ── Loading skeleton ──
+   413→  if (loading) {
+   414→    return (
+   415→      <div className="min-h-screen bg-black text-white">
+   416→        {/* Banner skeleton */}
+   417→        <div className="h-screen bg-white/[0.03] animate-pulse" />
+   418→        {/* Two-column skeleton */}
+   419→        <div className="px-4 sm:px-6 py-4 -mt-32 relative">
+   420→          <div className="flex flex-col lg:flex-row gap-6 xl:gap-9">
+   421→            {/* Left sidebar skeleton */}
+   422→            <div className="hidden lg:flex w-50 xl:w-60 2xl:w-64 flex-col gap-4 shrink-0">
+   423→              <div className="w-full aspect-[2/3] rounded-xl bg-white/[0.05] animate-pulse" />
+   424→              <div className="h-8 rounded-xl bg-white/[0.06] animate-pulse" />
+   425→              {Array.from({ length: 5 }).map((_, i) => (
+   426→                <div key={i} className="flex flex-col gap-1">
+   427→                  <div className="h-2.5 w-16 rounded bg-white/[0.06] animate-pulse" />
+   428→                  <div className="h-3 w-20 rounded bg-white/[0.05] animate-pulse" />
+   429→                </div>
+   430→              ))}
+   431→            </div>
+   432→            {/* Main column skeleton */}
+   433→            <div className="flex-1 space-y-6">
+   434→              <div className="h-3 w-24 rounded bg-white/[0.06] animate-pulse" />
+   435→              <div className="h-8 w-2/3 rounded bg-white/[0.08] animate-pulse" />
+   436→              <div className="flex gap-2">
+   437→                <div className="h-6 w-16 rounded bg-white/[0.08] animate-pulse" />
+   438→                <div className="h-6 w-16 rounded bg-white/[0.06] animate-pulse" />
+   439→                <div className="h-6 w-16 rounded bg-white/[0.06] animate-pulse" />
+   440→              </div>
+   441→              <div className="flex gap-2">
+   442→                <div className="h-9 w-30 rounded-full bg-white/[0.1] animate-pulse" />
+   443→                <div className="h-9 w-9 rounded-full bg-white/[0.06] animate-pulse" />
+   444→                <div className="h-9 w-9 rounded-full bg-white/[0.06] animate-pulse" />
+   445→              </div>
+   446→              <div className="space-y-2">
+   447→                <div className="h-3 w-full rounded bg-white/[0.04] animate-pulse" />
+   448→                <div className="h-3 w-5/6 rounded bg-white/[0.04] animate-pulse" />
+   449→                <div className="h-3 w-3/4 rounded bg-white/[0.04] animate-pulse" />
+   450→              </div>
+   451→              {/* Tab bar skeleton */}
+   452→              <div className="border-b border-white/10 h-12 flex items-center gap-3">
+   453→                {Array.from({ length: 4 }).map((_, i) => (
+   454→                  <div key={i} className="h-4 w-20 rounded bg-white/[0.06] animate-pulse" />
+   455→                ))}
+   456→              </div>
+   457→              {/* Episode grid skeleton */}
+   458→              <div className="flex flex-wrap gap-3">
+   459→                {Array.from({ length: 6 }).map((_, i) => (
+   460→                  <div key={i} className="w-1/4 p-2">
+   461→                    <div className="aspect-video rounded-xl bg-white/[0.04] animate-pulse" />
+   462→                    <div className="h-3 w-3/4 rounded bg-white/[0.04] animate-pulse mt-2" />
+   463→                  </div>
+   464→                ))}
+   465→              </div>
+   466→            </div>
+   467→          </div>
+   468→        </div>
+   469→      </div>
+   470→    );
+   471→  }
+   472→
+   473→  // ── Derived data ──
+   474→  const alTitle = anilistMedia?.title || anilistInfo?.title || null;
+   475→  const miruroTitle = miruroInfo?.title || null;
+   476→  const anilistTitle = String(alTitle?.english || alTitle?.romaji || miruroTitle?.english || miruroTitle?.romaji || "");
+   477→  const anilistTitleRomaji = String(alTitle?.romaji || miruroTitle?.romaji || "");
+   478→  const anilistTitleNative = String(alTitle?.native || miruroTitle?.native || "");
+   479→  const allanimeTitle = anime ? String(anime.englishName || anime.name || "") : "";
+   480→  const displayTitle = anilistTitle || allanimeTitle || "Unknown";
+   481→
+   482→  const alImage = anilistMedia?.coverImage?.extraLarge || anilistMedia?.coverImage?.large || anilistInfo?.coverImage?.extraLarge || anilistInfo?.coverImage?.large || "";
+   483→  const image = alImage || miruroInfo?.coverImage?.extraLarge || miruroInfo?.coverImage?.large || anime?.thumbnail || "";
+   484→  // Banner priority:
+   485→  //   1. TMDB backdrop (highest quality, full-screen)
+   486→  //   2. AniList bannerImage (real anime banner)
+   487→  //   3. Miruro bannerImage
+   488→  //   4. AniList cover extraLarge (poster — better than nothing, fills the banner area)
+   489→  const banner = tmdbBackdrop || anilistMedia?.bannerImage || anilistInfo?.bannerImage || miruroInfo?.bannerImage || alImage || image;
+   490→
+   491→  const alDesc = anilistMedia?.description?.replace(/<[^>]*>/g, "") || anilistInfo?.description?.replace(/<[^>]*>/g, "") || "";
+   492→  const miruroDesc = miruroInfo?.description?.replace(/<[^>]*>/g, "") || "";
+   493→  const allanimeDesc = anime?.description || "";
+   494→  const description = alDesc || miruroDesc || allanimeDesc;
+   495→
+   496→  const alScoreRaw = anilistMedia?.averageScore ?? anilistInfo?.averageScore ?? miruroInfo?.averageScore ?? null;
+   497→  const anilistScore = alScoreRaw ? (alScoreRaw > 20 ? alScoreRaw / 10 : alScoreRaw) : null;
+   498→  const anilistScorePct = alScoreRaw ? (alScoreRaw > 20 ? alScoreRaw : alScoreRaw * 10) : null;
+   499→
+   500→  const rawGenres: any[] = anilistMedia?.genres || anilistInfo?.genres || miruroInfo?.genres || anime?.genres || [];
+   501→  const allGenres: string[] = rawGenres.filter((g: any) => typeof g === "string").map((g: string) => g);
+   502→
+   503→  const status = String(anilistMedia?.status || anilistInfo?.status || miruroInfo?.status || anime?.status || "");
+   504→  const type = String(anilistMedia?.format || anilistInfo?.format || miruroInfo?.format || miruroInfo?.type || anime?.type || "");
+   505→  const alSeason = (anilistMedia?.season || anilistInfo?.season) && (anilistMedia?.seasonYear || anilistInfo?.seasonYear)
+   506→    ? `${anilistMedia?.season || anilistInfo?.season} ${anilistMedia?.seasonYear || anilistInfo?.seasonYear}` : "";
+   507→  const season = alSeason || (miruroInfo?.season && miruroInfo?.seasonYear ? `${miruroInfo.season} ${miruroInfo.seasonYear}` : "") || anime?.season || "";
+   508→  const episodesCount = totalEpisodes || anilistMedia?.episodes || anilistInfo?.episodes || miruroInfo?.episodes || (anime as any)?.episodeCount || null;
+   509→  const studioNames = Array.from(new Set(anilistStudios.filter(s => s.isAnimationStudio).map(s => s.name)));
+   510→  const duration = anilistMedia?.duration || anilistInfo?.duration || null;
+   511→  const country = anilistMedia?.countryOfOrigin || anilistInfo?.countryOfOrigin || "";
+   512→
+   513→  const hasMiruroEps = miruroEps.sub.length > 0 || miruroEps.dub.length > 0;
+   514→  const currentEps = hasMiruroEps
+   515→    ? (activeEpiTab === "dub" && miruroEps.dub.length > 0 ? miruroEps.dub : miruroEps.sub)
+   516→    : episodes;
+   517→  const hasAnyEpisodes = episodes.length > 0 || hasMiruroEps || (episodesCount != null && episodesCount > 0);
+   518→
+   519→  const searchLower = epSearch.toLowerCase();
+   520→  const filteredEps = (hasMiruroEps ? currentEps : episodes).filter((ep: any) => {
+   521→    if (!epSearch) return true;
+   522→    const epNum = hasMiruroEps ? ep.number : ep.episodeIdNum;
+   523→    const epTitle = hasMiruroEps ? (ep.title || "") : (ep.title || ep.notes || "");
+   524→    return String(epNum).includes(searchLower) || epTitle.toLowerCase().includes(searchLower);
+   525→  });
+   526→  const paginatedEps = filteredEps.slice(0, epPage * EPS_PER_PAGE);
+   527→
+   528→  // (Tab logic removed — single-scroll editorial layout)
+   529→
+   530→  const handleWatch = (episodeNum: number) => {
+   531→    const watchId = anilistId ? String(anilistId) : animeId;
+   532→    navigate({ page: "watch", id: watchId, episode: episodeNum, title: displayTitle, image });
+   533→  };
+   534→
+   535→  const hasTrailer = anilistTrailer && anilistTrailer.site === "youtube";
+   536→
+   537→  // ============================================================
+   538→  // RENDER — Animetsu faithful copy
+   539→  // Blurred banner backdrop + left sidebar (poster + metadata) +
+   540→  // right main (title + genres + buttons + synopsis) + tab bar +
+   541→  // episode grid with thumbnails. Pure B/W.
+   542→  // ============================================================
+   543→
+   544→  const GROTESK = "var(--font-space-grotesk), 'Space Grotesk', sans-serif";
+   545→  const INTER = "var(--font-inter), 'Inter', sans-serif";
+   546→
+   547→  const tabs: Array<{ id: DetailTab; label: string }> = [
+   548→    { id: "episodes", label: "Episodes" },
+   549→    { id: "characters", label: "Characters" },
+   550→    { id: "seasons", label: "Seasons" },
+   551→    { id: "music", label: "Music" },
+   552→    { id: "related", label: "Related" },
+   553→    { id: "morelikethis", label: "More like this" },
+   554→  ];
+   555→
+   556→  return (
+   557→    <div className="min-h-screen bg-black text-white relative" style={{ fontFamily: INTER }}>
+   558→
+   559→      {/* ═══ BANNER — fixed height, poster overlaps its bottom edge ═══ */}
+   560→      <div className="relative w-full h-[46vh] sm:h-[54vh] min-h-[340px] overflow-hidden">
+   561→        {banner && <img src={banner} alt="" className="object-cover" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />}
+   562→        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent" />
+   563→      </div>
+   564→
+   565→      {/* ═══ MOBILE HERO — centered stacked layout ═══ */}
+   566→      <div className="lg:hidden relative z-10 px-4 -mt-[100px] flex flex-col items-center text-center">
+   567→        {image && (
+   568→          <div className="w-[130px] aspect-[2/3] rounded-lg overflow-hidden shrink-0 bg-white/10 shadow-2xl mb-3">
+   569→            <img src={image} alt={displayTitle} className="w-full h-full object-cover" />
+   570→          </div>
+   571→        )}
+   572→        {(anilistTitleNative || allanimeTitle) && (
+   573→          <p className="text-white/50 text-sm mb-1 line-clamp-1" style={{ fontFamily: GROTESK }}>
+   574→            {anilistTitleNative || allanimeTitle}
+   575→          </p>
+   576→        )}
+   577→        <h1
+   578→          className="font-karla text-xl font-bold bg-clip-text text-transparent line-clamp-2"
+   579→          style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
+   580→        >
+   581→          {displayTitle}
+   582→        </h1>
+   583→        {nextAiring && <div className="mt-3"><CountdownTimer airingAt={nextAiring.airingAt} episode={nextAiring.episode} /></div>}
+   584→        <div className="flex items-center justify-center gap-3 mt-4">
+   585→          <button
+   586→            onClick={() => {
+   587→              if (!anilistToken) { openConnectListModal(); return; }
+   588→              const mediaId = anilistId || Number(animeId);
+   589→              if (mediaId) openEditListModal({ id: mediaId, title: displayTitle, cover: image });
+   590→            }}
+   591→            title="Add to list"
+   592→            className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+   593→          >
+   594→            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+   595→          </button>
+   596→          {hasAnyEpisodes && (
+   597→            <button
+   598→              onClick={() => handleWatch(1)}
+   599→              title="Watch Now"
+   600→              className="bg-white hover:bg-white/90 rounded-full h-11 px-6 flex items-center justify-center transition-colors"
+   601→            >
+   602→              <svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg>
+   603→            </button>
+   604→          )}
+   605→          <button
+   606→            onClick={() => { if (navigator.share) navigator.share({ title: displayTitle, url: window.location.href }); else navigator.clipboard.writeText(window.location.href); }}
+   607→            title="Share"
+   608→            className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+   609→          >
+   610→            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
+   611→          </button>
+   612→        </div>
+   613→        {description && (
+   614→          <div className="mt-4 max-w-sm">
+   615→            <p className={`text-white/60 text-sm ${descExpanded ? "" : "line-clamp-1"}`}>{description}</p>
+   616→            {!descExpanded && (
+   617→              <button onClick={() => setDescExpanded(true)} className="mt-2 px-4 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/10 text-sm font-semibold text-white transition-colors">
+   618→                See Details
+   619→              </button>
+   620→            )}
+   621→          </div>
+   622→        )}
+   623→      </div>
+   624→
+   625→      {/* ═══ DESKTOP HERO — poster + title/pills/description, pulled up over the banner ═══ */}
+   626→      <div className="hidden lg:block relative z-10 px-3 sm:px-4 -mt-[60px] sm:-mt-[90px]">
+   627→        <div className="flex items-start gap-3 sm:gap-4">
+   628→          {image && (
+   629→            <div className="w-[130px] sm:w-[160px] md:w-[185px] aspect-[2/3] rounded-md overflow-hidden shrink-0 bg-white/10 shadow-2xl">
+   630→              <img src={image} alt={displayTitle} className="w-full h-full object-cover" />
+   631→            </div>
+   632→          )}
+   633→          <div className="flex flex-col justify-end flex-1 min-w-0 pt-3 sm:pt-6">
+   634→            {(anilistTitleNative || allanimeTitle) && (
+   635→              <p className="text-white/50 pb-1 line-clamp-1 w-[60%]" style={{ fontFamily: GROTESK }}>
+   636→                {anilistTitleNative || allanimeTitle}
+   637→              </p>
+   638→            )}
+   639→            <h1
+   640→              className="font-karla text-2xl sm:text-3xl font-bold pb-3 bg-clip-text text-transparent"
+   641→              style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
+   642→            >
+   643→              {displayTitle}
+   644→            </h1>
+   645→            <div className="flex items-center w-full gap-2 flex-wrap pb-4">
+   646→              {anilistScorePct != null && (
+   647→                <span className="px-4 py-1 bg-white text-black rounded font-semibold">{anilistScorePct}%</span>
+   648→              )}
+   649→              {season && (
+   650→                <span className="px-4 py-1 bg-white text-black rounded font-semibold">{season}</span>
+   651→              )}
+   652→              {status && (
+   653→                <span className="px-4 py-1 bg-white text-black rounded font-semibold">{status}</span>
+   654→              )}
+   655→            </div>
+   656→            {description && (
+   657→              <div className="relative w-full max-w-3xl group">
+   658→                {!descExpanded && (
+   659→                  <div className="absolute z-30 flex items-end justify-center top-0 w-full h-full opacity-0 group-hover:opacity-100 bg-gradient-to-b from-transparent to-black to-95% transition-opacity duration-300">
+   660→                    <button type="button" onClick={() => setDescExpanded(true)} className="text-center font-bold text-white py-1 w-full">
+   661→                      Read More
+   662→                    </button>
+   663→                  </div>
+   664→                )}
+   665→                <p className={`text-white/60 ${descExpanded ? "" : "line-clamp-2"}`}>
+   666→                  {description}
+   667→                </p>
+   668→              </div>
+   669→            )}
+   670→
+   671→            {/* Action row — Watch Now, edit/list, share, AniList, MAL, next-episode
+   672→                countdown (nested here, not below the whole flex row, so it stays
+   673→                tight under the description instead of being pushed down by the
+   674→                poster's full height) */}
+   675→            <div className="flex flex-wrap items-center gap-2.5 mt-3">
+   676→          {hasAnyEpisodes && (
+   677→            <button
+   678→              onClick={() => handleWatch(1)}
+   679→              className="flex items-center gap-2 bg-white text-black font-bold rounded-full h-10 px-5 text-sm hover:bg-white/90 transition-colors"
+   680→            >
+   681→              <svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg>
+   682→              Watch Now
+   683→            </button>
+   684→          )}
+   685→          <button
+   686→            onClick={() => {
+   687→              if (!anilistToken) { openConnectListModal(); return; }
+   688→              const mediaId = anilistId || Number(animeId);
+   689→              if (mediaId) openEditListModal({ id: mediaId, title: displayTitle, cover: image });
+   690→            }}
+   691→            title="Add to list"
+   692→            className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+   693→          >
+   694→            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+   695→          </button>
+   696→          <button
+   697→            onClick={() => { if (navigator.share) navigator.share({ title: displayTitle, url: window.location.href }); else navigator.clipboard.writeText(window.location.href); }}
+   698→            title="Share"
+   699→            className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+   700→          >
+   701→            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
+   702→          </button>
+   703→          {anilistId && (
+   704→            <a href={`https://anilist.co/anime/${anilistId}`} target="_blank" rel="noopener noreferrer" title="AniList" className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center transition-colors">
+   705→              <svg viewBox="0 0 512 512" width="18" height="18"><path d="M321.92 323.27V136.6c0-10.698-5.887-16.602-16.558-16.602h-36.433c-10.672 0-16.561 5.904-16.561 16.602v88.651c0 2.497 23.996 14.089 24.623 16.541 18.282 71.61 3.972 128.92-13.359 131.6 28.337 1.405 31.455 15.064 10.348 5.731 3.229-38.209 15.828-38.134 52.049-1.406.31.317 7.427 15.282 7.87 15.282h85.545c10.672 0 16.558-5.9 16.558-16.6v-36.524c0-10.698-5.886-16.602-16.558-16.602z" fill="#02a9ff" /><path d="M170.68 120 74.999 393h74.338l16.192-47.222h80.96L262.315 393h73.968l-95.314-273zm11.776 165.28 23.183-75.629 25.393 75.629z" fill="#fefefe" /></svg>
+   706→            </a>
+   707→          )}
+   708→          {anilistId && (
+   709→            <a href={`https://myanimelist.net/anime/${anilistId}`} target="_blank" rel="noopener noreferrer" title="MyAnimeList" className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center transition-colors">
+   710→              <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#2e51a2" d="M8.273 7.247v8.423l-2.103-.003v-5.216l-2.03 2.404-1.989-2.458-.02 5.285H.001L0 7.247h2.203l1.865 2.545 2.015-2.546 2.19.001zm8.628 2.069l.025 6.335h-2.365l-.008-2.871h-2.8c.07.499.21 1.266.417 1.779.155.381.298.751.583 1.128l-1.705 1.125c-.349-.636-.622-1.337-.878-2.082a9.296 9.296 0 0 1-.507-2.179c-.085-.75-.097-1.471.107-2.212a3.908 3.908 0 0 1 1.161-1.866c.313-.293.749-.5 1.1-.687.351-.187.743-.264 1.107-.359a7.405 7.405 0 0 1 1.191-.183c.398-.034 1.107-.066 2.39-.028l.545 1.749H14.51c-.593.008-.878.001-1.341.209a2.236 2.236 0 0 0-1.278 1.92l2.663.033.038-1.81h2.309zm3.992-2.099v6.627l3.107.032-.43 1.775h-4.807V7.187l2.13.03z" /></svg>
+   711→            </a>
+   712→          )}
+   713→          {nextAiring && <CountdownTimer airingAt={nextAiring.airingAt} episode={nextAiring.episode} />}
+   714→            </div>
+   715→          </div>
+   716→        </div>
+   717→      </div>
+   718→
+   719→      {/* ═══ MAIN CONTENT WRAPPER ═══ */}
+   720→      <div className="flex w-full flex-col gap-y-4 relative z-10">
+   721→
+   722→        {/* ═══ TWO-COLUMN LAYOUT: sidebar + main ═══ */}
+   723→        <div className="flex w-full max-lg:flex-col gap-4 xl:gap-6 mt-10 px-4 sm:px-6">
+   724→
+   725→          {/* ═══ LEFT SIDEBAR — only render if image exists (prevents empty box) ═══ */}
+   726→          {image && (
+   727→          <aside className="hidden lg:flex w-50 xl:w-60 2xl:w-64 flex-col gap-4 shrink-0">
+   728→            {/* Watch trailer button — always visible, film/play icon */}
+   729→            <button
+   730→              onClick={() => {
+   731→                const el = document.getElementById("trailer-section");
+   732→                if (el) el.scrollIntoView({ behavior: "smooth" });
+   733→              }}
+   734→              className="flex items-center justify-center gap-2 bg-white/8 hover:bg-white/10 ring-1 ring-white/12 rounded-xl h-8 px-4 w-full text-xs font-medium transition-colors"
+   735→            >
+   736→              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   737→                <rect x="2" y="4" width="20" height="16" rx="2" />
+   738→                <polygon points="10 9 15 12 10 15" fill="currentColor" stroke="none" />
+   739→              </svg>
+   740→              Watch trailer
+   741→            </button>
+   742→
+   743→            {/* Metadata */}
+   744→            <div className="flex flex-col gap-4 w-full text-sm mt-2">
+   745→              {type && (
+   746→                <div className="flex flex-col gap-1">
+   747→                  <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Format</span>
+   748→                  <span className="text-white">{type}</span>
+   749→                </div>
+   750→              )}
+   751→              {status && (
+   752→                <div className="flex flex-col gap-1">
+   753→                  <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Status</span>
+   754→                  <span className="text-white">{statusLabel(status)}</span>
+   755→                </div>
+   756→              )}
+   757→              {season && (
+   758→                <div className="flex flex-col gap-1">
+   759→                  <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Season</span>
+   760→                  <span className="text-white">{season.toUpperCase()}</span>
+   761→                </div>
+   762→              )}
+   763→              {anilistScore && (
+   764→                <div className="flex flex-col gap-1">
+   765→                  <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Average score</span>
+   766→                  <span className="text-white">{anilistScorePct}%</span>
+   767→                </div>
+   768→              )}
+   769→              {source && (
+   770→                <div className="flex flex-col gap-1">
+   771→                  <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Source</span>
+   772→                  <span className="text-white">{source.toUpperCase()}</span>
+   773→                </div>
+   774→              )}
+   775→              {studioNames.length > 0 && (
+   776→                <div className="flex flex-col gap-1">
+   777→                  <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Studios</span>
+   778→                  <div className="flex flex-wrap gap-1.5">
+   779→                    {studioNames.map(s => (
+   780→                      <span key={s} className="px-2 py-1 ring-2 ring-white/15 ring-inset rounded text-xs font-medium">{s}</span>
+   781→                    ))}
+   782→                  </div>
+   783→                </div>
+   784→              )}
+   785→              {allGenres.length > 0 && (
+   786→                <div className="flex flex-col gap-1">
+   787→                  <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Genres</span>
+   788→                  <div className="flex flex-wrap gap-1.5">
+   789→                    {allGenres.map(g => (
+   790→                      <span key={g} className="px-2 py-1 ring-2 ring-white/15 ring-inset rounded text-xs font-medium">{g}</span>
+   791→                    ))}
+   792→                  </div>
+   793→                </div>
+   794→              )}
+   795→              {/* Alternative titles */}
+   796→              {(anilistTitleRomaji || anilistTitleNative) && (
+   797→                <div className="flex flex-col gap-3 mt-2 pt-3 border-t border-white/10">
+   798→                  {anilistTitleRomaji && anilistTitleRomaji !== displayTitle && (
+   799→                    <div className="flex flex-col gap-1">
+   800→                      <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Romaji</span>
+   801→                      <span className="text-white text-sm">{anilistTitleRomaji}</span>
+   802→                    </div>
+   803→                  )}
+   804→                  {anilistTitleNative && (
+   805→                    <div className="flex flex-col gap-1">
+   806→                      <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>Native</span>
+   807→                      <span className="text-white text-sm">{anilistTitleNative}</span>
+   808→                    </div>
+   809→                  )}
+   810→                  {allanimeTitle && allanimeTitle !== displayTitle && allanimeTitle !== anilistTitleRomaji && (
+   811→                    <div className="flex flex-col gap-1">
+   812→                      <span className="font-bold text-white/60 text-xs uppercase tracking-wider" style={{ fontFamily: GROTESK }}>English</span>
+   813→                      <span className="text-white text-sm">{allanimeTitle}</span>
+   814→                    </div>
+   815→                  )}
+   816→                </div>
+   817→              )}
+   818→            </div>
+   819→          </aside>
+   820→          )}
+   821→
+   822→          {/* ═══ RIGHT MAIN COLUMN ═══ */}
+   823→          <div className="flex flex-col grow gap-8">
+   824→
+   825→            {/* ═══ TAB BAR ═══ */}
+   826→            <div className="flex flex-col w-full">
+   827→              <div className="flex w-full overflow-x-auto text-sm font-medium h-12 border-b border-white/20">
+   828→                {tabs.map(tab => (
+   829→                  <button
+   830→                    key={tab.id}
+   831→                    onClick={() => setActiveTab(tab.id)}
+   832→                    className={`py-2 px-3 flex items-center justify-center h-12 border-b-2 shrink-0 transition-colors ${
+   833→                      activeTab === tab.id
+   834→                        ? "text-white border-white"
+   835→                        : "text-white/40 hover:text-white border-transparent"
+   836→                    }`}
+   837→                    style={{ fontFamily: GROTESK }}
+   838→                  >
+   839→                    {tab.label}
+   840→                  </button>
+   841→                ))}
+   842→              </div>
+   843→
+   844→              {/* ═══ TAB CONTENT ═══ */}
+   845→              <div className="flex w-full py-6">
+   846→
+   847→                {/* ─── EPISODES TAB ─── */}
+   848→                {activeTab === "episodes" && (
+   849→                  <div className="flex flex-col w-full gap-2">
+   850→                    {/* Controls row */}
+   851→                    <div className="flex items-center w-full gap-2 justify-between px-2 mb-2">
+   852→                      <span className="flex items-center justify-center gap-1 font-medium h-8 text-xs px-2 rounded-md bg-white/8 text-white/50">
+   853→                        {filteredEps.length || episodesCount || 0} Episodes
+   854→                      </span>
+   855→                      <div className="flex items-center gap-2 h-8 text-white/50 ml-auto">
+   856→                        {hasMiruroEps && miruroEps.dub.length > 0 && (
+   857→                          <div className="flex items-center gap-0 p-0.5 rounded-md bg-white/8">
+   858→                            {(["sub", "dub"] as const).map(tab => (
+   859→                              <button key={tab} onClick={() => setActiveEpiTab(tab)} className={`px-2 py-1 text-[10px] font-bold uppercase rounded transition-all ${activeEpiTab === tab ? "bg-white text-black" : "text-white/50"}`}>{tab}</button>
+   860→                            ))}
+   861→                          </div>
+   862→                        )}
+   863→                        <div className="relative w-28">
+   864→                          <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+   865→                          <input type="text" value={epSearch} onChange={e => { setEpSearch(e.target.value); setEpPage(1); }} placeholder="Find..." className="w-full pl-7 pr-2 h-8 text-[11px] bg-white/8 rounded-md text-white placeholder-white/30 focus:outline-none" />
+   866→                        </div>
+   867→                      </div>
+   868→                    </div>
+   869→
+   870→                    {/* Episode grid — Animetsu style cards */}
+   871→                    {hasAnyEpisodes ? (
+   872→                      <div className="flex flex-wrap w-full gap-y-3">
+   873→                        {(episodes.length > 0 || hasMiruroEps ? paginatedEps : Array.from({ length: Math.min(episodesCount || 0, 30) }, (_, i) => i + 1)).map((ep: any, idx: number) => {
+   874→                          const epNum = typeof ep === "number" ? ep : (hasMiruroEps ? ep.number : ep.episodeIdNum);
+   875→                          const matchedApiEp = typeof ep === "object" && hasMiruroEps ? episodes.find((e: any) => e.episodeIdNum === epNum) : (typeof ep === "object" ? ep : null);
+   876→                          const epTitle = typeof ep === "object" ? (hasMiruroEps ? (ep.title || matchedApiEp?.title || matchedApiEp?.notes) : (ep.title || ep.notes)) : null;
+   877→                          const epThumb = typeof ep === "object" ? (hasMiruroEps ? (ep.thumbnail || matchedApiEp?.thumbnail || matchedApiEp?.thumbnails?.[0]) : (ep.thumbnail || ep.thumbnails?.[0])) : null;
+   878→                          const isNextEp = nextAiring && nextAiring.episode === epNum;
+   879→                          const fallbackImg = banner || image;
+   880→                          return (
+   881→                            <button
+   882→                              key={`ep-${epNum}-${idx}`}
+   883→                              onClick={() => handleWatch(epNum)}
+   884→                              className={`flex w-1/2 xs:w-1/3 md:w-1/4 xl:w-1/5 2xl:w-1/6 p-2 sm:p-2.5 shrink-0 group hover:ring-1 ring-white/15 hover:bg-white/10 rounded-2xl transition-all text-left ${isNextEp ? "ring-1 ring-white/30" : ""}`}
+   885→                            >
+   886→                              <div className="flex flex-col gap-2 w-full">
+   887→                                {/* Thumbnail */}
+   888→                                <div className="flex w-full aspect-video shrink-0 rounded-xl bg-white/10 overflow-hidden relative">
+   889→                                  {epThumb ? (
+   890→                                    <img src={epThumb} alt={`Ep ${epNum}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" referrerPolicy="no-referrer" />
+   891→                                  ) : fallbackImg ? (
+   892→                                    <img src={fallbackImg} alt={`Ep ${epNum}`} className="w-full h-full object-cover opacity-30" loading="lazy" referrerPolicy="no-referrer" />
+   893→                                  ) : (
+   894→                                    <div className="w-full h-full flex items-center justify-center"><span className="text-lg font-extrabold text-white/10">{epNum}</span></div>
+   895→                                  )}
+   896→                                  {/* Play overlay */}
+   897→                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+   898→                                    <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all">
+   899→                                      <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+   900→                                    </div>
+   901→                                  </div>
+   902→                                  {/* EP number */}
+   903→                                  <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-extrabold rounded bg-black/80 text-white">Ep {epNum}</span>
+   904→                                  {isNextEp && <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 text-[8px] font-bold bg-white text-black rounded">● Next</span>}
+   905→                                </div>
+   906→                                {/* Title */}
+   907→                                <div className="text-xs font-medium text-white/80 line-clamp-1 group-hover:text-white transition-colors">
+   908→                                  {epTitle || `Episode ${epNum}`}
+   909→                                </div>
+   910→                              </div>
+   911→                            </button>
+   912→                          );
+   913→                        })}
+   914→                      </div>
+   915→                    ) : (
+   916→                      <div className="text-center py-12 text-white/40 text-sm">No episodes available</div>
+   917→                    )}
+   918→
+   919→                    {filteredEps.length > epPage * EPS_PER_PAGE && (
+   920→                      <div className="flex justify-center mt-4">
+   921→                        <button onClick={() => setEpPage(p => p + 1)} className="px-5 py-2 text-xs font-bold text-white/60 hover:text-white bg-white/8 hover:bg-white/12 rounded-md transition-colors">Load More</button>
+   922→                      </div>
+   923→                    )}
+   924→                  </div>
+   925→                )}
+   926→
+   927→                {/* ─── CHARACTERS TAB — Animetsu style horizontal rows ─── */}
+   928→                {activeTab === "characters" && (
+   929→                  <div className="w-full">
+   930→                    {characters.length > 0 ? (
+   931→                      <div className="flex flex-wrap w-full">
+   932→                        {characters.map((c: any) => {
+   933→                          const cImg = c.image?.large || c.image?.medium || "";
+   934→                          const va = c.voiceActors?.[0];
+   935→                          const vaImg = va?.image?.large || va?.image?.medium || "";
+   936→                          return (
+   937→                            <div key={c.id} className="flex w-full md:w-1/2 2xl:w-1/3 shrink-0 p-2 h-25">
+   938→                              <div className="flex w-full bg-white/10 rounded-xl overflow-hidden hover:bg-white/15 transition-colors">
+   939→                                {/* Character image (left) */}
+   940→                                <div className="flex h-full aspect-square bg-white/5 shrink-0">
+   941→                                  {cImg ? (
+   942→                                    <img src={cImg} alt={c.name.full} className="w-full h-full object-cover" loading="lazy" />
+   943→                                  ) : (
+   944→                                    <div className="w-full h-full flex items-center justify-center text-xl text-white/15 font-bold">{c.name.full?.charAt(0) || "?"}</div>
+   945→                                  )}
+   946→                                </div>
+   947→                                {/* Names (middle) */}
+   948→                                <div className="flex flex-col justify-center gap-1 text-sm w-full p-3 min-w-0">
+   949→                                  <div className="flex flex-col gap-0.5">
+   950→                                    <span className="font-semibold text-white truncate">{c.name.full}</span>
+   951→                                    <span className="text-white/40 text-xs font-medium">{c.role === "MAIN" ? "MAIN" : "SUPPORTING"}</span>
+   952→                                  </div>
+   953→                                  {va && (
+   954→                                    <div className="flex flex-col gap-0.5 items-end text-right">
+   955→                                      <span className="font-semibold text-white truncate">{va.name.full}</span>
+   956→                                      <span className="text-white/40 text-xs font-medium">Japanese</span>
+   957→                                    </div>
+   958→                                  )}
+   959→                                </div>
+   960→                                {/* VA image (right) */}
+   961→                                {va && (
+   962→                                  <div className="flex h-full aspect-square bg-white/5 shrink-0">
+   963→                                    {vaImg ? (
+   964→                                      <img src={vaImg} alt={va.name.full} className="w-full h-full object-cover" loading="lazy" />
+   965→                                    ) : (
+   966→                                      <div className="w-full h-full flex items-center justify-center text-xl text-white/15 font-bold">{va.name.full?.charAt(0) || "?"}</div>
+   967→                                    )}
+   968→                                  </div>
+   969→                                )}
+   970→                              </div>
+   971→                            </div>
+   972→                          );
+   973→                        })}
+   974→                      </div>
+   975→                    ) : <div className="text-center py-12 text-white/40 text-sm">No characters available</div>}
+   976→                  </div>
+   977→                )}
+   978→
+   979→                {/* ─── SEASONS TAB — franchise seasons (sequels/prequels) ─── */}
+   980→                {activeTab === "seasons" && (
+   981→                  <div className="w-full">
+   982→                    {franchiseSeasons.length > 0 ? (
+   983→                      <div className="flex flex-col gap-4">
+   984→                        <p className="text-xs text-white/50">
+   985→                          {franchiseSeasons.length} {franchiseSeasons.length === 1 ? "season" : "seasons"} in this franchise. Click any season to view its details.
+   986→                        </p>
+   987→                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+   988→                          {franchiseSeasons.map((r: any, idx: number) => {
+   989→                            const rTitle = r.title?.english || r.title?.romaji || r.title?.native || "Unknown";
+   990→                            const rImg = r.coverImage?.extraLarge || r.coverImage?.large || r.coverImage?.medium || "";
+   991→                            return (
+   992→                              <button
+   993→                                key={`${r.id}-${idx}`}
+   994→                                onClick={() => navigate({ page: "anime", id: String(r.id) })}
+   995→                                className="group flex flex-col gap-2 text-left"
+   996→                              >
+   997→                                <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/10 relative">
+   998→                                  {rImg ? (
+   999→                                    <img src={rImg} alt={rTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+  1000→                                  ) : (
+  1001→                                    <div className="w-full h-full flex items-center justify-center text-white/15 font-bold text-xl">{rTitle.charAt(0)}</div>
+  1002→                                  )}
+  1003→                                  {/* Season number badge */}
+  1004→                                  <span className="absolute top-1.5 left-1.5 px-2 py-0.5 text-[9px] font-extrabold rounded bg-black/80 text-white">
+  1005→                                    {idx + 1}
+  1006→                                  </span>
+  1007→                                  {/* Episodes badge */}
+  1008→                                  {r.episodes && (
+  1009→                                    <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 text-[8px] font-bold rounded bg-black/80 text-white/80">
+  1010→                                      {r.episodes} eps
+  1011→                                    </span>
+  1012→                                  )}
+  1013→                                </div>
+  1014→                                <div className="flex flex-col gap-0.5">
+  1015→                                  <p className="text-[11px] font-semibold text-white line-clamp-2 group-hover:text-violet-300 transition-colors leading-tight">{rTitle}</p>
+  1016→                                  {r.format && (
+  1017→                                    <span className="text-[9px] text-white/40 uppercase tracking-wider">{r.format.replace(/_/g, " ")}</span>
+  1018→                                  )}
+  1019→                                </div>
+  1020→                              </button>
+  1021→                            );
+  1022→                          })}
+  1023→                        </div>
+  1024→                      </div>
+  1025→                    ) : (
+  1026→                      <div className="text-center py-12">
+  1027→                        <p className="text-white/40 text-sm">No seasons found</p>
+  1028→                        <p className="text-white/30 text-xs mt-1">This anime may be a standalone series or seasons data hasn't loaded yet.</p>
+  1029→                      </div>
+  1030→                    )}
+  1031→                  </div>
+  1032→                )}
+  1033→
+  1034→                {/* ─── MUSIC TAB — OP/ED themes from animethemes.moe ─── */}
+  1035→                {activeTab === "music" && (
+  1036→                  <div className="w-full">
+  1037→                    <MusicTab
+  1038→                      anilistId={anilistId}
+  1039→                      currentTitle={displayTitle}
+  1040→                      romajiTitle={anilistTitleRomaji}
+  1041→                      seasons={franchiseSeasons}
+  1042→                    />
+  1043→                  </div>
+  1044→                )}
+  1045→
+  1046→                {/* ─── RELATED TAB ─── */}
+  1047→                {activeTab === "related" && (
+  1048→                  <div className="w-full space-y-6">
+  1049→                    {franchiseSeasons.length > 0 && (
+  1050→                      <div>
+  1051→                        <h3 className="font-karla text-sm font-bold uppercase tracking-wider mb-3 bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}>Seasons</h3>
+  1052→                        <div className="flex flex-wrap gap-3">
+  1053→                          {franchiseSeasons.map((r: any) => {
+  1054→                            const rTitle = r.title?.english || r.title?.romaji || r.title?.native || "Unknown";
+  1055→                            const rImg = r.coverImage?.extraLarge || r.coverImage?.large || r.coverImage?.medium || "";
+  1056→                            return (
+  1057→                              <button key={r.id} onClick={() => navigate({ page: "anime", id: String(r.id) })} className="w-30 group hover:bg-white/5 rounded-xl p-1.5 transition-all text-left">
+  1058→                                <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/10 mb-1.5">
+  1059→                                  {rImg ? <img src={rImg} alt={rTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-white/15 font-bold text-xl">{rTitle.charAt(0)}</div>}
+  1060→                                </div>
+  1061→                                <p className="text-[10px] font-medium text-white/70 line-clamp-2 group-hover:text-white">{rTitle}</p>
+  1062→                              </button>
+  1063→                            );
+  1064→                          })}
+  1065→                        </div>
+  1066→                      </div>
+  1067→                    )}
+  1068→                    {franchiseRelated.length > 0 && (
+  1069→                      <div>
+  1070→                        <h3 className="font-karla text-sm font-bold uppercase tracking-wider mb-3 bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}>Related</h3>
+  1071→                        <div className="flex flex-wrap gap-3">
+  1072→                          {franchiseRelated.map((r: any) => {
+  1073→                            const rTitle = r.title?.english || r.title?.romaji || r.title?.native || "Unknown";
+  1074→                            const rImg = r.coverImage?.extraLarge || r.coverImage?.large || r.coverImage?.medium || "";
+  1075→                            return (
+  1076→                              <button key={r.id} onClick={() => navigate({ page: "anime", id: String(r.id) })} className="w-30 group hover:bg-white/5 rounded-xl p-1.5 transition-all text-left">
+  1077→                                <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/10 mb-1.5">
+  1078→                                  {rImg ? <img src={rImg} alt={rTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-white/15 font-bold text-xl">{rTitle.charAt(0)}</div>}
+  1079→                                </div>
+  1080→                                <p className="text-[10px] font-medium text-white/70 line-clamp-2 group-hover:text-white">{rTitle}</p>
+  1081→                              </button>
+  1082→                            );
+  1083→                          })}
+  1084→                        </div>
+  1085→                      </div>
+  1086→                    )}
+  1087→                    {franchiseSeasons.length === 0 && franchiseRelated.length === 0 && <div className="text-center py-12 text-white/40 text-sm">No related anime</div>}
+  1088→                  </div>
+  1089→                )}
+  1090→
+  1091→                {/* ─── MORE LIKE THIS TAB ─── */}
+  1092→                {activeTab === "morelikethis" && (
+  1093→                  <div className="w-full">
+  1094→                    {anilistRecommendations.length > 0 ? (
+  1095→                      <div className="flex flex-wrap gap-3">
+  1096→                        {anilistRecommendations.map((r: any) => {
+  1097→                          const rTitle = r.title?.english || r.title?.romaji || r.title?.native || "Unknown";
+  1098→                          const rImg = r.coverImage?.extraLarge || r.coverImage?.large || r.coverImage?.medium || "";
+  1099→                          const rScore = r.averageScore ? (r.averageScore > 10 ? r.averageScore / 10 : r.averageScore) : null;
+  1100→                          return (
+  1101→                            <button key={r.id} onClick={() => navigate({ page: "anime", id: String(r.id) })} className="w-30 group hover:bg-white/5 rounded-xl p-1.5 transition-all text-left">
+  1102→                              <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/10 mb-1.5 relative">
+  1103→                                {rImg ? <img src={rImg} alt={rTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-white/15 font-bold text-xl">{rTitle.charAt(0)}</div>}
+  1104→                                {rScore && <span className="absolute bottom-1 right-1 px-1 py-0.5 text-[8px] font-bold bg-black/80 text-white rounded">{rScore.toFixed(1)}</span>}
+  1105→                              </div>
+  1106→                              <p className="text-[10px] font-medium text-white/70 line-clamp-2 group-hover:text-white">{rTitle}</p>
+  1107→                            </button>
+  1108→                          );
+  1109→                        })}
+  1110→                      </div>
+  1111→                    ) : <div className="text-center py-12 text-white/40 text-sm">No recommendations</div>}
+  1112→                  </div>
+  1113→                )}
+  1114→              </div>
+  1115→            </div>
+  1116→          </div>
+  1117→        </div>
+  1118→
+  1119→        {/* ═══ Trailer + Comments — full width, outside the sidebar column ═══ */}
+  1120→        <div className="flex flex-col gap-8 px-4 sm:px-6 mt-2">
+  1121→          {hasTrailer && (
+  1122→            <div id="trailer-section" className="flex flex-col gap-4">
+  1123→              <h3 className="font-karla text-sm font-bold uppercase tracking-wider bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}>Trailer</h3>
+  1124→              <div className="relative w-full aspect-video max-w-2xl rounded-xl overflow-hidden bg-white/10">
+  1125→                <iframe src={`https://www.youtube.com/embed/${anilistTrailer!.id}?autoplay=0&rel=0&modestbranding=1&playsinline=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`} className="w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" title="Anime Trailer" />
+  1126→              </div>
+  1127→            </div>
+  1128→          )}
+  1129→
+  1130→          <AnimeComments animeId={animeId} animeTitle={displayTitle} />
+  1131→        </div>
+  1132→      </div>
+  1133→    </div>
+  1134→  );
+  1135→}
+  1136→
+  1137→// (Sub-components removed — everything inline)
+  1138→

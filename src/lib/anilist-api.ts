@@ -698,6 +698,36 @@ export async function getFullFranchise(
   return { seasons, related };
 }
 
+/**
+ * Reverse lookup: MAL ID → AniList ID.
+ * Uses AniList's `Media(idMal: $malId)` to find the corresponding AniList entry.
+ * Returns the AniList ID if found, or null.
+ * This is CRITICAL for the detail page: when search falls through to MAL,
+ * results have `mal_XXX` IDs. We need the AniList ID for episodes/servers/etc.
+ */
+export async function resolveMalIdToAnilistId(malId: number): Promise<number | null> {
+  const query = `
+    query ($idMal: Int) {
+      Media(idMal: $idMal, type: ANIME) {
+        id
+        idMal
+      }
+    }
+  `;
+  try {
+    const data = await anilistQuery(query, { idMal: malId });
+    if (data?.Media?.id) {
+      console.log(`[AniList] Resolved MAL ID ${malId} → AniList ID ${data.Media.id}`);
+      return data.Media.id;
+    }
+    console.warn(`[AniList] No AniList entry found for MAL ID ${malId}`);
+    return null;
+  } catch (err) {
+    console.warn(`[AniList] Failed to resolve MAL ID ${malId}:`, err);
+    return null;
+  }
+}
+
 /** Get upcoming next episodes for the schedule */
 export async function getAiringSchedule(page = 1, perPage = 20): Promise<any[]> {
   const query = `

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAnimeDetails } from "@/lib/anilist-api";
+import { getAnimeDetails, resolveMalIdToAnilistId } from "@/lib/anilist-api";
 import { miruroInfo } from "@/lib/miruro-api";
 import { malAnimeById, malAnimeCharacters, malAnimeRelations, malAnimeRecommendations, malToMiruro, malCharacterToAniListFormat, malRelationToAniListFormat, malRecommendationToAniListFormat } from "@/lib/mal-api";
 
@@ -228,17 +228,48 @@ export async function GET(request: NextRequest) {
   // cached so the next request retries fresh.
   const CACHE_OK = { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" };
 
-  // When the ID is explicitly prefixed with "mal_", skip AniList/Miruro
-  // and go straight to MAL — AniList IDs ≠ MAL IDs, so trying AniList
-  // with a MAL numeric ID always 404s and wastes time.
+  // When the ID is explicitly prefixed with "mal_", resolve it to an AniList ID first.
+  // AniList has a `Media(idMal: $malId)` query that maps MAL → AniList.
+  // This is critical because episodes/servers/recommendations all need AniList IDs.
   if (isMalId) {
+    // Step 1: Try reverse lookup MAL → AniList
+    const anilistId = await resolveMalIdToAnilistId(numericId);
+    if (anilistId) {
+      // Found the AniList entry — use it as the primary source
+      const anilistResult = await fetchAniList(anilistId);
+      if (anilistResult) {
+        // Stamp the resolved AniList ID so the client uses it for episodes/servers
+        if (anilistResult.anilistInfo) {
+          (anilistResult.anilistInfo as any)._resolvedAnilistId = anilistId;
+        }
+        return NextResponse.json(anilistResult, { headers: CACHE_OK });
+      }
+      // AniList details failed but we have the ID — try Miruro with the AniList ID
+      const miruroResult = await fetchMiruro(anilistId);
+      if (miruroResult) {
+        if (miruroResult.anilistInfo) {
+          (miruroResult.anilistInfo as any)._resolvedAnilistId = anilistId;
+        }
+        return NextResponse.json(miruroResult, { headers: CACHE_OK });
+      }
+    }
+
+    // Step 2: Reverse lookup failed — fall back to MAL directly
     const malResult = await fetchMAL(numericId);
-    if (malResult) return NextResponse.json(malResult, { headers: CACHE_OK });
-    // MAL failed — try AniList as a long-shot fallback (maybe same ID by coincidence)
-    const anilistResult = await fetchAniList(numericId);
-    if (anilistResult) return NextResponse.json(anilistResult, { headers: CACHE_OK });
-    const miruroResult = await fetchMiruro(numericId);
-    if (miruroResult) return NextResponse.json(miruroResult, { headers: CACHE_OK });
+    if (malResult) {
+      // Stamp the MAL ID so client knows to use mal_ prefix for episodes
+      if (malResult.anilistInfo) {
+        (malResult.anilistInfo as any)._resolvedAnilistId = anilistId || null;
+        (malResult.anilistInfo as any)._malId = numericId;
+      }
+      return NextResponse.json(malResult, { headers: CACHE_OK });
+    }
+
+    // Step 3: Last resort — try AniList/Miruro with the raw number (unlikely to work)
+    const anilistFallback = await fetchAniList(numericId);
+    if (anilistFallback) return NextResponse.json(anilistFallback, { headers: CACHE_OK });
+    const miruroFallback = await fetchMiruro(numericId);
+    if (miruroFallback) return NextResponse.json(miruroFallback, { headers: CACHE_OK });
   } else {
     // 3-layer cascade: AniList → Miruro → Official MAL API
     // Layer 1: Try AniList first

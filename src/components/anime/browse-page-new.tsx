@@ -130,7 +130,7 @@ async function anilistSearch(params: any) {
       }
       return {
         data: (data?.data?.Page?.media || []).map((m: any) => ({
-          mal_id: m.id,
+          id: m.id,
           title: m.title?.english || m.title?.romaji || "Unknown",
           title_english: m.title?.english,
           images: { jpg: { large_image_url: m.coverImage?.large, small_image_url: m.coverImage?.medium } },
@@ -382,7 +382,7 @@ export default function BrowsePageNew() {
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [page]);
 
   const handleCardClick = useCallback((anime: any) => {
-    navigate({ page: "anime", id: String(anime.mal_id) });
+    navigate({ page: "anime", id: String(anime.id) });
   }, [navigate]);
 
   // ---- Render (from MioAnime Browse.jsx) ----
@@ -543,7 +543,7 @@ export default function BrowsePageNew() {
             <>
               <div className="browse-results-grid">
                 {animeList.map((anime) => (
-                  <AnimeCard key={anime.mal_id} anime={anime} onClick={handleCardClick} />
+                  <AnimeCard key={anime.id} anime={anime} onClick={handleCardClick} />
                 ))}
               </div>
               {lastPage > 1 && (

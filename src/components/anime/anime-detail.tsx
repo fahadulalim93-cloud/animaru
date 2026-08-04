@@ -188,8 +188,13 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
     async function load() {
       setLoading(true);
 
+      // Clean the ID for initial display, but the REAL AniList ID will come from
+      // the /api/anime/info response via _resolvedAnilistId (critical for mal_ IDs)
       const cleanId = animeId.replace(/^miruro_/, "").replace(/^mal_/, "");
-      if (/^\d+$/.test(cleanId)) setAnilistId(parseInt(cleanId));
+      if (/^\d+$/.test(cleanId) && !animeId.startsWith("mal_")) {
+        // Only set directly for non-MAL IDs — MAL IDs need reverse lookup via info API
+        setAnilistId(parseInt(cleanId));
+      }
 
       try {
         const infoRes = await fetch(`/api/anime/info?id=${encodeURIComponent(animeId)}`);
@@ -199,6 +204,15 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
           setMiruroInfo(data.miruroInfo);
           if (data.anilistInfo) {
             setAnilistInfo(data.anilistInfo);
+            // CRITICAL: If the server resolved a MAL ID → AniList ID, use the resolved ID
+            // for all subsequent API calls (episodes, servers, franchise, etc.)
+            if (data.anilistInfo._resolvedAnilistId) {
+              console.log(`[anime-detail] Using resolved AniList ID: ${data.anilistInfo._resolvedAnilistId} (original: ${animeId})`);
+              setAnilistId(data.anilistInfo._resolvedAnilistId);
+            } else if (animeId.startsWith("mal_") && data.anilistInfo.id) {
+              // Fallback: use the id from anilistInfo if it looks like an AniList ID
+              setAnilistId(data.anilistInfo.id);
+            }
             if (data.anilistInfo.characters && Array.isArray(data.anilistInfo.characters)) {
               setCharacters(data.anilistInfo.characters);
             }
