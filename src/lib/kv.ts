@@ -104,14 +104,18 @@ async function pgExec(cmd: (string | number)[]): Promise<unknown> {
       return 1;
     }
     case "INCR": {
-      // Use raw SQL for atomic increment
-      const result = await db.$queryRawUnsafe<{ value: string }[]>(
-        `INSERT INTO "KvStore" (key, value) VALUES ($1, '1')
-         ON CONFLICT (key) DO UPDATE SET value = CAST(CAST("KvStore".value AS integer) + 1 AS text)
-         RETURNING value`,
-        args[0]
-      );
-      return result[0]?.value ?? "1";
+      // SQLite-compatible atomic increment using subquery
+      const key = args[0];
+      // First try to increment; if row doesn't exist, insert
+      const existing = await db.kvStore.findUnique({ where: { key } });
+      if (existing) {
+        const newVal = Number(existing.value) + 1;
+        await db.kvStore.update({ where: { key }, data: { value: String(newVal) } });
+        return String(newVal);
+      } else {
+        await db.kvStore.create({ data: { key, value: "1" } });
+        return "1";
+      }
     }
     case "MGET": {
       if (args.length === 0) return [];
@@ -154,14 +158,16 @@ async function pgExec(cmd: (string | number)[]): Promise<unknown> {
     case "HINCRBY": {
       const [hash, field, byStr] = args;
       const by = Number(byStr) || 1;
-      // Use raw SQL for atomic increment
-      const result = await db.$queryRawUnsafe<{ value: string }[]>(
-        `INSERT INTO "KvHash" (hash, field, value) VALUES ($1, $2, $3)
-         ON CONFLICT (hash, field) DO UPDATE SET value = CAST(CAST("KvHash".value AS integer) + $4 AS text)
-         RETURNING value`,
-        hash, field, String(by), by
-      );
-      return result[0]?.value ?? String(by);
+      // SQLite-compatible atomic increment
+      const existing = await db.kvHash.findUnique({ where: { hash_field: { hash, field } } });
+      if (existing) {
+        const newVal = Number(existing.value) + by;
+        await db.kvHash.update({ where: { hash_field: { hash, field } }, data: { value: String(newVal) } });
+        return String(newVal);
+      } else {
+        await db.kvHash.create({ data: { hash, field, value: String(by) } });
+        return String(by);
+      }
     }
 
     // ── Sorted set operations ──
@@ -193,13 +199,12 @@ async function pgExec(cmd: (string | number)[]): Promise<unknown> {
       const key = args[0];
       const members = args.slice(1);
       if (members.length === 0) return 0;
-      // Use createMany with skipDuplicates for efficiency
-      try {
-        await db.kvHll.createMany({
-          data: members.map((m) => ({ key, member: m })),
-          skipDuplicates: true,
-        });
-      } catch { /* ignore duplicate errors */ }
+      // Insert members individually, ignoring duplicates (SQLite doesn't support skipDuplicates)
+      for (const m of members) {
+        try {
+          await db.kvHll.create({ data: { key, member: m } });
+        } catch { /* duplicate — already counted */ }
+      }
       return 1;
     }
     case "PFCOUNT": {
