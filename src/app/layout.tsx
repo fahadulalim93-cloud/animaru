@@ -128,11 +128,16 @@ export const metadata: Metadata = {
 // Structured data — Organization + WebSite with a sitelinks SearchAction.
 // The SearchAction is what makes Google render a search box under the site's
 // result ("sitelinks search box"), a strong signal for branded queries.
+//
+// NOTE: aggregateRating is ONLY on SoftwareApplication (not Organization),
+// because Google Rich Results requires aggregateRating to be on a type that
+// supports reviews (Product, SoftwareApplication, LocalBusiness, etc.).
+// Putting it on Organization causes "Review has multiple aggregate ratings" error.
 const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
     {
-      "@type": ["Organization", "WebApplication"],
+      "@type": "Organization",
       "@id": `${SITE_URL}/#org`,
       name: "LuffyTV",
       alternateName: ["Luffy TV", "luffyTV", "luffytv", "luffy", "LuffyTV.live"],
@@ -151,18 +156,15 @@ const JSON_LD = {
         "https://linktr.ee/luffytv",
         "https://github.com/fahadulalim93-cloud/luffytv-fahad",
       ],
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#app`,
+      name: "LuffyTV",
+      url: SITE_URL,
       applicationCategory: "EntertainmentApplication",
       operatingSystem: "Web",
       offers: { "@type": "Offer", price: "0", priceCurrency: "INR", description: "Free anime streaming" },
-      knowsAbout: ["Anime streaming", "Tamil dubbed anime", "Hindi dubbed anime", "Telugu dubbed anime", "Bengali dubbed anime", "English subbed anime", "Free anime online"],
-      availableLanguage: [
-        { "@type": "Language", name: "English" },
-        { "@type": "Language", name: "Tamil" },
-        { "@type": "Language", name: "Hindi" },
-        { "@type": "Language", name: "Telugu" },
-        { "@type": "Language", name: "Bengali" },
-        { "@type": "Language", name: "Japanese" },
-      ],
       aggregateRating: { "@type": "AggregateRating", ratingValue: 5, bestRating: 5, ratingCount: 4 },
     },
     {
@@ -171,7 +173,7 @@ const JSON_LD = {
       url: SITE_URL,
       name: "LuffyTV",
       alternateName: ["Luffy TV", "luffyTV", "luffytv", "luffy"],
-      inLanguage: ["en", "ta", "hi", "te", "bn", "ja"],
+      inLanguage: "en",
       publisher: { "@id": `${SITE_URL}/#org` },
       potentialAction: {
         "@type": "SearchAction",
