@@ -193,7 +193,7 @@ export async function GET(
       // AnimeX mimi (priority 0 sub, 0.5 dub) — FASTEST
       (async () => {
         try {
-          const m = await withTimeout(resolveAnimexMimiBoth(id, epNum), 5000, { sub: null, dub: null });
+          const m = await withTimeout(resolveAnimexMimiBoth(id, epNum), 10000, { sub: null, dub: null });
           if (m.sub?.m3u8Url) servers.push({ id: "animex:mimi:sub", name: "NX-2", source: "animex", provider: "mimi", type: "sub", quality: m.sub.quality || "1080p", streamUrl: wrapM3u8Url(m.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0, subtitleTracks: wrapSubs(m.sub.tracks), intro: m.sub.intro || null, outro: m.sub.outro || null });
           if (m.dub?.m3u8Url) servers.push({ id: "animex:mimi:dub", name: "NX-2 Dub", source: "animex", provider: "mimi", type: "dub", quality: m.dub.quality || "1080p", streamUrl: wrapM3u8Url(m.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0.5, subtitleTracks: wrapSubs(m.dub.tracks), intro: m.dub.intro || null, outro: m.dub.outro || null });
         } catch {}
@@ -202,7 +202,7 @@ export async function GET(
       // AniDB (priority 2)
       (async () => {
         try {
-          const r = await withTimeout(resolveAniDbEmbeds(id, epNum, title), 5000, { sub: null, dub: null });
+          const r = await withTimeout(resolveAniDbEmbeds(id, epNum, title), 10000, { sub: null, dub: null });
           if (r.sub?.m3u8Url) servers.push({ id: "anidb:sub", name: "L4", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: wrapM3u8Url(r.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2 });
           else if (r.sub?.embedUrl) servers.push({ id: "anidb:sub", name: "L4", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: r.sub.embedUrl, isM3U8: false, isMP4: false, isEmbed: true, hardsub: false, priority: 2 });
           if (r.dub?.m3u8Url) servers.push({ id: "anidb:dub", name: "L4 Dub", source: "anidb", provider: "anidb", type: "dub", quality: "1080p", streamUrl: wrapM3u8Url(r.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2.5 });
@@ -213,7 +213,7 @@ export async function GET(
       // Kyren (priority 3)
       (async () => {
         try {
-          const kr = await withTimeout(fetchAllKyrenSources(id, epNum, { sub: true, dub: true, timeoutMs: 5000 }).catch(() => []), 5000, []);
+          const kr = await withTimeout(fetchAllKyrenSources(id, epNum, { sub: true, dub: true, timeoutMs: 10000 }).catch(() => []), 10000, []);
           if (kr?.length) { let p = 3; let krIdx = 0; for (const r of kr) servers.push({ id: `kyren:${r.server}:${r.type}`, name: `NK-${krIdx+1}${r.type === "dub" ? " (Dub)" : ""}`, source: "kyren", provider: r.server, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://kyren.moe/") }); krIdx++; }
         } catch {}
       })(),
@@ -222,8 +222,8 @@ export async function GET(
       (async () => {
         try {
           const adResults = await withTimeout(
-            fetchAllAniDapSources(id, epNum, { sub: true, dub: true, timeoutMs: 8000 }).catch(() => []),
-            8000,
+            fetchAllAniDapSources(id, epNum, { sub: true, dub: true, timeoutMs: 15000 }).catch(() => []),
+            15000,
             [],
           );
           if (adResults?.length) {
@@ -258,7 +258,7 @@ export async function GET(
       // AniPm (priority 5) — works for many anime (8-14 servers)
       (async () => {
         try {
-          const pm = await withTimeout(fetchAniPmSources(id, epNum, { sub: true, dub: true, timeoutMs: 10000 }).catch(() => []), 6000, []);
+          const pm = await withTimeout(fetchAniPmSources(id, epNum, { sub: true, dub: true, timeoutMs: 15000 }).catch(() => []), 15000, []);
           if (pm?.length) { let p = 5; let pmIdx = 0; for (const r of pm) { if (!r.streamUrl) continue; servers.push({ id: `anipm:${r.provider}:${r.type}`, name: `NP-${pmIdx+1}${r.type === "dub" ? " (Dub)" : ""}`, source: "anipm" as any, provider: r.provider, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: r.isEmbed, hardsub: r.hardsub, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://ani.pm/") }); pmIdx++; } }
         } catch {}
       })(),
@@ -266,7 +266,7 @@ export async function GET(
       // Senshi (priority 6) — sometimes returns 403 on search, but works when it doesn't
       (async () => {
         try {
-          const s = await withTimeout(resolveSenshi(id, epNum, title).catch(() => null), 5000, null);
+          const s = await withTimeout(resolveSenshi(id, epNum, title).catch(() => null), 10000, null);
           if (s?.m3u8Url) servers.push({ id: "senshi:sub", name: "NS-1", source: "senshi", provider: "senshi", type: "sub", quality: "1080p", streamUrl: wrapM3u8UrlWithReferer(s.m3u8Url, "https://senshi.live/"), isM3U8: true, isMP4: false, isEmbed: false, hardsub: s.status === "HardSub", priority: 6, intro: s.intro, outro: s.outro });
         } catch {}
       })(),
@@ -274,7 +274,7 @@ export async function GET(
       // AniLight (priority 9+)
       (async () => {
         try {
-          const al = await withTimeout(fetchAniLightSources(id, epNum, { sub: true, dub: true, timeoutMs: 5000 }).catch(() => []), 5000, []);
+          const al = await withTimeout(fetchAniLightSources(id, epNum, { sub: true, dub: true, timeoutMs: 10000 }).catch(() => []), 10000, []);
           al.filter((r: any) => r.type === "sub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:sub:${i}`, name: `NL-${i+1}`.trim(), source: "anilight", provider: "anilight", type: "sub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
           al.filter((r: any) => r.type === "dub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:dub:${i}`, name: `NL-${i+4} Dub`.trim(), source: "anilight", provider: "anilight", type: "dub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9.5 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
         } catch {}
@@ -288,7 +288,7 @@ export async function GET(
       // AniKage (skip times + servers, priority 14) — works for some anime
       (async () => {
         try {
-          const ak = await withTimeout(resolveAniKageBoth(id, epNum, title).catch(() => ({ sub: null, dub: null, intro: null, outro: null })), 5000, { sub: null, dub: null, intro: null, outro: null });
+          const ak = await withTimeout(resolveAniKageBoth(id, epNum, title).catch(() => ({ sub: null, dub: null, intro: null, outro: null })), 10000, { sub: null, dub: null, intro: null, outro: null });
           if (ak.intro) anikageIntro = ak.intro;
           if (ak.outro) anikageOutro = ak.outro;
           const akServers = [...(ak.sub?.servers || []), ...(ak.dub?.servers || [])];
@@ -304,8 +304,8 @@ export async function GET(
       (async () => {
         try {
           const lunaResults = await withTimeout(
-            fetchAllLunaSources(id, epNum, { timeoutMs: 8000 }).catch(() => []),
-            8000,
+            fetchAllLunaSources(id, epNum, { timeoutMs: 15000 }).catch(() => []),
+            15000,
             [],
           );
           if (lunaResults?.length) {
@@ -347,7 +347,7 @@ export async function GET(
         try {
           const usResults = await withTimeout(
             resolveUniqueStreamStreams(id, epNum, title).catch(() => []),
-            8000,
+            15000,
             [],
           );
           if (usResults?.length) {
@@ -386,16 +386,17 @@ export async function GET(
       // They're called separately by the frontend when the title is available.
     ];
 
-    // ── FAST RESPONSE — return after 4 seconds max ──
-    // Don't wait for ALL providers. Race against a 4s timeout.
+    // ── RESPONSE — wait up to 15s for all providers ──
     // Fast providers (AnimeX mimi, AniDB, Kyren) finish in 2-3s.
-    // Slow providers (AniDap, AniPm, Luna, AniKage) may take 7-12s —
-    // if they're not done in 4s, we return what we have. The frontend
-    // also calls /api/anime/anidap-servers and /api/anime/anichi-servers
-    // separately, so slow providers arrive via those endpoints.
+    // Slow providers (AniDap, AniPm, Luna, AniKage) may take 7-12s.
+    // Previously raced at 4s which killed slow providers before they could
+    // finish — users only saw 2-3 servers instead of 8-12. Now we wait
+    // 15s so all providers have time to complete. The frontend also calls
+    // /api/anime/anidap-servers and /api/anime/anichi-servers separately,
+    // so any stragglers arrive via those endpoints too.
     await Promise.race([
       Promise.allSettled(providerPromises),
-      new Promise(resolve => setTimeout(resolve, 4000)),
+      new Promise(resolve => setTimeout(resolve, 15000)),
     ]);
 
     // Apply AniKage skip times to ALL servers

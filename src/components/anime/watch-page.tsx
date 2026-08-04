@@ -1149,8 +1149,11 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       setHasShownLoadingScreen(true);
     }
 
-    // Safety timeout: if no servers arrive within 30s, show error
-    // (prevents infinite "Loading from..." state)
+    // Safety timeout: if no servers arrive within 120s, show error.
+    // Increased from 30s — some scraping providers (AniDap, AniPm, Luna,
+    // AniKage, AnimoStream) can take 30-60s on cold starts. Killing them
+    // early means only the fast servers arrive and the user sees fewer
+    // options. Let them take as long as they need.
     const safetyTimeout = setTimeout(() => {
       if (cancelled) return;
       setServerList(prev => {
@@ -1162,7 +1165,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
         setStreamError("Servers are taking too long to load. Try refreshing the page.");
         return [];
       });
-    }, 30000);
+    }, 120000);
 
     // ── Fetch INSTANT servers FIRST (AniDB, AniKoto, AniNeko) ──
     // These are reliable providers that don't dead-link. They resolve
