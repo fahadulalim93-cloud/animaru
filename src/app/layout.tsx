@@ -16,7 +16,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// ─── Viewport (separate from metadata per Next.js 14+) ────────
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -27,19 +26,11 @@ export const viewport: Viewport = {
   ],
 };
 
-// ─── Root Metadata — applied to EVERY page ─────────────────────
-// This is the MOST CRITICAL SEO element. It sets up:
-// - Title template (page title + "| LuffyTV")
-// - Default description, keywords
-// - Canonical URL pointing to luffytv.to (NOT .live)
-// - Open Graph + Twitter Card defaults
-// - robots directives allowing full indexing
-// - alternate languages (future i18n)
-
+// ─── ROOT METADATA — applied to EVERY page ─────────────────────
+// This is the MOST CRITICAL SEO element for your site.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.primaryDomain),
 
-  // Title template: child pages override, this adds "| LuffyTV"
   title: {
     default: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
     template: `%s | ${SITE_CONFIG.name}`,
@@ -52,7 +43,7 @@ export const metadata: Metadata = {
   creator: SITE_CONFIG.name,
   publisher: SITE_CONFIG.name,
 
-  //robots: Allow full indexing, large snippets, video previews
+  // Allow full indexing
   robots: {
     index: true,
     follow: true,
@@ -68,15 +59,20 @@ export const metadata: Metadata = {
     },
   },
 
-  // Canonical URL — ALWAYS luffytv.to, never .live
+  // Canonical — ALWAYS luffytv.to, never .live or .app
   alternates: {
     canonical: SITE_CONFIG.primaryDomain,
     languages: {
-      "en-US": SITE_CONFIG.primaryDomain,
+      "x-default": SITE_CONFIG.primaryDomain,
+      "en": SITE_CONFIG.primaryDomain,
+      "ta": `${SITE_CONFIG.primaryDomain}/tamil-dub`,
+      "hi": `${SITE_CONFIG.primaryDomain}/hindi-dub`,
+      "te": `${SITE_CONFIG.primaryDomain}/telugu-dub`,
+      "bn": `${SITE_CONFIG.primaryDomain}/bengali-dub`,
     },
   },
 
-  // Open Graph — for Facebook, Discord, LinkedIn shares
+  // Open Graph
   openGraph: {
     title: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
     description: SITE_CONFIG.description,
@@ -89,20 +85,20 @@ export const metadata: Metadata = {
         url: SITE_CONFIG.ogImage,
         width: SITE_CONFIG.ogImageWidth,
         height: SITE_CONFIG.ogImageHeight,
-        alt: `${SITE_CONFIG.name} — Watch Anime Online Free`,
+        alt: `${SITE_CONFIG.name} — Watch Anime Online Free in Tamil, Hindi & English`,
         type: "image/png",
       },
     ],
   },
 
-  // Twitter Card — for Twitter/X shares
+  // Twitter Card
   twitter: {
     card: "summary_large_image",
     title: `${SITE_CONFIG.name} — Watch Anime Online Free`,
     description: SITE_CONFIG.description,
     images: [SITE_CONFIG.ogImage],
-    creator: "@LuffyTV",
-    site: "@LuffyTV",
+    creator: "@TheLuffyTV",
+    site: "@TheLuffyTV",
   },
 
   // Icons
@@ -116,7 +112,6 @@ export const metadata: Metadata = {
     ],
   },
 
-  // App info
   applicationName: SITE_CONFIG.name,
   appleWebApp: {
     capable: true,
@@ -124,14 +119,18 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
 
-  // Category
   category: "entertainment",
 
-  // Format detection
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
+  },
+
+  // Search console verification
+  other: {
+    "google-site-verification": SITE_CONFIG.verification.google,
+    "msvalidate.01": SITE_CONFIG.verification.bing,
   },
 };
 
@@ -144,22 +143,25 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* 
-          Root JSON-LD Schema — Organization + WebSite + SearchAction
-          This is THE most important schema. It enables:
-          1. Knowledge Panel in Google/Bing
-          2. Sitelinks Search Box
-          3. Brand entity recognition
+          ROOT JSON-LD Schema — Organization + WebSite + SearchAction
+          This tells Google: "LuffyTV is an anime streaming site,
+          not a Twitch channel or crypto token"
         */}
         <JsonLd data={getRootSchema()} />
 
-        {/* Preconnect to CDN for faster image loading */}
+        {/* Preconnect for faster loading */}
         <link rel="preconnect" href="https://cdn.example.com" />
         <link rel="dns-prefetch" href="https://cdn.example.com" />
 
-        {/* 
-          Verify domain ownership (replace with actual verification codes)
-          <meta name="google-site-verification" content="YOUR_CODE" />
-          <meta name="msvalidate.01" content="YOUR_BING_CODE" />
+        {/*
+          GOOGLE & BING VERIFICATION
+          Replace these with your actual codes from:
+          - Google: https://search.google.com/search-console → Add property → HTML tag
+          - Bing: https://www.bing.com/webmasters → Add site → HTML tag
+          
+          Once verified, submit your sitemap:
+          - Google: https://search.google.com/search-console → Sitemaps → https://luffytv.to/sitemap.xml
+          - Bing: https://www.bing.com/webmasters → Sitemaps → https://luffytv.to/sitemap.xml
         */}
       </head>
       <body

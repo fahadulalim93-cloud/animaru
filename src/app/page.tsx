@@ -26,6 +26,7 @@ import {
   Search,
   Star,
   Users,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -246,6 +247,55 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ─── Indian Language Dubs Section ────────────────── */}
+        <section className="container mx-auto px-4 py-8" aria-labelledby="dub-heading">
+          <h2 id="dub-heading" className="text-2xl font-bold tracking-tight flex items-center gap-2 mb-2">
+            <Globe className="h-6 w-6 text-rose-500" />
+            Watch Anime in Your Language
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            Stream anime dubbed in Tamil, Hindi, Telugu, and Bengali — all free in HD.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Link href="/tamil-dub" className="group">
+              <Card className="hover:shadow-md transition-all hover:border-rose-500/50">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl mb-1">🇮🇳</div>
+                  <h3 className="font-semibold text-base group-hover:text-rose-500 transition-colors">தமிழ் Tamil</h3>
+                  <p className="text-xs text-muted-foreground mt-1">1,000+ episodes in Tamil dub</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/hindi-dub" className="group">
+              <Card className="hover:shadow-md transition-all hover:border-rose-500/50">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl mb-1">🇮🇳</div>
+                  <h3 className="font-semibold text-base group-hover:text-rose-500 transition-colors">हिन्दी Hindi</h3>
+                  <p className="text-xs text-muted-foreground mt-1">1,500+ episodes in Hindi dub</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/telugu-dub" className="group">
+              <Card className="hover:shadow-md transition-all hover:border-rose-500/50">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl mb-1">🇮🇳</div>
+                  <h3 className="font-semibold text-base group-hover:text-rose-500 transition-colors">తెలుగు Telugu</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Anime in Telugu dub</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/bengali-dub" className="group">
+              <Card className="hover:shadow-md transition-all hover:border-rose-500/50">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl mb-1">🇮🇳</div>
+                  <h3 className="font-semibold text-base group-hover:text-rose-500 transition-colors">বাংলা Bengali</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Anime in Bengali dub</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </section>
+
         {/* ─── SEO Content Section (keyword-rich, crawlable) ── */}
         <section className="container mx-auto px-4 py-12 border-t border-border/40" aria-labelledby="about-heading">
           <div className="max-w-3xl">
@@ -254,16 +304,16 @@ export default function HomePage() {
             </h2>
             <div className="space-y-4 text-muted-foreground text-sm leading-relaxed">
               <p>
-                LuffyTV is the ultimate platform to watch anime online for free. With a massive library spanning thousands of anime series and movies, LuffyTV offers high-definition streaming with both subbed and dubbed options. Whether you are looking for the latest trending anime, classic favorites like One Piece and Attack on Titan, or hidden gems waiting to be discovered, our platform has everything an anime fan could want.
+                LuffyTV is the ultimate platform to watch anime online for free. With a massive library spanning 10,000+ anime series, movies, manga and light novels, LuffyTV offers high-definition streaming with English subtitles and Indian language dubs including Tamil, Hindi, Telugu, and Bengali. Whether you are looking for the latest trending anime, classic favorites like One Piece and Attack on Titan, or hidden gems, our platform has everything an anime fan could want.
               </p>
               <p>
-                Our trending section updates daily with the most popular anime right now, so you always know what everyone is watching. The full anime library lets you browse and filter by genre — including Action, Adventure, Comedy, Fantasy, Drama, Horror, Slice of Life, and more — as well as by release year, airing status, and rating. Each anime page includes detailed information, episode listings, and community ratings to help you find your next binge-worthy series.
+                Our trending section updates daily with the most popular anime right now, so you always know what everyone is watching. The full anime library lets you browse and filter by genre, year, airing status, and rating. Each anime page includes detailed information, episode listings, and community ratings to help you find your next binge-worthy series.
               </p>
               <p>
-                Never miss a new episode with the LuffyTV anime schedule. Our weekly release calendar shows exactly what is airing each day, with times and episode numbers for every currently airing series. Login to save your favorite anime to your personal library, track your watch progress, and get notifications when new episodes drop.
+                Never miss a new episode with the LuffyTV anime schedule. Our weekly release calendar shows exactly what is airing each day. Login to save your favorite anime, track your watch progress, and get notifications when new episodes drop. Watch anime on any device — desktop, tablet, or mobile — with a responsive interface optimized for every screen size.
               </p>
               <p>
-                LuffyTV streams anime in HD quality with fast loading times and no registration required to start watching. Create a free account to unlock additional features like watchlists, continue watching, and personalized recommendations. Watch anime on any device — desktop, tablet, or mobile — with a responsive interface optimized for every screen size.
+                For Indian anime fans, LuffyTV offers dedicated dubbed anime pages: watch anime in Tamil dub, Hindi dub, Telugu dub, and Bengali dub. All dubbed episodes are available in HD quality with no signup and no ads. Switch between dub and sub on any episode with a single click.
               </p>
             </div>
           </div>
@@ -288,6 +338,15 @@ export default function HomePage() {
                   <li><Link href="/trending" className="hover:text-foreground transition-colors">Trending Anime</Link></li>
                   <li><Link href="/library" className="hover:text-foreground transition-colors">Anime Library</Link></li>
                   <li><Link href="/schedule" className="hover:text-foreground transition-colors">Anime Schedule</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm mb-3">Watch in Your Language</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li><Link href="/tamil-dub" className="hover:text-foreground transition-colors">Tamil Dubbed Anime</Link></li>
+                  <li><Link href="/hindi-dub" className="hover:text-foreground transition-colors">Hindi Dubbed Anime</Link></li>
+                  <li><Link href="/telugu-dub" className="hover:text-foreground transition-colors">Telugu Dubbed Anime</Link></li>
+                  <li><Link href="/bengali-dub" className="hover:text-foreground transition-colors">Bengali Dubbed Anime</Link></li>
                 </ul>
               </div>
               <div>
