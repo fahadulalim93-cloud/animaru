@@ -193,7 +193,16 @@ export default function AntiScrapeClient() {
     }
 
     // ─── Check for headless browser ───
-    if (isHeadlessEnvironment()) {
+    // IMPORTANT: Don't flag SEO crawlers (Googlebot, Bingbot) as headless.
+    // They use headless Chromium but need full content for indexing.
+    const userAgent = navigator.userAgent?.toLowerCase() || "";
+    const isSeoBot = userAgent.includes("googlebot") || userAgent.includes("bingbot") ||
+      userAgent.includes("yandexbot") || userAgent.includes("baiduspider") ||
+      userAgent.includes("slurp") || userAgent.includes("duckduckbot") ||
+      userAgent.includes("facebot") || userAgent.includes("twitterbot") ||
+      userAgent.includes("linkedinbot");
+
+    if (isHeadlessEnvironment() && !isSeoBot) {
       // Add noise — serve degraded content to headless browsers
       document.documentElement.classList.add("headless-detected");
       // Optionally redirect or show a challenge
@@ -246,7 +255,15 @@ export default function AntiScrapeClient() {
     }
 
     // ─── Disable common scraping hooks ───
-    if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
+    // Skip for SEO bots — they need full DOM access for indexing
+    const isSeoCrawler = typeof navigator !== "undefined" && (() => {
+      const ua = navigator.userAgent?.toLowerCase() || "";
+      return ua.includes("googlebot") || ua.includes("bingbot") ||
+        ua.includes("yandexbot") || ua.includes("baiduspider") ||
+        ua.includes("duckduckbot");
+    })();
+
+    if (typeof window !== "undefined" && process.env.NODE_ENV === "production" && !isSeoCrawler) {
       // Prevent document.querySelectorAll from being easily used by scrapers
       // by adding a subtle delay that breaks automated timing
       const origQSA = document.querySelectorAll.bind(document);

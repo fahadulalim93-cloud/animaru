@@ -82,7 +82,9 @@ export const metadata: Metadata = {
   creator: "Luffy TV",
   publisher: "Luffy TV",
   alternates: {
-    canonical: SITE_URL,
+    // canonical is set PER-PAGE via generateMetadata, not globally.
+    // Setting it here to SITE_URL makes ALL pages appear as duplicates of /.
+    // Only the homepage (/) should have canonical = SITE_URL.
     languages: {
       "x-default": SITE_URL,
       "en": SITE_URL,
@@ -190,7 +192,7 @@ export default function RootLayout({
       <head>
         <meta name="referrer" content="no-referrer" />
         <meta name="google" content="notranslate" />
-        <link rel="canonical" href={SITE_URL} />
+        {/* canonical is set per-page via generateMetadata — do NOT set a global canonical here */}
         <link rel="home" href={SITE_URL} />
         {/* Hidden H1 for brand recognition — Google reads H1 to understand the site brand */}
         <h1 className="sr-only">LuffyTV — Watch Anime Online Free in HD — Tamil Hindi Telugu Bengali Dub & English Sub</h1>
