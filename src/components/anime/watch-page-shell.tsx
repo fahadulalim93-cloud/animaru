@@ -171,19 +171,19 @@ export function WatchPageShell({
   //   - Other providers           → Sub/Dub/Hardsub per their type
   const serversForMode = (serverList || []).filter((s: any) => {
     if (translation === "hindi") {
-      // Hindi tab: ALL AnixTV servers (TryEmbed/MegaPlay/VidNest/etc.) + AnimoStream
-      return s.source === "anixtv" || s.source === "animostream";
+      // Hindi tab: ALL AnixTV servers + AnimoStream + WatchAnimeWorld
+      return s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld";
     }
     if (translation === "dub") {
       // Dub tab: English dub only — exclude Hindi sources (AnixTV + AnimoStream)
-      return s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream";
+      return s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld";
     }
     if (translation === "hardsub") {
       // Hardsub tab: true hardsub servers + 4animo (user wants 4animo here too)
       return s.type === "sub" && (s.hardsub === true || s.source === "animo4");
     }
-    // Sub tab: soft sub servers — exclude AnixTV (Hindi-only) + AnimoStream (Hindi-only)
-    return s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream";
+    // Sub tab: soft sub servers — exclude Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld)
+    return s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld";
   });
 
   const audioOptions = [

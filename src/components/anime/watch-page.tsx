@@ -1122,6 +1122,22 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       })
       .catch(() => { /* best-effort */ });
 
+    // WatchAnimeWorld.top Hindi dub — multi-audio Indian dub site.
+    // Resolves m3u8 via Zephyrix Fire HLS Player API or offers embed fallback.
+    fetch(`/api/anime/watchanimeworld-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data?.servers?.length) return;
+        setServerList(prev => {
+          const newServers = dedupeNew(prev, data.servers);
+          if (newServers.length === 0) return prev;
+          console.log(`[WatchPage] WatchAnimeWorld Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
+          setHindiAvailable(true);
+          return [...prev, ...newServers];
+        });
+      })
+      .catch(() => { /* best-effort */ });
+
     return () => { cancelled = true; };
   }, [anilistId, episodeNum, animeTitle]);
 
@@ -1509,7 +1525,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     // sending those through the worker only adds a hop and a point of failure.
     const noProxy = (server as any).noProxy === true;
     const useEmbedProxy = (server as any).useEmbedProxy === true;
-    const isHindiEmbedSource = (server as any).source === "anixtv" || (server as any).source === "animostream";
+    const isHindiEmbedSource = (server as any).source === "anixtv" || (server as any).source === "animostream" || (server as any).source === "watchanimeworld";
     let finalStreamUrl = streamUrl;
     if (isEmbed) {
       try {
