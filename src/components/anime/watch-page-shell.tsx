@@ -187,6 +187,10 @@ export function WatchPageShell({
   const [infoExpanded, setInfoExpanded] = useState(false);
   const [reportCopied, setReportCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [reportDescription, setReportDescription] = useState("");
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const user = useAppStore((s) => s.user);
 
   const currentEp = episodeList?.find((ep: any) => ep.number === episodeNum);
@@ -238,22 +242,31 @@ export function WatchPageShell({
     : null;
 
   const handleReport = () => {
+    setShowReportModal(true);
+    setReportSubmitted(false);
+    setReportDescription("");
+  };
+
+  const submitReport = () => {
     const server = selectedServer || activeProvider;
-    const dbg = `[LuffyTV report] ${animeTitle} — EP ${episodeNum} — server: ${server} — mode: ${translation} — error: ${streamError || "none"}`;
-    try { navigator.clipboard.writeText(dbg); } catch { /* ignore */ }
+    const userDesc = reportDescription.trim();
+    const fullMessage = userDesc
+      ? `${userDesc} — ${animeTitle} EP ${episodeNum} [${server}]`
+      : `Playback issue on ${animeTitle} — Episode ${episodeNum}${streamError ? `: ${streamError}` : ""}`;
     fetch("/api/reports/watch", {
       method: "POST",
       headers: { "content-type": "application/json" },
       keepalive: true,
       body: JSON.stringify({
         username: user?.username,
-        message: `Playback issue on ${animeTitle} — Episode ${episodeNum}${streamError ? `: ${streamError}` : ""}`,
+        message: fullMessage,
         animeTitle, episodeNum, server, mode: translation, error: streamError || undefined,
         url: typeof window !== "undefined" ? window.location.href : undefined,
       }),
     }).catch(() => {});
+    setReportSubmitted(true);
     setReportCopied(true);
-    setTimeout(() => setReportCopied(false), 1800);
+    setTimeout(() => { setReportCopied(false); }, 1800);
   };
 
   const handleShare = () => {
@@ -483,17 +496,16 @@ export function WatchPageShell({
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                 {shareCopied ? "Copied!" : "Share"}
               </button>
-              {/* Report — hidden on mobile, visible on desktop */}
-              <button onClick={handleReport} className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[11px] font-bold text-white/70 hover:text-white transition-all" title="Report a playback issue">
+              {/* Report — opens modal with problem description */}
+              <button onClick={handleReport} className="flex items-center gap-1.5 h-7 sm:h-8 px-2 sm:px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70 hover:text-white transition-all" title="Report a playback issue">
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
                 {reportCopied ? "Sent!" : "Report"}
               </button>
-              {downloadUrl && (
-                <a href={downloadUrl} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[11px] font-bold text-white/70 hover:text-white transition-all" title="Open direct stream">
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                  Download
-                </a>
-              )}
+              {/* Download — opens download modal */}
+              <button onClick={() => setShowDownloadModal(true)} className="flex items-center gap-1.5 h-7 sm:h-8 px-2 sm:px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70 hover:text-white transition-all" title="Download this episode">
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Download
+              </button>
             </div>
 
             {/* Episode synopsis */}
@@ -682,6 +694,128 @@ export function WatchPageShell({
                   <kbd className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-mono font-bold text-white border border-white/10">{s.key}</kbd>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report modal — problem description form */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowReportModal(false)}>
+          <div className="w-full max-w-md mx-4 rounded-xl bg-[#1a1a2e] border border-white/10 shadow-2xl overflow-hidden" onClick={(e: any) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+                Report Playback Issue
+              </h3>
+              <button onClick={() => setShowReportModal(false)} className="p-1 rounded text-white/40 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-xs text-white/50">
+                Reporting: <span className="text-white/80 font-medium">{animeTitle}</span> — Episode {episodeNum}
+                {selectedServer && <span className="text-white/40"> [{selectedServer}]</span>}
+              </div>
+              {reportSubmitted ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  <span className="text-sm text-emerald-400 font-medium">Report sent! We'll look into it.</span>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-white/60">What's the problem?</label>
+                    <textarea
+                      value={reportDescription}
+                      onChange={(e) => setReportDescription(e.target.value)}
+                      placeholder="e.g. Video won't play, wrong episode, no subtitles..."
+                      className="w-full h-24 px-3 py-2 rounded-lg bg-white/[0.06] border border-white/10 text-sm text-white placeholder-white/30 resize-none focus:outline-none focus:border-purple-500/50 transition-colors"
+                      maxLength={500}
+                    />
+                    <div className="text-right text-[10px] text-white/30">{reportDescription.length}/500</div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setShowReportModal(false)} className="px-4 py-2 rounded-lg text-xs font-bold text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-all">Cancel</button>
+                    <button onClick={submitReport} className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-amber-500/80 hover:bg-amber-500 transition-all">Send Report</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download modal — show download options */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDownloadModal(false)}>
+          <div className="w-full max-w-md mx-4 rounded-xl bg-[#1a1a2e] border border-white/10 shadow-2xl overflow-hidden" onClick={(e: any) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <svg className="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Download Episode
+              </h3>
+              <button onClick={() => setShowDownloadModal(false)} className="p-1 rounded text-white/40 hover:text-white transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-xs text-white/50">{animeTitle} — Episode {episodeNum}</div>
+              {downloadUrl ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg bg-white/[0.04] border border-white/10 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white/70">Direct Stream</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">HLS</span>
+                    </div>
+                    <p className="text-[10px] text-white/30 break-all font-mono leading-relaxed">{downloadUrl}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <a href={downloadUrl} download target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 transition-all">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                      Download
+                    </a>
+                    <button onClick={() => { try { navigator.clipboard.writeText(downloadUrl); } catch {} }} className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-bold text-white/60 border border-white/10 hover:border-white/20 hover:text-white transition-all">
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              ) : streamData?.video_link ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg bg-white/[0.04] border border-white/10 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white/70">Stream URL</span>
+                      {streamData.source_type === "embed" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">Embed</span>}
+                    </div>
+                    <p className="text-[10px] text-white/30 break-all font-mono leading-relaxed">{streamData.video_link}</p>
+                  </div>
+                  <a href={streamData.video_link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 transition-all">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    Open Stream
+                  </a>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-white/[0.04] border border-white/10 text-center">
+                  <svg className="w-8 h-8 mx-auto text-white/20 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                  <p className="text-xs text-white/40">No download available for this server.</p>
+                  <p className="text-[10px] text-white/25 mt-1">Try switching to a non-embed server.</p>
+                </div>
+              )}
+              {serverList && serverList.length > 0 && (
+                <div className="pt-2 border-t border-white/10">
+                  <p className="text-[10px] text-white/30 mb-2">Available servers (non-embed):</p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {serverList.filter((s: any) => !s.isEmbed && s.streamUrl).slice(0, 8).map((s: any) => (
+                      <a key={s.id} href={s.streamUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-2 py-1.5 rounded text-[10px] text-white/50 hover:text-white hover:bg-white/[0.06] transition-all">
+                        <span className="font-bold text-white/70 truncate">{s.name}</span>
+                        <span className="text-white/30">{s.quality}</span>
+                        {s.type === "dub" && <span className="text-purple-300">(Dub)</span>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

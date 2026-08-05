@@ -404,7 +404,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   interface ServerEntry {
     id: string;
     name: string;
-    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap" | "anilight" | "kyren" | "anikage" | "mioanime" | "anixtv" | "anistream" | "anikuro" | "anipm" | "animeheaven" | "aniwaves" | "anidb" | "anikoto" | "anineko" | "allmanga" | "animo4" | "animostream" | "anibd" | "watchanimeworld";
+    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap" | "anilight" | "kyren" | "anikage" | "mioanime" | "anixtv" | "anistream" | "anikuro" | "anipm" | "animeheaven" | "aniwaves" | "anidb" | "anikoto" | "anineko" | "anineko-to" | "anichi" | "allmanga" | "animo4" | "animostream" | "anibd" | "watchanimeworld" | "uniquestream";
     provider: string;
     type: "sub" | "dub";
     quality?: string;
@@ -1082,6 +1082,18 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           console.log(`[WatchPage] AniNeko.to: added ${newServers.length} servers`);
           return [...prev, ...newServers];
         });
+        // Auto-select AniNeko as PRIMARY default (overrides non-anineko selections)
+        setSelectedServer(prev => {
+          // If anineko/anichi is already selected, keep it
+          if (prev && (prev.includes("anineko") || prev.includes("anichi"))) return prev;
+          const subServer = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
+          if (subServer) {
+            setStreamLoading(false);
+            console.log(`[WatchPage] AniNeko auto-selected (PRIMARY): ${subServer.id}`);
+            return subServer.id;
+          }
+          return prev;
+        });
       })
       .catch(() => { /* best-effort */ });
 
@@ -1199,18 +1211,22 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           const newServers = dedupeNew(prev, data.servers);
           return [...prev, ...newServers];
         });
-        // Auto-select the FIRST available server instantly.
-        // The user wants playback to start ASAP — don't wait for mimi specifically.
-        // Just grab the first server in the list (already sorted by priority:
-        // priority 0 mimi, 1 anidb, 2 mimi-dub, ...) and load it immediately.
+        // Auto-select the best server instantly.
+        // PRIORITY: AniNeko/AniChi > other non-embed sub > first available.
+        // AniNeko has the most reliable streams with soft subs, so we prefer it.
         // Only auto-selects if no server is selected yet.
         setSelectedServer(prev => {
           if (prev) return prev; // don't override if already selected
           if (data.servers.length > 0) {
             setStreamLoading(false);
-            // Pick the first non-embed sub server (best playback experience)
+            // 1. Prefer AniNeko/AniChi non-embed sub (most reliable)
+            const anineko = data.servers.find((s: ServerEntry) =>
+              (s.source === "anineko" || s.source === "anineko-to" || s.source === "anichi" || s.id?.includes("anineko") || s.id?.includes("anichi")) &&
+              s.type === "sub" && !s.isEmbed
+            );
+            // 2. Fallback: any non-embed sub server
             const firstSub = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
-            const pick = firstSub || data.servers[0];
+            const pick = anineko || firstSub || data.servers[0];
             console.log(`[WatchPage] Instant-auto-selected: ${pick.id} (from ${data.servers.length} servers)`);
             return pick.id;
           }

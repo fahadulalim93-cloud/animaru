@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAniDbEmbeds } from "@/lib/anidb-direct";
 import { resolveAnimexMimiBoth } from "@/lib/animex-fast";
+import { resolveAninekoStreams } from "@/lib/anineko-to-direct";
 import { fetchAllAniDapSources, ANIDAP_PROVIDER_META } from "@/lib/anidap-api";
 import { resolveAniKageBoth } from "@/lib/anikage-fast";
 import { resolveUniqueStreamStreams } from "@/lib/uniquestream-direct";
@@ -21,8 +22,9 @@ export const maxDuration = 30; // Reduced — we return early, don't need 60s
  *
  * Returns INSTANT servers with DIRECT m3u8 URLs (no embeds/iframes for top priority).
  *
- * PRIORITY ORDER (user-specified 2026-07-13):
- *   0.  AnimeX mimi (sub/dub) — FASTEST
+ * PRIORITY ORDER (user-specified 2026-08-06):
+ *  -1.  AniNeko.to (sub/dub) — PRIMARY DEFAULT (most reliable + soft subs)
+ *   0.  AnimeX mimi (sub/dub) — FASTEST fallback
  *   1.  AnimeX yuki (sub/dub)
  *   2.  AniDB (sub/dub)
  *   3.  Kyren (sub/dub)
@@ -30,7 +32,7 @@ export const maxDuration = 30; // Reduced — we return early, don't need 60s
  *   5.  AniPm (sub/dub)
  *   6.  Senshi (sub)
  *   7.  AllAnime/AllManga (sub)
- *   8+. AniNeko, AniLight, AniZone, AniWaves, AniKoto, ReAnime, AniKage, Luna
+ *   8+. AniLight, AniZone, AniWaves, AniKoto, ReAnime, AniKage, Luna
  */
 export async function GET(
   _req: NextRequest,
@@ -163,7 +165,7 @@ export async function GET(
     const servers: Array<{
       id: string;
       name: string;
-      source: "animex" | "anidb" | "anineko" | "anidap" | "anikage" | "senshi" | "allmanga" | "anizone" | "aniwaves" | "anilight" | "kyren" | "anikoto" | "reanime" | "luna" | "anipm" | "anichi" | "anineko-to";
+      source: "animex" | "anidb" | "anineko" | "anidap" | "anikage" | "senshi" | "allmanga" | "anizone" | "aniwaves" | "anilight" | "kyren" | "anikoto" | "reanime" | "luna" | "anipm" | "anichi" | "anineko-to" | "uniquestream";
       provider: string;
       type: "sub" | "dub";
       quality: string;
@@ -180,17 +182,56 @@ export async function GET(
     }> = [];
 
     // ═══════════════════════════════════════════════════════════════
-    //  WORKING PROVIDERS (audited 2026-07-17, re-added AniPm/Senshi/AniKage)
-    //  Working: AnimeX mimi, AniDB, Kyren, AniDap, AniPm, Senshi,
-    //           AniLight, AniKage, Luna
-    //  Separate endpoints: AniKoto, AniNeko.to (need title)
+    //  WORKING PROVIDERS (audited 2026-08-06)
+    //  Primary: AniNeko.to (priority -1, PRIMARY default)
+    //  Working: AniNeko.to, AnimeX mimi, AniDB, Kyren, AniDap, AniPm,
+    //           Senshi, AniLight, AniKage, Luna, UniqueStream
+    //  Separate endpoints: AniKoto (needs title)
     // ═══════════════════════════════════════════════════════════════
 
     let anikageIntro: { start: number; end: number } | null = null;
     let anikageOutro: { start: number; end: number } | null = null;
 
     const providerPromises: Promise<void>[] = [
-      // AnimeX mimi (priority 0 sub, 0.5 dub) — FASTEST
+      // AniNeko.to (priority -1 sub, -0.5 dub) — PRIMARY DEFAULT
+      // Most reliable streams with soft subs. Needs title to search.
+      (async () => {
+        try {
+          if (!title) return; // AniNeko needs title to search
+          const nekoResults = await withTimeout(resolveAninekoStreams(id, epNum, title), 10000, []);
+          if (nekoResults?.length) {
+            let p = -1;
+            for (const r of nekoResults) {
+              let urlKey = "unknown";
+              try {
+                const u = new URL(r.streamUrl);
+                urlKey = (u.hostname.split(".")[0] + u.pathname).slice(0, 60);
+              } catch {}
+              const typeTag = r.type === "dub" ? " Dub" : r.hardsub ? " (HS)" : "";
+              servers.push({
+                id: `anineko-to:${urlKey}:${r.type}${r.hardsub ? ":hsub" : ""}`,
+                name: `AniNeko ${r.serverName}${typeTag}`,
+                source: "anineko-to",
+                provider: r.serverName.toLowerCase().replace(/\s/g, ""),
+                type: r.type,
+                quality: r.quality || "1080p",
+                streamUrl: r.isM3U8 ? wrapM3u8Url(r.streamUrl) : r.streamUrl,
+                isM3U8: r.isM3U8,
+                isMP4: r.isMP4,
+                isEmbed: r.isEmbed,
+                hardsub: r.hardsub,
+                priority: r.type === "dub" ? -0.5 : p,
+                subtitleTracks: wrapSubs(r.subtitleTracks as any),
+                intro: null,
+                outro: null,
+              });
+              if (r.type === "sub") p += 0.1;
+            }
+          }
+        } catch {}
+      })(),
+
+      // AnimeX mimi (priority 0 sub, 0.5 dub) — FASTEST fallback
       (async () => {
         try {
           const m = await withTimeout(resolveAnimexMimiBoth(id, epNum), 10000, { sub: null, dub: null });

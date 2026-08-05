@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAppStore } from "./store";
 import { listUsersSafe } from "@/lib/auth-local";
 import { frameSrcOf } from "./avatar-frames";
+import { trackXPForUser } from "@/lib/xp-tracker";
 
 /**
  * AnimeComments — reusable comment section
@@ -292,6 +293,8 @@ export default function AnimeComments({
         body: JSON.stringify({ animeId, episode: newReply.episode, username: commentUsername, content: newReply.content, parentId: parent.id }),
       });
     } catch {}
+    // Award XP for replying (2 XP per reply)
+    trackXPForUser(user, 2, "comment_reply");
     setReplyContent("");
     setReplySubmitting(false);
     setReplyingTo(null);
@@ -332,6 +335,9 @@ export default function AnimeComments({
         }),
       });
     } catch {}
+
+    // Award XP for commenting (5 XP per comment)
+    trackXPForUser(user, 5, "comment_posted");
 
     setContent("");
     setAttachedGif(null);
