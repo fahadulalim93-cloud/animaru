@@ -104,6 +104,8 @@ interface CustomSubtitleOverlayProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   settings: SubtitleSettings;
   activeTrackIndex: number; // which textTrack is active (-1 = off)
+  controlsVisible?: boolean; // whether player controls are showing
+  isMobile?: boolean; // mobile device
 }
 
 /**
@@ -119,6 +121,8 @@ export function CustomSubtitleOverlay({
   videoRef,
   settings,
   activeTrackIndex,
+  controlsVisible = false,
+  isMobile = false,
 }: CustomSubtitleOverlayProps) {
   const [currentCue, setCurrentCue] = useState<CueData | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -200,13 +204,19 @@ export function CustomSubtitleOverlay({
   // but let's render line breaks properly)
   const lines = currentCue.text.split("\n");
 
+  // On mobile, when controls are visible, push subtitles up so they
+  // don't get covered by the floating control bar (~64px tall)
+  const effectiveVerticalPos = isMobile && controlsVisible
+    ? Math.min(settings.verticalPos, 72) // push up to 72% max when controls showing
+    : settings.verticalPos;
+
   return (
     <div
       ref={containerRef}
       className="absolute pointer-events-none z-20"
       style={{
         left: `${settings.horizontalPos}%`,
-        top: `${settings.verticalPos}%`,
+        top: `${effectiveVerticalPos}%`,
         transform: "translate(-50%, -50%)",
         maxWidth: "90%",
         textAlign: "center",

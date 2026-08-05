@@ -79,6 +79,8 @@ export default function HLSPlayerNew({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showControls, setShowControls] = useState(true);
+  const isMobileRef = useRef(false);
+  if (typeof window !== 'undefined') isMobileRef.current = 'ontouchstart' in window || window.innerWidth < 768;
   const [qualities, setQualities] = useState<any[]>([]);
   const [currentQuality, setCurrentQuality] = useState(-1);
   const [activeMenu, setActiveMenu] = useState<'quality' | 'subtitles' | 'speed' | null>(null);
@@ -374,13 +376,14 @@ export default function HLSPlayerNew({
   }, [intro, outro]);
 
   // ─── Controls auto-hide ───────────────────────────────────────────
+  const CONTROLS_TIMEOUT = isMobileRef.current ? 2500 : 3500;
   const showControlsTemp = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
       if (playing) { setShowControls(false); setActiveMenu(null); }
-    }, 3500);
-  }, [playing]);
+    }, CONTROLS_TIMEOUT);
+  }, [playing, CONTROLS_TIMEOUT]);
 
   // ─── Fullscreen ───────────────────────────────────────────────────
   useEffect(() => {
@@ -699,7 +702,18 @@ export default function HLSPlayerNew({
       lastTapRef.current = { time: now, x };
       setTimeout(() => {
         if (lastTapRef.current && Date.now() - lastTapRef.current.time >= 300) {
-          togglePlay();
+          // On mobile: single tap toggles controls, NOT play/pause
+          // On desktop: single tap toggles play/pause (existing behavior)
+          if (isMobileRef.current) {
+            if (showControls) {
+              setShowControls(false);
+              setActiveMenu(null);
+            } else {
+              showControlsTemp();
+            }
+          } else {
+            togglePlay();
+          }
           lastTapRef.current = null;
         }
       }, 300);
@@ -734,6 +748,8 @@ export default function HLSPlayerNew({
       style={{ aspectRatio: '16 / 9' }}
       onMouseMove={showControlsTemp}
       onMouseLeave={() => { if (playing) { setShowControls(false); setActiveMenu(null); } }}
+      onTouchStart={() => { if (!showControls) { showControlsTemp(); } }}
+      onTouchEnd={() => { /* auto-hide timeout handles hiding */ }}
     >
       <video
         ref={videoRef}
@@ -793,6 +809,8 @@ export default function HLSPlayerNew({
         videoRef={videoRef}
         settings={subtitleSettings}
         activeTrackIndex={currentSubtitle}
+        controlsVisible={showControls}
+        isMobile={isMobileRef.current}
       />
 
       {/* ═══ Loading spinner — shows during initial load AND buffering ═══ */}
