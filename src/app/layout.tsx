@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Space_Mono, Inter, Space_Grotesk, Outfit, Karla } from "next/font/google";
-import AntiScrapeClient from "@/components/anti-scrape-client";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -207,7 +206,6 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} ${spaceMono.variable} ${inter.variable} ${spaceGrotesk.variable} ${outfit.variable} ${karla.variable} antialiased bg-[#000000] text-[#fafafa] selection:bg-[#E63946]/30 selection:text-white`}
       >
-        <AntiScrapeClient />
         {children}
       </body>
     </html>
