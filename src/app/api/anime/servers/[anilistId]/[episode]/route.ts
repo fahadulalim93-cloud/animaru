@@ -168,7 +168,9 @@ export async function GET(
   const wantFast = group === "all" || group === "fast";
   const wantSlow = group === "all" || group === "slow";
   // The slow half is alone in its request, so it can afford real patience.
-  const SLOW_CAP = group === "slow" ? 45000 : 12000;
+  // Reduced from 45s to 25s — dead servers shouldn't hang for 45s.
+  // Most working providers finish in 5-10s; 25s is generous.
+  const SLOW_CAP = group === "slow" ? 25000 : 12000;
 
   try {
   // ─── Resolve anime title from AniList (needed for AnixTV search) ────────────
@@ -909,7 +911,7 @@ export async function GET(
   // Second hard ceiling. Most branches race their own 3-4s timeout, but not all
   // do, and this runs over every candidate — so without a cap the verification
   // pass could still push the route past its budget on its own.
-  const VERIFY_TIMEOUT = group === "slow" ? 30000 : 10000;
+  const VERIFY_TIMEOUT = group === "slow" ? 20000 : 10000; // Reduced from 30s — dead servers shouldn't hang
   const results = await Promise.allSettled(
     verifyPromises.map(p => withTimeout<VerifiedServer | null>(p, VERIFY_TIMEOUT, null)),
   );

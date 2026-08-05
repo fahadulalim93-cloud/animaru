@@ -446,6 +446,21 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     return out;
   }, []);
 
+  // Fetch with timeout — prevents dead server endpoints from hanging forever
+  const fetchServers = useCallback(async (url: string, timeoutMs = 15000): Promise<any> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      clearTimeout(timeout);
+      return null;
+    }
+  }, []);
+
   const [serverList, setServerList] = useState<ServerEntry[]>([]);
   const [selectedServer, setSelectedServer] = useState<string>(""); // server id
 
@@ -1181,10 +1196,11 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       setHasShownLoadingScreen(true);
     }
 
-    // Safety timeout: if no servers arrive within 30s, show error.
-    // Fast providers (mimi, AniDB, Kyren) arrive in 1-3s.
-    // Slow providers (AniDap, AniPm, Luna) arrive in 5-10s.
-    // 30s is generous — if nothing arrives by then, something is broken.
+    // Safety timeout: if no servers arrive within 20s, show error.
+    // Fast providers (AniNeko, mimi, AniDB, Kyren) arrive in 1-3s.
+    // Slow providers (AniDap, AniPm, Luna) arrive in 5-12s.
+    // 20s is generous — if nothing arrives by then, all servers are dead/down.
+    // Reduced from 30s — dead servers should fail fast, not make users wait.
     const safetyTimeout = setTimeout(() => {
       if (cancelled) return;
       setServerList(prev => {
@@ -1196,15 +1212,14 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
         setStreamError("Servers are taking too long to load. Try refreshing the page.");
         return [];
       });
-    }, 30000);
+    }, 20000);
 
     // ── Fetch INSTANT servers FIRST (AniDB, AniKoto, AniNeko) ──
     // These are reliable providers that don't dead-link. They resolve
     // in ~2-3 seconds and are auto-selected as the default.
     // AniDB is priority 0 — always the first server shown.
     const animeTitleForInstant = animeTitle || animeTitleRomaji || "";
-    fetch(`/api/anime/instant-servers/${anilistId}/${episodeNum}${animeTitleForInstant ? `?title=${encodeURIComponent(animeTitleForInstant)}` : ""}`)
-      .then(r => r.ok ? r.json() : null)
+    fetchServers(`/api/anime/instant-servers/${anilistId}/${episodeNum}${animeTitleForInstant ? `?title=${encodeURIComponent(animeTitleForInstant)}` : ""}`, 15000)
       .then(data => {
         if (cancelled || !data?.servers?.length) return;
         setServerList(prev => {
@@ -1238,8 +1253,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     // ── Fetch MIRURO V3 servers (api.luffytv.online) ──
     // These are on a SEPARATE route from instant-servers.
     // They merge in alongside the other providers.
-    fetch(`/api/anime/miruro-v3/servers/${anilistId}/${episodeNum}?sub=1&dub=1`)
-      .then(r => r.ok ? r.json() : null)
+    fetchServers(`/api/anime/miruro-v3/servers/${anilistId}/${episodeNum}?sub=1&dub=1`, 10000)
       .then(data => {
         if (cancelled || !data?.servers?.length) return;
         setServerList(prev => {
@@ -1258,8 +1272,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     // 4animo, anibd) runs as its own request so it gets a full serverless
     // budget instead of being cut short to fit alongside the fast providers.
     // It simply merges in whenever it lands — nothing is dropped for being slow.
-    fetch(`/api/anime/servers/${anilistId}/${episodeNum}?group=slow`)
-      .then(r => r.ok ? r.json() : null)
+    fetchServers(`/api/anime/servers/${anilistId}/${episodeNum}?group=slow`, 20000)
       .then(data => {
         if (cancelled || !data?.servers?.length) return;
         setServerList(prev => {
@@ -1275,8 +1288,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       })
       .catch(() => { /* best-effort — the fast half already populated the list */ });
 
-    fetch(`/api/anime/servers/${anilistId}/${episodeNum}?group=fast`)
-      .then(r => r.ok ? r.json() : null)
+    fetchServers(`/api/anime/servers/${anilistId}/${episodeNum}?group=fast`, 15000)
       .then(data => {
         if (cancelled) return;
         if (!data?.servers?.length) {
@@ -1372,8 +1384,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     // ── Fetch Animex servers SEPARATELY (doesn't block the main list) ──
     // Animex fetches from pp.animex.one in batches — takes longer than other
     // sources. This runs in parallel and appends servers when ready.
-    fetch(`/api/anime/animex-servers/${anilistId}/${episodeNum}`)
-      .then(r => r.ok ? r.json() : null)
+    fetchServers(`/api/anime/animex-servers/${anilistId}/${episodeNum}`, 12000)
       .then(animexData => {
         if (cancelled || !animexData?.servers?.length) return;
         // Append Animex servers to the existing server list
@@ -1400,8 +1411,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       });
 
     // ── Fetch AniDap servers SEPARATELY (13+ providers, batched — slow) ──
-    fetch(`/api/anime/anidap-servers/${anilistId}/${episodeNum}`)
-      .then(r => r.ok ? r.json() : null)
+    fetchServers(`/api/anime/anidap-servers/${anilistId}/${episodeNum}`, 12000)
       .then(anidapData => {
         if (cancelled || !anidapData?.servers?.length) return;
         setServerList(prev => {
@@ -1420,8 +1430,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       .catch(() => console.log("[WatchPage] AniDap servers failed to load (non-critical)"));
 
     // ── Fetch AniKuro servers SEPARATELY (11 providers via proxy.anikuro.ru) ──
-    fetch(`/api/anime/anikuro-servers/${anilistId}/${episodeNum}`)
-      .then(r => r.ok ? r.json() : null)
+    fetchServers(`/api/anime/anikuro-servers/${anilistId}/${episodeNum}`, 12000)
       .then(anikuroData => {
         if (cancelled || !anikuroData?.servers?.length) return;
         setServerList(prev => {

@@ -42,7 +42,7 @@ export async function GET(
     const results = await fetchAnikuroSources(id, epNum, {
       sub: true,
       dub: true,
-      timeoutMs: 15000,
+      timeoutMs: 8000, // Reduced from 15s — proxy.anikuro.ru can be slow, fail fast
     });
 
     const servers: AniKuroServer[] = results.map((r: any) => ({

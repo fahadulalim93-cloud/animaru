@@ -78,7 +78,17 @@ async function anichiFetch(url: string, options: RequestInit = {}): Promise<Resp
     headers["Referer"] = `${ANICHI_BASE}/`;
     headers["X-Requested-With"] = "XMLHttpRequest";
   }
-  return fetch(url, { ...options, headers, redirect: "follow" });
+  // Add 10s timeout to prevent dead server hangs
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(url, { ...options, headers, redirect: "follow", signal: controller.signal });
+    clearTimeout(timeout);
+    return res;
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
 }
 
 /**
@@ -95,9 +105,10 @@ export async function searchAniKoto(title: string): Promise<string | null> {
     const html = await res.text();
 
     // Collect ALL anime slugs from search results
+    // The site may use different domain patterns in hrefs: anichi.to, anikoto.pro, anikototv.to
     const slugs: string[] = [];
     const seen = new Set<string>();
-    const matches = html.matchAll(/href="https:\/\/anichi\.to\/anime\/([a-z0-9-]+)"/gi);
+    const matches = html.matchAll(/href="https?:\/\/(?:anichi\.to|anikoto\.pro|anikototv\.to|anikoto\.to)\/anime\/([a-z0-9-]+)"/gi);
     for (const m of matches) {
       const slug = m[1];
       if (seen.has(slug)) continue;

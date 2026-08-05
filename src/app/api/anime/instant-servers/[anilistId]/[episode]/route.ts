@@ -263,8 +263,8 @@ export async function GET(
       (async () => {
         try {
           const adResults = await withTimeout(
-            fetchAllAniDapSources(id, epNum, { sub: true, dub: true, timeoutMs: 15000 }).catch(() => []),
-            15000,
+            fetchAllAniDapSources(id, epNum, { sub: true, dub: true, timeoutMs: 12000 }).catch(() => []),
+            12000, // Reduced from 15s — AniDap should respond within 12s
             [],
           );
           if (adResults?.length) {
@@ -299,7 +299,7 @@ export async function GET(
       // AniPm (priority 5) — works for many anime (8-14 servers)
       (async () => {
         try {
-          const pm = await withTimeout(fetchAniPmSources(id, epNum, { sub: true, dub: true, timeoutMs: 15000 }).catch(() => []), 15000, []);
+          const pm = await withTimeout(fetchAniPmSources(id, epNum, { sub: true, dub: true, timeoutMs: 12000 }).catch(() => []), 12000, []);
           if (pm?.length) { let p = 5; let pmIdx = 0; for (const r of pm) { if (!r.streamUrl) continue; servers.push({ id: `anipm:${r.provider}:${r.type}`, name: `NP-${pmIdx+1}${r.type === "dub" ? " (Dub)" : ""}`, source: "anipm" as any, provider: r.provider, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: r.isEmbed, hardsub: r.hardsub, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://ani.pm/") }); pmIdx++; } }
         } catch {}
       })(),
@@ -345,8 +345,8 @@ export async function GET(
       (async () => {
         try {
           const lunaResults = await withTimeout(
-            fetchAllLunaSources(id, epNum, { timeoutMs: 15000 }).catch(() => []),
-            15000,
+            fetchAllLunaSources(id, epNum, { timeoutMs: 12000 }).catch(() => []),
+            12000,
             [],
           );
           if (lunaResults?.length) {
@@ -388,7 +388,7 @@ export async function GET(
         try {
           const usResults = await withTimeout(
             resolveUniqueStreamStreams(id, epNum, title).catch(() => []),
-            15000,
+            12000,
             [],
           );
           if (usResults?.length) {

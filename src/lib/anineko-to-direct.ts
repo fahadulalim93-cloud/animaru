@@ -48,6 +48,8 @@ export interface AninekoStreamResult {
  */
 async function aninekoFetch(url: string): Promise<string | null> {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout — prevent dead server hangs
     const res = await fetch(url, {
       headers: {
         "User-Agent": UA,
@@ -56,7 +58,9 @@ async function aninekoFetch(url: string): Promise<string | null> {
         "Accept-Encoding": "identity",
       },
       redirect: "follow",
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     if (!res.ok) return null;
     return await res.text();
   } catch {

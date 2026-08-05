@@ -163,9 +163,31 @@ export interface LunaVerifiedResult {
  */
 async function workerFetchJson<T = any>(
   url: string,
-  timeoutMs = 12000,
+  timeoutMs = 10000, // Reduced from 12s — fail fast on dead/slow servers
 ): Promise<T | null> {
   try {
+    // Try direct fetch first (faster, no proxy overhead)
+    // If CF blocks it (403/530), fall back to worker proxy
+    const directRes = await Promise.race([
+      fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": UA,
+          Origin: "https://luna-stream.me",
+          Referer: "https://luna-stream.me/",
+        },
+        cache: "no-store",
+      }),
+      new Promise<Response | null>(r => setTimeout(() => r(null), timeoutMs)),
+    ]);
+    if (directRes && directRes.ok) {
+      const text = await directRes.text();
+      if (text && !text.startsWith("<!DOCTYPE") && !text.startsWith("<html")) {
+        try { return JSON.parse(text) as T; } catch {}
+      }
+    }
+
+    // Fallback: worker proxy
     const wrapped = `${WORKER_BASE}/proxy?url=${encodeURIComponent(url)}&ref=${encodeURIComponent("https://luna-stream.me/")}`;
     const res = await Promise.race([
       fetch(wrapped, {
@@ -189,7 +211,7 @@ async function getLunaSources(
   anilistId: number,
   epNum: number,
   provider: LunaProvider,
-  timeoutMs = 12000,
+  timeoutMs = 10000, // Reduced from 12s
 ): Promise<LunaSourcesResponse | null> {
   const url = `${LUNA_API}/anime/${provider}/sources?id=${anilistId}&epNum=${epNum}`;
   return workerFetchJson<LunaSourcesResponse>(url, timeoutMs);

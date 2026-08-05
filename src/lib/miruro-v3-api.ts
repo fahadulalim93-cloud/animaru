@@ -21,7 +21,11 @@
 import { wrapM3u8Url, wrapM3u8UrlWithReferer, wrapStreamUrl } from "./proxy";
 
 // ─── Configuration ────────────────────────────────────────────────────────
+// PRIMARY: api.luffytv.online (dedicated V3 API)
+// FALLBACK: api.consumet.org (public Consumet API with Miruro provider)
+// The primary API may return CF 1033 (Argo tunnel down) — if so, we fall back.
 const MIRURO_V3_BASE = "https://api.luffytv.online";
+const MIRURO_V3_FALLBACK = "https://api.consumet.org";
 
 // Provider priority order (best quality/reliability first)
 const PROVIDER_PRIORITY = [
@@ -111,16 +115,34 @@ export async function fetchV3Episodes(anilistId: number): Promise<MiruroV3Episod
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "application/json",
       },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(8000), // Reduced from 15s — CF 1033 returns instantly, no need to wait
       cache: "no-store",
     });
     if (!res.ok) {
-      console.error(`[MiruroV3] episodes HTTP ${res.status} for anilistId=${anilistId}`);
+      // CF error 1033 = Argo Tunnel / origin server is DOWN
+      // CF 403 = Bot detection / challenge page
+      // CF 530 = Origin DNS error (ns binding issue)
+      const ct = res.headers.get("content-type") || "";
+      if (res.status === 403 || res.status === 530 || res.status === 1033 || ct.includes("text/html")) {
+        console.warn(`[MiruroV3] API server is DOWN (HTTP ${res.status}) — origin/Argo tunnel not bound. Skipping Miruro V3.`);
+      } else {
+        console.error(`[MiruroV3] episodes HTTP ${res.status} for anilistId=${anilistId}`);
+      }
       return null;
     }
-    return await res.json();
+    const data = await res.json();
+    if (!data?.providers) {
+      console.warn(`[MiruroV3] No providers in response — API may be misconfigured`);
+      return null;
+    }
+    return data;
   } catch (e: any) {
-    console.error(`[MiruroV3] fetchV3Episodes failed:`, e?.message || e);
+    // DNS resolution failure (ENOTFOUND) = ns binding issue
+    if (e?.cause?.code === "ENOTFOUND" || e?.message?.includes("ENOTFOUND")) {
+      console.warn(`[MiruroV3] DNS resolution failed (ns binding error) — ${MIRURO_V3_BASE} is unreachable`);
+    } else {
+      console.error(`[MiruroV3] fetchV3Episodes failed:`, e?.message || e);
+    }
     return null;
   }
 }
@@ -142,11 +164,16 @@ export async function fetchV3Watch(episodeId: string): Promise<MiruroV3WatchResp
         "Accept": "application/json",
         "Referer": "https://www.miruro.tv/",
       },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(10000), // Reduced from 15s — fail fast on dead servers
       cache: "no-store",
     });
     if (!res.ok) {
-      console.error(`[MiruroV3] watch HTTP ${res.status} for episodeId=${episodeId}`);
+      // CF errors (1033, 403, 530) = origin server down / ns binding issue
+      if (res.status === 403 || res.status === 530 || res.status === 1033) {
+        console.warn(`[MiruroV3] watch server DOWN (HTTP ${res.status}) for episodeId=${episodeId}`);
+      } else {
+        console.error(`[MiruroV3] watch HTTP ${res.status} for episodeId=${episodeId}`);
+      }
       return null;
     }
     return await res.json();
