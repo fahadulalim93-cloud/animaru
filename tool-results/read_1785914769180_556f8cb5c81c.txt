@@ -1,0 +1,1169 @@
+     1→/* ============================================
+     2→   Browse Page — Advanced Filtering & Grid
+     3→   Pure Black Edition
+     4→   ============================================ */
+     5→
+     6→/* ── Pure Black Design Tokens ── */
+     7→:root {
+     8→  --bg-base: #000000;
+     9→  --bg-glass: rgba(0, 0, 0, 0.65);
+    10→  --bg-input: #0a0a0a;
+    11→  --bg-elevated: #000000;
+    12→  --bg-hover: #161616;
+    13→
+    14→  --border-subtle: rgba(255, 255, 255, 0.04);
+    15→  --border-default: rgba(255, 255, 255, 0.08);
+    16→  --border-hover: rgba(255, 255, 255, 0.16);
+    17→
+    18→  --text-primary: #ffffff;
+    19→  --text-secondary: rgba(255, 255, 255, 0.70);
+    20→  --text-muted: rgba(255, 255, 255, 0.40);
+    21→  --text-dim: rgba(255, 255, 255, 0.20);
+    22→
+    23→  --accent: #3b82f6;
+    24→  --accent-dim: rgba(59, 130, 246, 0.15);
+    25→  --accent-dark: #2563eb;
+    26→
+    27→  --danger: #ef4444;
+    28→
+    29→  --radius-sm: 4px;
+    30→  --radius-md: 8px;
+    31→  --radius-lg: 12px;
+    32→  --radius-full: 999px;
+    33→
+    34→  --space-xs: 4px;
+    35→  --space-sm: 8px;
+    36→  --space-md: 12px;
+    37→  --space-lg: 16px;
+    38→  --space-xl: 24px;
+    39→  --space-2xl: 32px;
+    40→  --space-4xl: 64px;
+    41→
+    42→  --font-xs: 11px;
+    43→  --font-sm: 13px;
+    44→  --font-md: 15px;
+    45→  --font-xl: 20px;
+    46→
+    47→  --transition-fast: 0.15s ease;
+    48→  --transition-base: 0.25s ease;
+    49→
+    50→  --z-dropdown: 1000;
+    51→  --content-max-width: 1600px;
+    52→  --navbar-height: 64px;
+    53→
+    54→  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    55→  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    56→  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    57→  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
+    58→
+    59→  /* Backward-compat aliases (original CSS used gold names) */
+    60→  --accent-gold: var(--accent);
+    61→  --accent-gold-dim: var(--accent-dim);
+    62→  --accent-gold-dark: var(--accent-dark);
+    63→  --shadow-gold: 0 4px 20px rgba(59, 130, 246, 0.25);
+    64→}
+    65→
+    66→/* ============================================
+    67→   Page Container
+    68→   ============================================ */
+    69→.browse-page {
+    70→  padding-top: 0;
+    71→  min-height: 100vh;
+    72→  display: flex;
+    73→  flex-direction: column;
+    74→  background: #000000;
+    75→  width: 100%;
+    76→}
+    77→
+    78→/* ============================================
+    79→   Hero — global search + content-type tabs
+    80→   ============================================ */
+    81→.browse-hero {
+    82→  display: flex;
+    83→  flex-direction: column;
+    84→  align-items: center;
+    85→  gap: 20px;
+    86→  padding: 4px var(--space-md) 20px;
+    87→}
+    88→
+    89→.browse-hero-search {
+    90→  position: relative;
+    91→  display: flex;
+    92→  align-items: center;
+    93→  width: 100%;
+    94→  max-width: 640px;
+    95→}
+    96→
+    97→.browse-hero-search-icon {
+    98→  position: absolute;
+    99→  left: 20px;
+   100→  color: var(--text-muted);
+   101→  pointer-events: none;
+   102→}
+   103→
+   104→.browse-hero-search input {
+   105→  width: 100%;
+   106→  padding: 14px 20px 14px 50px;
+   107→  background: #0a0a0a;
+   108→  border: 1px solid rgba(255, 255, 255, 0.08);
+   109→  border-radius: 9999px;
+   110→  color: #fff;
+   111→  font-size: var(--font-md);
+   112→  transition: border-color var(--transition-fast);
+   113→}
+   114→
+   115→.browse-hero-search input::placeholder {
+   116→  color: var(--text-muted);
+   117→}
+   118→
+   119→.browse-hero-search input:focus {
+   120→  border-color: rgba(255, 255, 255, 0.25);
+   121→}
+   122→
+   123→/* Tab pill row itself now lives in the shared <BrowseTabs> component
+   124→   (browse-tabs.tsx, styled with Tailwind) so it can be reused on the
+   125→   Manga and Music pages too, outside this Browse-only stylesheet. */
+   126→
+   127→/* ============================================
+   128→   Top Filter Bar (below navbar)
+   129→   ============================================ */
+   130→.browse-top-bar {
+   131→  position: relative;
+   132→  z-index: 20;
+   133→  background: var(--bg-glass);
+   134→  backdrop-filter: blur(20px);
+   135→  -webkit-backdrop-filter: blur(20px);
+   136→  border-bottom: 1px solid var(--border-subtle);
+   137→  padding: 4px var(--space-md);
+   138→  display: flex;
+   139→  align-items: center;
+   140→  gap: var(--space-lg);
+   141→  flex-wrap: wrap;
+   142→  transition: box-shadow var(--transition-base);
+   143→}
+   144→
+   145→.browse-top-bar.scrolled {
+   146→  box-shadow: var(--shadow-lg);
+   147→}
+   148→
+   149→/* Genre Search Container */
+   150→.browse-genre-search {
+   151→  position: relative;
+   152→  flex: 1;
+   153→  min-width: 260px;
+   154→  max-width: 480px;
+   155→}
+   156→
+   157→.browse-genre-search-wrapper {
+   158→  position: relative;
+   159→  display: flex;
+   160→  align-items: center;
+   161→}
+   162→
+   163→.browse-genre-search-icon {
+   164→  position: absolute;
+   165→  left: var(--space-md);
+   166→  color: var(--text-muted);
+   167→  pointer-events: none;
+   168→  transition: color var(--transition-fast);
+   169→}
+   170→
+   171→.browse-genre-search-wrapper:focus-within .browse-genre-search-icon {
+   172→  color: var(--accent);
+   173→}
+   174→
+   175→.browse-genre-input {
+   176→  width: 100%;
+   177→  padding: var(--space-sm) var(--space-md) var(--space-sm) 40px;
+   178→  background: var(--bg-input);
+   179→  border: 1px solid var(--border-default);
+   180→  border-radius: var(--radius-md);
+   181→  color: var(--text-primary);
+   182→  font-size: var(--font-sm);
+   183→  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+   184→}
+   185→
+   186→.browse-genre-input::placeholder {
+   187→  color: var(--text-muted);
+   188→}
+   189→
+   190→.browse-genre-input:focus {
+   191→  border-color: var(--accent);
+   192→  box-shadow: 0 0 0 2px var(--accent-dim);
+   193→}
+   194→
+   195→/* Anime Search Input */
+   196→.browse-anime-search {
+   197→  position: relative;
+   198→  display: flex;
+   199→  align-items: center;
+   200→  flex: 1;
+   201→  min-width: 200px;
+   202→  max-width: 320px;
+   203→}
+   204→
+   205→.browse-anime-search-icon {
+   206→  position: absolute;
+   207→  left: var(--space-md);
+   208→  color: var(--text-muted);
+   209→  pointer-events: none;
+   210→  transition: color var(--transition-fast);
+   211→  z-index: 1;
+   212→}
+   213→
+   214→.browse-anime-search:focus-within .browse-anime-search-icon {
+   215→  color: var(--accent);
+   216→}
+   217→
+   218→.browse-anime-input {
+   219→  width: 100%;
+   220→  padding: var(--space-sm) var(--space-2xl) var(--space-sm) 40px;
+   221→  background: var(--bg-input);
+   222→  border: 1px solid var(--border-default);
+   223→  border-radius: var(--radius-md);
+   224→  color: var(--text-primary);
+   225→  font-size: var(--font-sm);
+   226→  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+   227→}
+   228→
+   229→.browse-anime-input::placeholder {
+   230→  color: var(--text-muted);
+   231→}
+   232→
+   233→.browse-anime-input:focus {
+   234→  border-color: var(--accent);
+   235→  box-shadow: 0 0 0 2px var(--accent-dim);
+   236→}
+   237→
+   238→.browse-clear-x {
+   239→  position: absolute;
+   240→  right: 10px;
+   241→  display: flex;
+   242→  align-items: center;
+   243→  justify-content: center;
+   244→  color: var(--text-muted);
+   245→  cursor: pointer;
+   246→  background: none;
+   247→  border: none;
+   248→  padding: 2px;
+   249→  transition: color var(--transition-fast);
+   250→}
+   251→
+   252→.browse-clear-x:hover {
+   253→  color: var(--text-primary);
+   254→}
+   255→
+   256→
+   257→/* Genre Dropdown */
+   258→.browse-genre-dropdown {
+   259→  position: absolute;
+   260→  top: calc(100% + var(--space-xs));
+   261→  left: 0;
+   262→  right: 0;
+   263→  max-height: 280px;
+   264→  overflow-y: auto;
+   265→  background: #050505;
+   266→  backdrop-filter: blur(24px);
+   267→  -webkit-backdrop-filter: blur(24px);
+   268→  border: 1px solid var(--border-default);
+   269→  border-radius: var(--radius-md);
+   270→  box-shadow: var(--shadow-xl);
+   271→  z-index: var(--z-dropdown);
+   272→  animation: fadeInDown 0.2s ease;
+   273→  padding: var(--space-xs) 0;
+   274→}
+   275→
+   276→.browse-genre-option {
+   277→  display: flex;
+   278→  align-items: center;
+   279→  gap: var(--space-sm);
+   280→  padding: var(--space-sm) var(--space-md);
+   281→  font-size: var(--font-sm);
+   282→  color: var(--text-secondary);
+   283→  cursor: pointer;
+   284→  transition: all var(--transition-fast);
+   285→  user-select: none;
+   286→}
+   287→
+   288→.browse-genre-option:hover {
+   289→  background: var(--bg-hover);
+   290→  color: var(--text-primary);
+   291→}
+   292→
+   293→.browse-genre-option.selected {
+   294→  color: var(--accent);
+   295→  background: var(--accent-dim);
+   296→}
+   297→
+   298→.browse-genre-option-check {
+   299→  width: 16px;
+   300→  height: 16px;
+   301→  border-radius: var(--radius-sm);
+   302→  border: 1.5px solid var(--border-default);
+   303→  display: flex;
+   304→  align-items: center;
+   305→  justify-content: center;
+   306→  flex-shrink: 0;
+   307→  transition: all var(--transition-fast);
+   308→}
+   309→
+   310→.browse-genre-option.selected .browse-genre-option-check {
+   311→  background: var(--accent);
+   312→  border-color: var(--accent);
+   313→}
+   314→
+   315→.browse-genre-option-check svg {
+   316→  width: 10px;
+   317→  height: 10px;
+   318→  color: #fff;
+   319→  opacity: 0;
+   320→  transition: opacity var(--transition-fast);
+   321→}
+   322→
+   323→.browse-genre-option.selected .browse-genre-option-check svg {
+   324→  opacity: 1;
+   325→}
+   326→
+   327→.browse-genre-no-results {
+   328→  padding: var(--space-md);
+   329→  text-align: center;
+   330→  color: var(--text-muted);
+   331→  font-size: var(--font-sm);
+   332→}
+   333→
+   334→/* Genre Pills */
+   335→.browse-genre-pills {
+   336→  display: flex;
+   337→  flex-wrap: wrap;
+   338→  gap: var(--space-xs);
+   339→  margin-top: var(--space-xs);
+   340→}
+   341→
+   342→.browse-genre-pill {
+   343→  display: inline-flex;
+   344→  align-items: center;
+   345→  gap: 4px;
+   346→  padding: 3px 10px;
+   347→  border-radius: var(--radius-full);
+   348→  font-size: var(--font-xs);
+   349→  font-weight: 500;
+   350→  background: var(--accent-dim);
+   351→  border: 1px solid var(--accent);
+   352→  color: var(--accent);
+   353→  animation: scaleIn 0.2s ease;
+   354→  transition: all var(--transition-fast);
+   355→}
+   356→
+   357→.browse-genre-pill:hover {
+   358→  background: var(--accent);
+   359→  color: #fff;
+   360→}
+   361→
+   362→.browse-genre-pill-remove {
+   363→  display: flex;
+   364→  align-items: center;
+   365→  justify-content: center;
+   366→  cursor: pointer;
+   367→  opacity: 0.7;
+   368→  transition: opacity var(--transition-fast);
+   369→  padding: 0;
+   370→  background: none;
+   371→  border: none;
+   372→  color: inherit;
+   373→  line-height: 1;
+   374→}
+   375→
+   376→.browse-genre-pill-remove:hover {
+   377→  opacity: 1;
+   378→}
+   379→
+   380→/* Sort & Year Selects */
+   381→.browse-select-group {
+   382→  display: flex;
+   383→  align-items: center;
+   384→  gap: var(--space-sm);
+   385→}
+   386→
+   387→.browse-select-label {
+   388→  font-size: var(--font-xs);
+   389→  color: var(--text-muted);
+   390→  text-transform: uppercase;
+   391→  letter-spacing: 1px;
+   392→  white-space: nowrap;
+   393→  font-weight: 600;
+   394→}
+   395→
+   396→.browse-select {
+   397→  padding: var(--space-sm) var(--space-2xl) var(--space-sm) var(--space-md);
+   398→  background: var(--bg-input);
+   399→  border: 1px solid var(--border-default);
+   400→  border-radius: var(--radius-md);
+   401→  color: var(--text-primary);
+   402→  font-size: var(--font-sm);
+   403→  min-width: 140px;
+   404→  cursor: pointer;
+   405→  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+   406→}
+   407→
+   408→.browse-select:hover {
+   409→  border-color: var(--border-hover);
+   410→}
+   411→
+   412→.browse-select:focus {
+   413→  border-color: var(--accent);
+   414→  box-shadow: 0 0 0 2px var(--accent-dim);
+   415→}
+   416→
+   417→/* ============================================
+   418→   Content Layout (Main + Sidebar)
+   419→   ============================================ */
+   420→.browse-content {
+   421→  display: flex;
+   422→  gap: 0;
+   423→  flex: 1;
+   424→  max-width: 100%;
+   425→  margin: 0 auto;
+   426→  width: 100%;
+   427→  padding: 0 var(--space-md);
+   428→  align-items: flex-start;
+   429→}
+   430→
+   431→/* ============================================
+   432→   Main Content Area
+   433→   ============================================ */
+   434→.browse-main {
+   435→  flex: 1;
+   436→  min-width: 0;
+   437→  padding: var(--space-sm) 0 var(--space-sm) var(--space-sm);
+   438→}
+   439→
+   440→.browse-results-header {
+   441→  display: flex;
+   442→  align-items: center;
+   443→  justify-content: space-between;
+   444→  margin-bottom: var(--space-sm);
+   445→  padding-bottom: 4px;
+   446→  border-bottom: 1px solid var(--border-subtle);
+   447→}
+   448→
+   449→.browse-results-count {
+   450→  font-size: var(--font-sm);
+   451→  color: var(--text-secondary);
+   452→  letter-spacing: 0.3px;
+   453→}
+   454→
+   455→.browse-results-count span {
+   456→  color: var(--accent);
+   457→  font-weight: 600;
+   458→}
+   459→
+   460→.browse-active-filters-label {
+   461→  font-size: var(--font-xs);
+   462→  color: var(--text-muted);
+   463→  text-transform: uppercase;
+   464→  letter-spacing: 1px;
+   465→}
+   466→
+   467→/* Results Grid */
+   468→.browse-results-grid {
+   469→  display: grid;
+   470→  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+   471→  gap: 8px;
+   472→  animation: fadeIn 0.4s ease;
+   473→}
+   474→
+   475→/* Skeleton Grid */
+   476→.browse-skeleton-grid {
+   477→  display: grid;
+   478→  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+   479→  gap: 8px;
+   480→}
+   481→
+   482→.browse-skeleton-card {
+   483→  aspect-ratio: 3/4;
+   484→  border-radius: var(--radius-lg);
+   485→  background: linear-gradient(
+   486→    90deg,
+   487→    var(--bg-elevated) 25%,
+   488→    var(--bg-hover) 50%,
+   489→    var(--bg-elevated) 75%
+   490→  );
+   491→  background-size: 200% 100%;
+   492→  animation: shimmer 1.5s ease-in-out infinite;
+   493→}
+   494→
+   495→/* No Results */
+   496→.browse-no-results {
+   497→  display: flex;
+   498→  flex-direction: column;
+   499→  align-items: center;
+   500→  justify-content: center;
+   501→  padding: var(--space-4xl) var(--space-xl);
+   502→  text-align: center;
+   503→  gap: var(--space-lg);
+   504→  animation: fadeIn 0.5s ease;
+   505→}
+   506→
+   507→.browse-no-results-icon {
+   508→  color: var(--text-dim);
+   509→  opacity: 0.4;
+   510→}
+   511→
+   512→.browse-no-results-title {
+   513→  font-size: var(--font-xl);
+   514→  font-weight: 600;
+   515→  color: var(--text-secondary);
+   516→}
+   517→
+   518→.browse-no-results-text {
+   519→  font-size: var(--font-sm);
+   520→  color: var(--text-muted);
+   521→  max-width: 400px;
+   522→  line-height: 1.6;
+   523→}
+   524→
+   525→.browse-clear-filters-btn {
+   526→  display: inline-flex;
+   527→  align-items: center;
+   528→  gap: var(--space-sm);
+   529→  padding: var(--space-sm) var(--space-lg);
+   530→  border-radius: var(--radius-md);
+   531→  font-size: var(--font-sm);
+   532→  font-weight: 600;
+   533→  background: var(--accent-dim);
+   534→  border: 1px solid var(--accent);
+   535→  color: var(--accent);
+   536→  cursor: pointer;
+   537→  transition: all var(--transition-base);
+   538→}
+   539→
+   540→.browse-clear-filters-btn:hover {
+   541→  background: var(--accent);
+   542→  color: #fff;
+   543→  transform: translateY(-1px);
+   544→  box-shadow: var(--shadow-gold);
+   545→}
+   546→
+   547→/* ============================================
+   548→   Pagination
+   549→   ============================================ */
+   550→.browse-pagination {
+   551→  display: flex;
+   552→  align-items: center;
+   553→  justify-content: center;
+   554→  gap: var(--space-sm);
+   555→  padding: var(--space-2xl) 0 var(--space-xl);
+   556→  flex-wrap: wrap;
+   557→}
+   558→
+   559→.browse-pagination-btn {
+   560→  display: flex;
+   561→  align-items: center;
+   562→  justify-content: center;
+   563→  min-width: 40px;
+   564→  height: 40px;
+   565→  padding: 0 var(--space-md);
+   566→  border-radius: var(--radius-md);
+   567→  font-size: var(--font-sm);
+   568→  font-weight: 500;
+   569→  color: var(--text-secondary);
+   570→  background: var(--bg-elevated);
+   571→  border: 1px solid var(--border-default);
+   572→  cursor: pointer;
+   573→  transition: all var(--transition-base);
+   574→  user-select: none;
+   575→}
+   576→
+   577→.browse-pagination-btn:hover:not(:disabled):not(.active) {
+   578→  border-color: var(--border-hover);
+   579→  background: var(--bg-hover);
+   580→  color: var(--text-primary);
+   581→  transform: translateY(-1px);
+   582→}
+   583→
+   584→.browse-pagination-btn.active {
+   585→  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+   586→  border-color: var(--accent);
+   587→  color: #fff;
+   588→  font-weight: 700;
+   589→  box-shadow: var(--shadow-gold);
+   590→}
+   591→
+   592→.browse-pagination-btn:disabled {
+   593→  opacity: 0.35;
+   594→  cursor: not-allowed;
+   595→  transform: none;
+   596→}
+   597→
+   598→.browse-pagination-ellipsis {
+   599→  color: var(--text-muted);
+   600→  font-size: var(--font-sm);
+   601→  padding: 0 var(--space-xs);
+   602→  user-select: none;
+   603→}
+   604→
+   605→.browse-pagination-nav {
+   606→  display: flex;
+   607→  align-items: center;
+   608→  gap: 8px;
+   609→  font-size: var(--font-sm);
+   610→}
+   611→
+   612→/* ============================================
+   613→   Sidebar Filters
+   614→   ============================================ */
+   615→.browse-filters-sidebar {
+   616→  width: 220px;
+   617→  flex-shrink: 0;
+   618→  padding: var(--space-sm) var(--space-sm) var(--space-sm) 0;
+   619→  border-right: 1px solid var(--border-subtle);
+   620→}
+   621→
+   622→/* Custom scrollbar for sticky sidebar */
+   623→.browse-filters-sidebar::-webkit-scrollbar {
+   624→  width: 4px;
+   625→}
+   626→
+   627→.browse-filters-sidebar::-webkit-scrollbar-track {
+   628→  background: transparent;
+   629→}
+   630→
+   631→.browse-filters-sidebar::-webkit-scrollbar-thumb {
+   632→  background: var(--border-default);
+   633→  border-radius: var(--radius-full);
+   634→}
+   635→
+   636→.browse-filters-sidebar::-webkit-scrollbar-thumb:hover {
+   637→  background: var(--accent);
+   638→}
+   639→
+   640→.browse-sidebar-title {
+   641→  display: flex;
+   642→  align-items: center;
+   643→  gap: var(--space-sm);
+   644→  font-size: var(--font-md);
+   645→  font-weight: 700;
+   646→  color: var(--text-primary);
+   647→  margin-bottom: var(--space-sm);
+   648→  letter-spacing: 0.5px;
+   649→}
+   650→
+   651→.browse-sidebar-title svg {
+   652→  color: var(--accent);
+   653→}
+   654→
+   655→.browse-filter-section {
+   656→  margin-bottom: var(--space-sm);
+   657→}
+   658→
+   659→.browse-filter-label {
+   660→  font-size: var(--font-xs);
+   661→  font-weight: 700;
+   662→  color: var(--text-muted);
+   663→  text-transform: uppercase;
+   664→  letter-spacing: 1.5px;
+   665→  margin-bottom: var(--space-md);
+   666→}
+   667→
+   668→.browse-filter-options {
+   669→  display: flex;
+   670→  flex-wrap: wrap;
+   671→  gap: var(--space-sm);
+   672→}
+   673→
+   674→.browse-filter-btn {
+   675→  padding: var(--space-xs) var(--space-md);
+   676→  border-radius: var(--radius-md);
+   677→  font-size: var(--font-xs);
+   678→  font-weight: 500;
+   679→  color: var(--text-secondary);
+   680→  background: var(--bg-elevated);
+   681→  border: 1px solid var(--border-default);
+   682→  cursor: pointer;
+   683→  transition: all var(--transition-base);
+   684→  white-space: nowrap;
+   685→  letter-spacing: 0.3px;
+   686→}
+   687→
+   688→.browse-filter-btn:hover {
+   689→  border-color: var(--border-hover);
+   690→  background: var(--bg-hover);
+   691→  color: var(--text-primary);
+   692→}
+   693→
+   694→.browse-filter-btn.active {
+   695→  background: var(--accent-dim);
+   696→  border-color: var(--accent);
+   697→  color: var(--accent);
+   698→  box-shadow: 0 0 12px var(--accent-dim);
+   699→}
+   700→
+   701→.browse-filter-btn.active:hover {
+   702→  background: var(--accent);
+   703→  color: #fff;
+   704→}
+   705→
+   706→/* Clear All Sidebar Button */
+   707→.browse-sidebar-clear {
+   708→  width: 100%;
+   709→  padding: var(--space-sm) var(--space-md);
+   710→  border-radius: var(--radius-md);
+   711→  font-size: var(--font-xs);
+   712→  font-weight: 600;
+   713→  color: var(--text-muted);
+   714→  background: transparent;
+   715→  border: 1px dashed var(--border-default);
+   716→  cursor: pointer;
+   717→  transition: all var(--transition-base);
+   718→  text-transform: uppercase;
+   719→  letter-spacing: 1px;
+   720→  margin-top: var(--space-md);
+   721→}
+   722→
+   723→.browse-sidebar-clear:hover {
+   724→  border-color: var(--danger);
+   725→  color: var(--danger);
+   726→  background: rgba(239, 68, 68, 0.08);
+   727→}
+   728→
+   729→/* ============================================
+   730→   Anime Card (browse-specific)
+   731→   ============================================ */
+   732→.browse-anime-card {
+   733→  cursor: pointer;
+   734→  transition: transform var(--transition-base);
+   735→  background: transparent;
+   736→  border: none;
+   737→  padding: 0;
+   738→  text-align: left;
+   739→  font: inherit;
+   740→  display: block;
+   741→  width: 100%;
+   742→}
+   743→
+   744→.browse-anime-card:hover {
+   745→  transform: translateY(-4px);
+   746→}
+   747→
+   748→.browse-anime-card-poster {
+   749→  position: relative;
+   750→  aspect-ratio: 3/4;
+   751→  border-radius: var(--radius-lg);
+   752→  overflow: hidden;
+   753→  background: var(--bg-elevated);
+   754→  border: 1px solid var(--border-default);
+   755→  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+   756→}
+   757→
+   758→.browse-anime-card:hover .browse-anime-card-poster {
+   759→  border-color: var(--accent);
+   760→  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
+   761→}
+   762→
+   763→.browse-anime-card-poster img {
+   764→  width: 100%;
+   765→  height: 100%;
+   766→  object-fit: cover;
+   767→  transition: transform var(--transition-base);
+   768→}
+   769→
+   770→.browse-anime-card:hover .browse-anime-card-poster img {
+   771→  transform: scale(1.05);
+   772→}
+   773→
+   774→.browse-anime-card-score {
+   775→  position: absolute;
+   776→  top: var(--space-sm);
+   777→  left: var(--space-sm);
+   778→  padding: 3px 8px;
+   779→  background: rgba(0, 0, 0, 0.85);
+   780→  backdrop-filter: blur(8px);
+   781→  border-radius: var(--radius-sm);
+   782→  font-size: var(--font-xs);
+   783→  font-weight: 700;
+   784→  color: #fbbf24;
+   785→  display: flex;
+   786→  align-items: center;
+   787→  gap: 3px;
+   788→}
+   789→
+   790→.browse-anime-card-format {
+   791→  position: absolute;
+   792→  top: var(--space-sm);
+   793→  right: var(--space-sm);
+   794→  padding: 3px 8px;
+   795→  background: rgba(0, 0, 0, 0.85);
+   796→  backdrop-filter: blur(8px);
+   797→  border-radius: var(--radius-sm);
+   798→  font-size: 9px;
+   799→  font-weight: 700;
+   800→  color: var(--text-primary);
+   801→  text-transform: uppercase;
+   802→  letter-spacing: 0.5px;
+   803→  transition: opacity var(--transition-fast);
+   804→}
+   805→
+   806→.browse-anime-card:hover .browse-anime-card-format {
+   807→  opacity: 0;
+   808→}
+   809→
+   810→/* "+" add-to-list — fades in on hover, same spot the format badge fades out of */
+   811→.browse-anime-card-add {
+   812→  position: absolute;
+   813→  top: var(--space-sm);
+   814→  right: var(--space-sm);
+   815→  width: 26px;
+   816→  height: 26px;
+   817→  border-radius: 999px;
+   818→  background: rgba(0, 0, 0, 0.7);
+   819→  backdrop-filter: blur(8px);
+   820→  border: 1px solid rgba(255, 255, 255, 0.15);
+   821→  color: #fff;
+   822→  display: flex;
+   823→  align-items: center;
+   824→  justify-content: center;
+   825→  opacity: 0;
+   826→  transition: opacity var(--transition-fast), background var(--transition-fast);
+   827→  z-index: 2;
+   828→}
+   829→
+   830→.browse-anime-card:hover .browse-anime-card-add {
+   831→  opacity: 1;
+   832→}
+   833→
+   834→.browse-anime-card-add:hover {
+   835→  background: rgba(255, 255, 255, 0.2);
+   836→}
+   837→
+   838→.browse-anime-card-info {
+   839→  padding: var(--space-sm) 2px 0;
+   840→}
+   841→
+   842→.browse-anime-card-title {
+   843→  font-size: var(--font-sm);
+   844→  font-weight: 600;
+   845→  color: var(--text-primary);
+   846→  margin: 0 0 4px;
+   847→  overflow: hidden;
+   848→  text-overflow: ellipsis;
+   849→  display: -webkit-box;
+   850→  -webkit-line-clamp: 2;
+   851→  line-clamp: 2;
+   852→  -webkit-box-orient: vertical;
+   853→  line-height: 1.3;
+   854→  min-height: 34px;
+   855→  transition: color var(--transition-fast);
+   856→}
+   857→
+   858→.browse-anime-card:hover .browse-anime-card-title {
+   859→  color: var(--accent);
+   860→}
+   861→
+   862→.browse-anime-card-meta {
+   863→  display: flex;
+   864→  align-items: center;
+   865→  gap: 6px;
+   866→  font-size: var(--font-xs);
+   867→  color: var(--text-muted);
+   868→}
+   869→
+   870→.browse-anime-card-meta-dot {
+   871→  width: 3px;
+   872→  height: 3px;
+   873→  border-radius: 50%;
+   874→  background: var(--text-dim);
+   875→}
+   876→
+   877→/* ============================================
+   878→   Mobile Sidebar Toggle
+   879→   ============================================ */
+   880→.browse-mobile-filter-toggle {
+   881→  display: none;
+   882→  align-items: center;
+   883→  gap: var(--space-sm);
+   884→  padding: var(--space-sm) var(--space-lg);
+   885→  border-radius: var(--radius-full);
+   886→  font-size: var(--font-sm);
+   887→  font-weight: 600;
+   888→  color: var(--text-secondary);
+   889→  background: #000000;
+   890→  border: 1px solid var(--border-default);
+   891→  cursor: pointer;
+   892→  transition: all var(--transition-base);
+   893→}
+   894→
+   895→.browse-mobile-filter-toggle:hover {
+   896→  border-color: var(--accent);
+   897→  color: var(--accent);
+   898→}
+   899→
+   900→.browse-mobile-filter-toggle .filter-count {
+   901→  background: var(--accent);
+   902→  color: #fff;
+   903→  font-size: 10px;
+   904→  font-weight: 700;
+   905→  border-radius: var(--radius-full);
+   906→  width: 18px;
+   907→  height: 18px;
+   908→  display: flex;
+   909→  align-items: center;
+   910→  justify-content: center;
+   911→}
+   912→
+   913→/* ============================================
+   914→   Animations
+   915→   ============================================ */
+   916→@keyframes fadeIn {
+   917→  from { opacity: 0; }
+   918→  to { opacity: 1; }
+   919→}
+   920→
+   921→@keyframes fadeInDown {
+   922→  from {
+   923→    opacity: 0;
+   924→    transform: translateY(-8px);
+   925→  }
+   926→  to {
+   927→    opacity: 1;
+   928→    transform: translateY(0);
+   929→  }
+   930→}
+   931→
+   932→@keyframes scaleIn {
+   933→  from {
+   934→    opacity: 0;
+   935→    transform: scale(0.85);
+   936→  }
+   937→  to {
+   938→    opacity: 1;
+   939→    transform: scale(1);
+   940→  }
+   941→}
+   942→
+   943→@keyframes shimmer {
+   944→  0% { background-position: 200% 0; }
+   945→  100% { background-position: -200% 0; }
+   946→}
+   947→
+   948→/* ============================================
+   949→   Responsive Styles
+   950→   ============================================ */
+   951→@media (max-width: 1024px) {
+   952→  .browse-content {
+   953→    flex-direction: column;
+   954→    padding: 0 var(--space-lg);
+   955→  }
+   956→
+   957→  .browse-main {
+   958→    padding: var(--space-lg) 0;
+   959→  }
+   960→
+   961→  .browse-filters-sidebar {
+   962→    width: 100%;
+   963→    position: static;
+   964→    max-height: none;
+   965→    border-right: none;
+   966→    border-top: 1px solid var(--border-subtle);
+   967→    padding: var(--space-lg) 0 0 0;
+   968→    overflow-y: visible;
+   969→    overflow-x: auto;
+   970→    order: -1;
+   971→  }
+   972→
+   973→  .browse-filter-options {
+   974→    flex-wrap: nowrap;
+   975→    overflow-x: auto;
+   976→    padding-bottom: var(--space-sm);
+   977→    -ms-overflow-style: none;
+   978→    scrollbar-width: none;
+   979→  }
+   980→
+   981→  .browse-filter-options::-webkit-scrollbar {
+   982→    display: none;
+   983→  }
+   984→
+   985→  .browse-mobile-filter-toggle {
+   986→    display: inline-flex;
+   987→  }
+   988→
+   989→  .browse-filters-sidebar.collapsed {
+   990→    display: none;
+   991→  }
+   992→
+   993→  .browse-results-grid {
+   994→    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+   995→    gap: var(--space-lg);
+   996→  }
+   997→
+   998→  .browse-skeleton-grid {
+   999→    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  1000→    gap: var(--space-lg);
+  1001→  }
+  1002→}
+  1003→
+  1004→@media (max-width: 768px) {
+  1005→  .browse-top-bar {
+  1006→    padding: var(--space-sm) var(--space-lg);
+  1007→    gap: var(--space-sm);
+  1008→    flex-direction: column;
+  1009→    align-items: stretch;
+  1010→  }
+  1011→
+  1012→  .browse-genre-search {
+  1013→    max-width: 100%;
+  1014→    min-width: unset;
+  1015→  }
+  1016→
+  1017→  .browse-select-group {
+  1018→    flex: 1;
+  1019→  }
+  1020→
+  1021→  .browse-select {
+  1022→    flex: 1;
+  1023→    min-width: 0;
+  1024→  }
+  1025→
+  1026→  .browse-results-grid {
+  1027→    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  1028→    gap: var(--space-md);
+  1029→  }
+  1030→
+  1031→  .browse-skeleton-grid {
+  1032→    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  1033→    gap: var(--space-md);
+  1034→  }
+  1035→
+  1036→  .browse-pagination {
+  1037→    gap: var(--space-xs);
+  1038→  }
+  1039→
+  1040→  .browse-pagination-btn {
+  1041→    min-width: 36px;
+  1042→    height: 36px;
+  1043→    font-size: var(--font-xs);
+  1044→  }
+  1045→}
+  1046→
+  1047→@media (max-width: 480px) {
+  1048→  .browse-content {
+  1049→    padding: 0 var(--space-md);
+  1050→  }
+  1051→
+  1052→  .browse-results-grid {
+  1053→    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  1054→    gap: var(--space-md);
+  1055→  }
+  1056→
+  1057→  .browse-skeleton-grid {
+  1058→    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  1059→    gap: var(--space-md);
+  1060→  }
+  1061→}
+  1062→
+  1063→/* Custom Sort/Year Dropdown Styles */
+  1064→.browse-custom-dropdown {
+  1065→  position: relative;
+  1066→  display: flex;
+  1067→  align-items: center;
+  1068→  gap: var(--space-sm);
+  1069→}
+  1070→
+  1071→.browse-custom-dropdown-btn {
+  1072→  display: flex;
+  1073→  align-items: center;
+  1074→  justify-content: space-between;
+  1075→  gap: var(--space-md);
+  1076→  padding: var(--space-sm) var(--space-lg);
+  1077→  background: #000000;
+  1078→  border: 1px solid var(--border-default);
+  1079→  border-radius: var(--radius-full);
+  1080→  color: var(--text-primary);
+  1081→  font-size: var(--font-sm);
+  1082→  min-width: 150px;
+  1083→  cursor: pointer;
+  1084→  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  1085→  white-space: nowrap;
+  1086→}
+  1087→
+  1088→.browse-custom-dropdown-btn:hover {
+  1089→  border-color: var(--accent);
+  1090→}
+  1091→
+  1092→.browse-custom-dropdown-btn.active {
+  1093→  border-color: var(--accent);
+  1094→  box-shadow: 0 0 0 2px var(--accent-dim);
+  1095→}
+  1096→
+  1097→.browse-custom-dropdown-chevron {
+  1098→  color: var(--text-muted);
+  1099→  transition: transform var(--transition-fast);
+  1100→  flex-shrink: 0;
+  1101→}
+  1102→
+  1103→.browse-custom-dropdown-btn.active .browse-custom-dropdown-chevron {
+  1104→  transform: rotate(180deg);
+  1105→  color: var(--accent);
+  1106→}
+  1107→
+  1108→.browse-custom-dropdown-menu {
+  1109→  position: absolute;
+  1110→  top: calc(100% + var(--space-xs));
+  1111→  right: 0;
+  1112→  min-width: 180px;
+  1113→  max-height: 280px;
+  1114→  overflow-y: auto;
+  1115→  background: #050505;
+  1116→  backdrop-filter: blur(24px);
+  1117→  -webkit-backdrop-filter: blur(24px);
+  1118→  border: 1px solid var(--border-default);
+  1119→  border-radius: var(--radius-md);
+  1120→  box-shadow: var(--shadow-xl);
+  1121→  z-index: var(--z-dropdown);
+  1122→  animation: fadeInDown 0.2s ease;
+  1123→  padding: var(--space-xs) 0;
+  1124→}
+  1125→
+  1126→.browse-custom-dropdown-menu::-webkit-scrollbar {
+  1127→  width: 4px;
+  1128→}
+  1129→
+  1130→.browse-custom-dropdown-menu::-webkit-scrollbar-thumb {
+  1131→  background: var(--border-hover);
+  1132→  border-radius: var(--radius-full);
+  1133→}
+  1134→
+  1135→.browse-custom-dropdown-menu--year {
+  1136→  min-width: 140px;
+  1137→}
+  1138→
+  1139→.browse-custom-dropdown-option {
+  1140→  display: flex;
+  1141→  align-items: center;
+  1142→  gap: var(--space-sm);
+  1143→  padding: var(--space-sm) var(--space-md);
+  1144→  font-size: var(--font-sm);
+  1145→  color: var(--text-secondary);
+  1146→  cursor: pointer;
+  1147→  transition: all var(--transition-fast);
+  1148→  user-select: none;
+  1149→}
+  1150→
+  1151→.browse-custom-dropdown-option:hover {
+  1152→  background: var(--bg-hover);
+  1153→  color: var(--text-primary);
+  1154→}
+  1155→
+  1156→.browse-custom-dropdown-option.selected {
+  1157→  color: var(--accent);
+  1158→  background: var(--accent-dim);
+  1159→}
+  1160→
+  1161→.browse-custom-dropdown-option.selected .browse-genre-option-check {
+  1162→  background: var(--accent);
+  1163→  border-color: var(--accent);
+  1164→}
+  1165→
+  1166→.browse-custom-dropdown-option.selected .browse-genre-option-check svg {
+  1167→  opacity: 1;
+  1168→}
+  1169→

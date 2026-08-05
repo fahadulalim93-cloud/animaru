@@ -1,0 +1,1108 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useState, useRef, useEffect } from "react";
+     4→     4→import { useAppStore } from "./store";
+     5→     5→
+     6→     6→// ============================================================
+     7→     7→// WatchPageShell — Miruro-inspired watch layout
+     8→     8→//
+     9→     9→// Layout:
+    10→    10→//   Left  (~70%): Player → Toggles bar → Episode title + meta +
+    11→    11→//                 audio/server dropdowns → Episode synopsis →
+    12→    12→//                 Anime info card → Comments
+    13→    13→//   Right (~30%): Episode sidebar (spoiler blur, 1-100 pages,
+    14→    14→//                 filter, next-ep countdown footer) → RELATED →
+    15→    15→//                 RECOMMENDATIONS
+    16→    16→//
+    17→    17→// Accent: purple (#A78BFA / #7C3AED) — matches episode active state
+    18→    18→// ============================================================
+    19→    19→
+    20→    20→const ACCENT = "#A78BFA";
+    21→    21→const ACCENT_SOLID = "#7C3AED";
+    22→    22→
+    23→    23→// ─── Tiny dropdown (click to open, backdrop to close) ───────────
+    24→    24→function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
+    25→    25→  label?: string;
+    26→    26→  value: string;
+    27→    27→  options: Array<{ id: string; label: string }>;
+    28→    28→  onChange: (id: string) => void;
+    29→    29→  disabledIds?: string[];
+    30→    30→}) {
+    31→    31→  const [open, setOpen] = useState(false);
+    32→    32→  const current = options.find(o => o.id === value);
+    33→    33→  return (
+    34→    34→    <div className="relative">
+    35→    35→      <button
+    36→    36→        onClick={() => setOpen(!open)}
+    37→    37→        className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-white/85 transition-all"
+    38→    38→      >
+    39→    39→        {label && <span className="text-[9px] font-bold text-white/35 uppercase tracking-wider">{label}</span>}
+    40→    40→        <span className="max-w-[110px] truncate">{current?.label || value || "—"}</span>
+    41→    41→        <svg className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
+    42→    42→      </button>
+    43→    43→      {open && (
+    44→    44→        <>
+    45→    45→          <button className="fixed inset-0 z-30 cursor-default" onClick={() => setOpen(false)} aria-label="Close menu" />
+    46→    46→          <div className="absolute top-full right-0 mt-1 bg-[#0a0a0a] border border-white/15 rounded-lg overflow-hidden min-w-[140px] py-1 shadow-2xl z-40 max-h-[280px] overflow-y-auto">
+    47→    47→            {options.map(o => {
+    48→    48→              const disabled = disabledIds.includes(o.id);
+    49→    49→              return (
+    50→    50→                <button
+    51→    51→                  key={o.id}
+    52→    52→                  disabled={disabled}
+    53→    53→                  onClick={() => { if (!disabled) { onChange(o.id); setOpen(false); } }}
+    54→    54→                  className={`block w-full text-left px-3 py-2 text-xs transition-colors ${o.id === value ? "font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
+    55→    55→                  style={o.id === value ? { color: ACCENT } : undefined}
+    56→    56→                >
+    57→    57→                  {o.label}
+    58→    58→                </button>
+    59→    59→              );
+    60→    60→            })}
+    61→    61→          </div>
+    62→    62→        </>
+    63→    63→      )}
+    64→    64→    </div>
+    65→    65→  );
+    66→    66→}
+    67→    67→
+    68→    68→// ─── Checkbox toggle (purple squares like Miruro) ────────────────
+    69→    69→function ToggleCheck({ label, state, onToggle }: { label: string; state: boolean; onToggle: () => void }) {
+    70→    70→  return (
+    71→    71→    <button onClick={onToggle} className="flex items-center gap-1.5 group shrink-0">
+    72→    72→      <div
+    73→    73→        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${state ? "" : "bg-transparent border-white/20 group-hover:border-white/40"}`}
+    74→    74→        style={state ? { background: ACCENT, borderColor: ACCENT } : undefined}
+    75→    75→      >
+    76→    76→        {state && <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+    77→    77→      </div>
+    78→    78→      <span className={`text-xs font-medium transition-colors ${state ? "" : "text-white/40 group-hover:text-white/70"}`} style={state ? { color: ACCENT } : undefined}>{label}</span>
+    79→    79→    </button>
+    80→    80→  );
+    81→    81→}
+    82→    82→
+    83→    83→// ─── Sidebar media card (RELATED / RECOMMENDATIONS lists) ────────
+    84→    84→function SideMediaCard({ item, subtitle, navigate }: { item: any; subtitle?: string; navigate: (r: any) => void }) {
+    85→    85→  const title = item.title?.english || item.title?.romaji || item.title?.native || "Unknown";
+    86→    86→  const img = item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage?.medium || "";
+    87→    87→  const format = (item.format || item.type || "").replace(/_/g, " ");
+    88→    88→  return (
+    89→    89→    <button
+    90→    90→      onClick={() => navigate({ page: "anime", id: String(item.id) })}
+    91→    91→      className="relative flex w-full items-stretch gap-3 rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20 transition-all text-left group"
+    92→    92→    >
+    93→    93→      {/* Backdrop art (faint, right side) */}
+    94→    94→      {img && (
+    95→    95→        <div
+    96→    96→          className="absolute inset-0 opacity-[0.1] group-hover:opacity-[0.16] transition-opacity pointer-events-none"
+    97→    97→          style={{ backgroundImage: `url(${img})`, backgroundSize: "cover", backgroundPosition: "center 20%" }}
+    98→    98→        />
+    99→    99→      )}
+   100→   100→      <div className="relative shrink-0 w-[64px] self-stretch min-h-[92px] overflow-hidden bg-white/5">
+   101→   101→        {img
+   102→   102→          ? <img src={img} alt={title} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+   103→   103→          : <div className="absolute inset-0 flex items-center justify-center text-white/15 font-bold text-lg">{title.charAt(0)}</div>}
+   104→   104→      </div>
+   105→   105→      <div className="relative flex flex-col justify-center gap-1.5 py-2.5 pr-3 min-w-0">
+   106→   106→        <div className="flex items-start gap-1.5">
+   107→   107→          <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#60A5FA" }} />
+   108→   108→          <p className="text-[13px] font-semibold text-white leading-snug line-clamp-2">{title}</p>
+   109→   109→        </div>
+   110→   110→        <div className="flex items-center gap-2 text-[10px] font-bold text-white/45 pl-3">
+   111→   111→          {format && <span className="uppercase">{format}</span>}
+   112→   112→          {item.episodes ? (
+   113→   113→            <span className="flex items-center gap-0.5 bg-white/[0.07] rounded px-1 py-0.5">
+   114→   114→              <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-8 9H6v-2h5v2zm7-4H6V7h12v2z"/></svg>
+   115→   115→              {item.episodes}
+   116→   116→            </span>
+   117→   117→          ) : null}
+   118→   118→          {item.averageScore ? (
+   119→   119→            <span className="flex items-center gap-0.5">
+   120→   120→              <svg className="w-2.5 h-2.5 text-white/45" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+   121→   121→              {item.averageScore}
+   122→   122→            </span>
+   123→   123→          ) : null}
+   124→   124→          {subtitle && <span className="uppercase text-white/30">{subtitle}</span>}
+   125→   125→        </div>
+   126→   126→      </div>
+   127→   127→    </button>
+   128→   128→  );
+   129→   129→}
+   130→   130→
+   131→   131→export function WatchPageShell({
+   132→   132→  streamLoading, streamError, streamData, activeProvider,
+   133→   133→  animeTitle, animeTitleRomaji, episodeNum, animeEpisodes, animeDuration, animeStatus,
+   134→   134→  animeImage, animeDescription, animeScore, animeType, animeSeason,
+   135→   135→  animeStudios, animeGenres, animeNextAiring, countdown,
+   136→   136→  translation, softsubAvailable, hardsubAvailable, dubAvailable,
+   137→   137→  handleTranslationChange,
+   138→   138→  serverList, selectedServer, setSelectedServer, setStreamError,
+   139→   139→  setStreamLoading, getProviderDisplayName,
+   140→   140→  episodeList, filteredEps, epSearch, setEpSearch, switchEpisode,
+   141→   141→  prevEp, nextEp,
+   142→   142→  autoPlay, setAutoPlay, autoSkip, setAutoSkip, autoNext, setAutoNext,
+   143→   143→  skipFiller, setSkipFiller,
+   144→   144→  navigate, relations, recommendations, subCount, dubCount,
+   145→   145→  HLSPlayerNew, EmbedPlayerWithFallback, DashPlayer, proxifyM3u8, proxify,
+   146→   146→  AnimeComments,
+   147→   147→  handleVideoEnded, handleProviderFailed, handleProviderSelect,
+   148→   148→  failedProviders, providersForCurrentEp,
+   149→   149→  setScraperFallbackToken, showShortcuts, setShowShortcuts,
+   150→   150→  lightsOff, setLightsOff,
+   151→   151→  synopsisExpanded, setSynopsisExpanded, animeId,
+   152→   152→  playerReady, onCanPlay, animeBackdrop,
+   153→   153→}: any) {
+   154→   154→  const [visibleEpCount, setVisibleEpCount] = useState(50);
+   155→   155→  const [epSynopsisExpanded, setEpSynopsisExpanded] = useState(false);
+   156→   156→  const [infoExpanded, setInfoExpanded] = useState(false);
+   157→   157→  const [reportCopied, setReportCopied] = useState(false);
+   158→   158→  const [shareCopied, setShareCopied] = useState(false);
+   159→   159→  const user = useAppStore((s) => s.user);
+   160→   160→
+   161→   161→  const currentEp = episodeList?.find((ep: any) => ep.number === episodeNum);
+   162→   162→  const epTitle = currentEp?.title && !/^Episode \d+$/i.test(currentEp.title)
+   163→   163→    ? currentEp.title
+   164→   164→    : `Episode ${episodeNum}`;
+   165→   165→
+   166→   166→  // Servers available for the current audio mode
+   167→   167→  // Per user request:
+   168→   168→  //   - AnixTV (all 10 providers) → Hindi tab ONLY
+   169→   169→  //   - AnimoStream (Hindi dub)   → Hindi tab ONLY
+   170→   170→  //   - 4animo (sub + dub)        → Sub + Dub + Hardsub tabs
+   171→   171→  //   - Other providers           → Sub/Dub/Hardsub per their type
+   172→   172→  const serversForMode = (serverList || []).filter((s: any) => {
+   173→   173→    if (translation === "hindi") {
+   174→   174→      // Hindi tab: ALL AnixTV servers + AnimoStream + WatchAnimeWorld
+   175→   175→      return s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld";
+   176→   176→    }
+   177→   177→    if (translation === "dub") {
+   178→   178→      // Dub tab: English dub only — exclude Hindi sources (AnixTV + AnimoStream)
+   179→   179→      return s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld";
+   180→   180→    }
+   181→   181→    if (translation === "hardsub") {
+   182→   182→      // Hardsub tab: true hardsub servers + 4animo (user wants 4animo here too)
+   183→   183→      return s.type === "sub" && (s.hardsub === true || s.source === "animo4");
+   184→   184→    }
+   185→   185→    // Sub tab: soft sub servers — exclude Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld)
+   186→   186→    return s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld";
+   187→   187→  });
+   188→   188→
+   189→   189→  const audioOptions = [
+   190→   190→    { id: "sub", label: "Sub" },
+   191→   191→    { id: "hardsub", label: "Hard Sub" },
+   192→   192→    { id: "dub", label: "Dub" },
+   193→   193→    { id: "hindi", label: "Hindi" },
+   194→   194→  ];
+   195→   195→  const audioDisabled = [
+   196→   196→    ...(!softsubAvailable ? ["sub"] : []),
+   197→   197→    ...(!hardsubAvailable ? ["hardsub"] : []),
+   198→   198→    ...(!dubAvailable ? ["dub"] : []),
+   199→   199→  ];
+   200→   200→
+   201→   201→  // Alt servers for the 404 quick-switch row (up to 3 that aren't selected)
+   202→   202→  const altServers = serversForMode.filter((s: any) => s.id !== selectedServer).slice(0, 3);
+   203→   203→
+   204→   204→  // Download link for direct streams
+   205→   205→  const downloadUrl = streamData && streamData.video_link && streamData.source_type !== "embed"
+   206→   206→    ? (streamData.source_type === "hls" ? proxifyM3u8(streamData.video_link) : proxify(streamData.video_link, "raw"))
+   207→   207→    : null;
+   208→   208→
+   209→   209→  const handleReport = () => {
+   210→   210→    const server = selectedServer || activeProvider;
+   211→   211→    const dbg = `[LuffyTV report] ${animeTitle} — EP ${episodeNum} — server: ${server} — mode: ${translation} — error: ${streamError || "none"}`;
+   212→   212→    try { navigator.clipboard.writeText(dbg); } catch { /* ignore */ }
+   213→   213→    fetch("/api/reports/watch", {
+   214→   214→      method: "POST",
+   215→   215→      headers: { "content-type": "application/json" },
+   216→   216→      keepalive: true,
+   217→   217→      body: JSON.stringify({
+   218→   218→        username: user?.username,
+   219→   219→        message: `Playback issue on ${animeTitle} — Episode ${episodeNum}${streamError ? `: ${streamError}` : ""}`,
+   220→   220→        animeTitle, episodeNum, server, mode: translation, error: streamError || undefined,
+   221→   221→        url: typeof window !== "undefined" ? window.location.href : undefined,
+   222→   222→      }),
+   223→   223→    }).catch(() => {});
+   224→   224→    setReportCopied(true);
+   225→   225→    setTimeout(() => setReportCopied(false), 1800);
+   226→   226→  };
+   227→   227→
+   228→   228→  const handleShare = () => {
+   229→   229→    const url = window.location.href;
+   230→   230→    if (navigator.share) {
+   231→   231→      navigator.share({ title: `${animeTitle} — Episode ${episodeNum}`, url }).catch(() => {});
+   232→   232→    } else {
+   233→   233→      try { navigator.clipboard.writeText(url); } catch { /* ignore */ }
+   234→   234→      setShareCopied(true);
+   235→   235→      setTimeout(() => setShareCopied(false), 1800);
+   236→   236→    }
+   237→   237→  };
+   238→   238→
+   239→   239→  return (
+   240→   240→    <div className="min-h-screen bg-black text-white" style={{ fontFamily: "var(--font-inter), Inter, sans-serif" }}>
+   241→   241→
+   242→   242→      {/* Lights Off overlay */}
+   243→   243→      {lightsOff && (
+   244→   244→        <div className="fixed inset-0 bg-black/90 z-30 pointer-events-none" style={{ backdropFilter: "blur(8px)" }} />
+   245→   245→      )}
+   246→   246→
+   247→   247→      {/* ══ TWO-COLUMN LAYOUT ══ */}
+   248→   248→      {/* Desktop: the player column is widened to 74% for a larger stage.
+   249→   249→          The rest keeps its comfortable side padding; only the player itself
+   250→   250→          breaks out to edge-to-edge on mobile (see the -mx breakout below). */}
+   251→   251→      <div className="flex w-full max-lg:flex-col gap-4 items-start px-2 lg:px-3 pt-2 pb-12">
+   252→   252→
+   253→   253→        {/* ══ LEFT COLUMN — Player + everything under it ══ */}
+   254→   254→        <div className="w-full lg:w-[74%] shrink-0 flex flex-col gap-3 min-w-0">
+   255→   255→
+   256→   256→          {/* ─── PLAYER ─── (edge-to-edge on mobile → biggest possible stage) */}
+   257→   257→          <div className={`relative w-full max-sm:w-[calc(100%+1rem)] max-sm:-mx-2 shrink-0 overflow-hidden bg-black rounded-none sm:rounded-xl border-x-0 border-y sm:border border-white/[0.06] ${lightsOff ? "z-40" : ""}`} style={{ aspectRatio: "16 / 9" }}>
+   258→   258→            {streamData && streamData.source_type === "hls" && streamData.video_link && (
+   259→   259→              <HLSPlayerNew
+   260→   260→                key={selectedServer}
+   261→   261→                url={proxifyM3u8(streamData.video_link)}
+   262→   262→                animeId={animeId}
+   263→   263→                episodeNum={episodeNum}
+   264→   264→                sourceType="hls"
+   265→   265→                intro={streamData.intro}
+   266→   266→                outro={streamData.outro}
+   267→   267→                allStreams={streamData.hls_sources?.map((s: any) => ({
+   268→   268→                  url: proxifyM3u8(s.url), quality: s.quality || "Auto", label: s.label || s.quality || "Auto",
+   269→   269→                })) || []}
+   270→   270→                subtitleTracks={(streamData.subtitle_tracks || []).map((s: any) => ({ url: s.url, lang: s.label || "en", label: s.label || "English" }))}
+   271→   271→                onEnded={handleVideoEnded}
+   272→   272→                onProviderFailed={() => handleProviderFailed(activeProvider)}
+   273→   273→                onCanPlay={onCanPlay}
+   274→   274→                autoplay={autoPlay}
+   275→   275→                autoSkip={autoSkip}
+   276→   276→              />
+   277→   277→            )}
+   278→   278→            {streamData && streamData.source_type === "mp4" && streamData.video_link && (
+   279→   279→              <HLSPlayerNew
+   280→   280→                key={`mp4-${selectedServer}`}
+   281→   281→                url={proxify(streamData.video_link, "raw")}
+   282→   282→                animeId={animeId}
+   283→   283→                episodeNum={episodeNum}
+   284→   284→                sourceType="mp4"
+   285→   285→                intro={streamData.intro}
+   286→   286→                outro={streamData.outro}
+   287→   287→                onEnded={handleVideoEnded}
+   288→   288→                onProviderFailed={() => handleProviderFailed(activeProvider)}
+   289→   289→                onCanPlay={onCanPlay}
+   290→   290→                autoplay={autoPlay}
+   291→   291→                autoSkip={autoSkip}
+   292→   292→              />
+   293→   293→            )}
+   294→   294→            {streamData && streamData.source_type === "embed" && streamData.video_link && (
+   295→   295→              <EmbedPlayerWithFallback
+   296→   296→                key={`embed-${activeProvider}-${episodeNum}-${translation}`}
+   297→   297→                src={streamData.video_link}
+   298→   298→                animeTitle={animeTitle}
+   299→   299→                episodeNum={episodeNum}
+   300→   300→                provider={activeProvider}
+   301→   301→                providersForCurrentEp={providersForCurrentEp}
+   302→   302→                failedProviders={failedProviders}
+   303→   303→                onProviderFailed={handleProviderFailed}
+   304→   304→                onProviderSelect={handleProviderSelect}
+   305→   305→                getProviderDisplayName={getProviderDisplayName}
+   306→   306→              />
+   307→   307→            )}
+   308→   308→            {streamData && streamData.source_type === "dash" && streamData.video_link && (
+   309→   309→              <DashPlayer
+   310→   310→                key={`dash-${selectedServer}`}
+   311→   311→                url={streamData.video_link}
+   312→   312→                subtitleTracks={streamData.subtitle_tracks || []}
+   313→   313→                onEnded={handleVideoEnded}
+   314→   314→                autoplay={autoPlay}
+   315→   315→              />
+   316→   316→            )}
+   317→   317→
+   318→   318→            {/* Loading — only shows when NO player is mounted yet (streamData is null).
+   319→   319→                Once streamData arrives, the HLS player's own "Buffering..." spinner takes over.
+   320→   320→                This prevents double spinners (blue shell spinner on top of white HLS spinner). */}
+   321→   321→            {!streamData && streamLoading && !streamError && (
+   322→   322→              <div className="absolute inset-0 flex items-center justify-center bg-black">
+   323→   323→                <div className="w-12 h-12 border-2 border-white/10 rounded-full animate-spin border-t-white" style={{ animationDuration: '0.8s' }} />
+   324→   324→              </div>
+   325→   325→            )}
+   326→   326→
+   327→   327→            {/* 404 — TRY SWITCHING PROVIDER (Miruro-style error state) */}
+   328→   328→            {streamError && !streamLoading && (
+   329→   329→              <div className="absolute inset-0 z-20 bg-black">
+   330→   330→                {animeImage && (
+   331→   331→                  <div
+   332→   332→                    className="absolute inset-0 opacity-25"
+   333→   333→                    style={{ backgroundImage: `url(${animeImage})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(2px) brightness(0.7)" }}
+   334→   334→                  />
+   335→   335→                )}
+   336→   336→                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/60" />
+   337→   337→                <div className="relative h-full flex flex-col items-center justify-center gap-1 px-6 text-center">
+   338→   338→                  <div className="font-black leading-none select-none" style={{ fontSize: "clamp(56px, 12vw, 120px)", textShadow: "0 4px 40px rgba(0,0,0,0.8)" }}>404</div>
+   339→   339→                  <div className="text-sm md:text-base font-bold tracking-[0.3em] uppercase text-white/90" style={{ textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>Try Switching Provider</div>
+   340→   340→                  <p className="text-[11px] text-white/50 mt-2 max-w-sm line-clamp-2">{streamError}</p>
+   341→   341→                  <div className="flex items-center gap-2 mt-4 flex-wrap justify-center">
+   342→   342→                    <button
+   343→   343→                      onClick={() => { setStreamError(null); setStreamLoading(true); setScraperFallbackToken((t: number) => t + 1); }}
+   344→   344→                      className="px-5 h-9 rounded-full text-xs font-bold text-white transition-all hover:brightness-110"
+   345→   345→                      style={{ background: ACCENT_SOLID }}
+   346→   346→                    >
+   347→   347→                      Retry
+   348→   348→                    </button>
+   349→   349→                    {altServers.map((s: any) => (
+   350→   350→                      <button
+   351→   351→                        key={s.id}
+   352→   352→                        onClick={() => { setSelectedServer(s.id); setStreamError(null); }}
+   353→   353→                        className="px-4 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white/85 transition-all"
+   354→   354→                      >
+   355→   355→                        ⚡ {s.name}
+   356→   356→                      </button>
+   357→   357→                    ))}
+   358→   358→                  </div>
+   359→   359→                </div>
+   360→   360→              </div>
+   361→   361→            )}
+   362→   362→          </div>
+   363→   363→
+   364→   364→          {/* ─── TOGGLES BAR — right under player ─── */}
+   365→   365→          <div className="flex items-center gap-2 sm:gap-3.5 py-2 sm:py-2.5 px-2.5 sm:px-3.5 bg-white/[0.03] border border-white/[0.08] rounded-xl flex-wrap">
+   366→   366→            <ToggleCheck label="Autoplay" state={autoPlay} onToggle={() => setAutoPlay(!autoPlay)} />
+   367→   367→            <ToggleCheck label="Auto Next" state={autoNext} onToggle={() => setAutoNext(!autoNext)} />
+   368→   368→            <div className="hidden sm:block w-px h-5 bg-white/[0.08]" />
+   369→   369→            <ToggleCheck label="Auto Skip" state={autoSkip} onToggle={() => setAutoSkip(!autoSkip)} />
+   370→   370→            <ToggleCheck label="Skip Filler" state={skipFiller} onToggle={() => setSkipFiller(!skipFiller)} />
+   371→   371→            <ToggleCheck label="Shortcuts" state={showShortcuts} onToggle={() => setShowShortcuts(!showShortcuts)} />
+   372→   372→            <ToggleCheck label="Lights Off" state={lightsOff} onToggle={() => setLightsOff(!lightsOff)} />
+   373→   373→
+   374→   374→            <div className="flex-1" />
+   375→   375→
+   376→   376→            <div className="flex items-center gap-1">
+   377→   377→              {prevEp && (
+   378→   378→                <button onClick={() => switchEpisode(prevEp)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-white/70 hover:text-white text-xs font-medium transition-colors" title="Previous episode (P)">
+   379→   379→                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+   380→   380→                  <span className="hidden sm:inline">Prev</span>
+   381→   381→                </button>
+   382→   382→              )}
+   383→   383→              {nextEp && (
+   384→   384→                <button onClick={() => switchEpisode(nextEp)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-white/70 hover:text-white text-xs font-medium transition-colors" title="Next episode (N)">
+   385→   385→                  <span className="hidden sm:inline">Next</span>
+   386→   386→                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+   387→   387→                </button>
+   388→   388→              )}
+   389→   389→            </div>
+   390→   390→          </div>
+   391→   391→
+   392→   392→          {/* ─── EPISODE TITLE + AUDIO/SERVER DROPDOWNS ─── */}
+   393→   393→          <div className="flex flex-col gap-2 sm:gap-3 px-1">
+   394→   394→            {/* Title row — full width on mobile, flex-row on desktop */}
+   395→   395→            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+   396→   396→              {/* "1. Episode Title" */}
+   397→   397→              <h1 className="font-bold text-base sm:text-lg md:text-xl xl:text-2xl -tracking-[0.02rem] leading-tight min-w-0 flex-1">
+   398→   398→                <span className="text-white">{episodeNum}.</span>{" "}
+   399→   399→                <span>{epTitle}</span>
+   400→   400→              </h1>
+   401→   401→
+   402→   402→              {/* AUDIO + SERVER dropdowns — inline on mobile, side-by-side on desktop */}
+   403→   403→              <div className="flex items-center gap-2 shrink-0">
+   404→   404→                <div className="flex flex-col gap-1">
+   405→   405→                  <span className="text-[9px] font-bold text-white/35 uppercase tracking-widest flex items-center gap-1">
+   406→   406→                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 0 0-9 9v7c0 1.1.9 2 2 2h4v-8H5v-1a7 7 0 0 1 14 0v1h-4v8h4a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/></svg>
+   407→   407→                    Audio
+   408→   408→                  </span>
+   409→   409→                  <MenuSelect
+   410→   410→                    value={translation}
+   411→   411→                    options={audioOptions}
+   412→   412→                    disabledIds={audioDisabled}
+   413→   413→                    onChange={(id) => handleTranslationChange(id)}
+   414→   414→                  />
+   415→   415→                </div>
+   416→   416→                <div className="flex flex-col gap-1">
+   417→   417→                  <span className="text-[9px] font-bold text-white/35 uppercase tracking-widest flex items-center gap-1">
+   418→   418→                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zm2-6v2h2V7H6zm0 8v2h2v-2H6z"/></svg>
+   419→   419→                    Server ({serversForMode.length})
+   420→   420→                  </span>
+   421→   421→                  <MenuSelect
+   422→   422→                    value={selectedServer}
+   423→   423→                    options={serversForMode.map((s: any) => ({ id: s.id, label: `⚡ ${s.name}` }))}
+   424→   424→                    onChange={(id) => { setSelectedServer(id); setStreamError(null); }}
+   425→   425→                  />
+   426→   426→                </div>
+   427→   427→              </div>
+   428→   428→            </div>
+   429→   429→
+   430→   430→            {/* Meta chips + actions row */}
+   431→   431→            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+   432→   432→              {currentEp?.airDate && (
+   433→   433→                <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.06] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70">{currentEp.airDate}</span>
+   434→   434→              )}
+   435→   435→              {subCount > 0 && (
+   436→   436→                <span className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.06] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70" title="Subbed episodes">
+   437→   437→                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM10 13H6v-2h4v2zm8 0h-6v-2h6v2zm0-4H6V7h12v2z"/></svg>
+   438→   438→                  {subCount}
+   439→   439→                </span>
+   440→   440→              )}
+   441→   441→              {dubCount > 0 && (
+   442→   442→                <span className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/[0.06] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70" title="Dubbed episodes">
+   443→   443→                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+   444→   444→                  {dubCount}
+   445→   445→                </span>
+   446→   446→              )}
+   447→   447→
+   448→   448→              <div className="flex-1" />
+   449→   449→
+   450→   450→              {/* Share button — always visible, compact on mobile */}
+   451→   451→              <button onClick={handleShare} className="flex items-center gap-1 h-7 sm:h-8 px-2 sm:px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70 hover:text-white transition-all">
+   452→   452→                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+   453→   453→                {shareCopied ? "Copied!" : "Share"}
+   454→   454→              </button>
+   455→   455→              {/* Report — hidden on mobile, visible on desktop */}
+   456→   456→              <button onClick={handleReport} className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[11px] font-bold text-white/70 hover:text-white transition-all" title="Report a playback issue">
+   457→   457→                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+   458→   458→                {reportCopied ? "Sent!" : "Report"}
+   459→   459→              </button>
+   460→   460→              {downloadUrl && (
+   461→   461→                <a href={downloadUrl} target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[11px] font-bold text-white/70 hover:text-white transition-all" title="Open direct stream">
+   462→   462→                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+   463→   463→                  Download
+   464→   464→                </a>
+   465→   465→              )}
+   466→   466→            </div>
+   467→   467→
+   468→   468→            {/* Episode synopsis */}
+   469→   469→            {currentEp?.description && (
+   470→   470→              <div className="cursor-pointer" onClick={() => setEpSynopsisExpanded(!epSynopsisExpanded)}>
+   471→   471→                <p className={`text-[13px] text-white/60 leading-relaxed select-text ${epSynopsisExpanded ? "" : "line-clamp-3"}`}>
+   472→   472→                  {currentEp.description}
+   473→   473→                </p>
+   474→   474→              </div>
+   475→   475→            )}
+   476→   476→          </div>
+   477→   477→
+   478→   478→          {/* ─── ANIME INFO CARD ─── */}
+   479→   479→          <div className="flex gap-4 p-4 rounded-xl bg-white/[0.03] border border-white/[0.07] mt-1">
+   480→   480→            {/* Cover */}
+   481→   481→            <button
+   482→   482→              onClick={() => navigate({ page: "anime", id: String(animeId) })}
+   483→   483→              className="shrink-0 w-[110px] sm:w-[140px] aspect-[2/3] rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-all self-start"
+   484→   484→              title={`View ${animeTitle}`}
+   485→   485→            >
+   486→   486→              {animeImage
+   487→   487→                ? <img src={animeImage} alt={animeTitle} className="w-full h-full object-cover" />
+   488→   488→                : <div className="w-full h-full flex items-center justify-center text-white/15 text-xs">No cover</div>}
+   489→   489→            </button>
+   490→   490→
+   491→   491→            {/* Info */}
+   492→   492→            <div className="flex flex-col gap-2.5 min-w-0 flex-1">
+   493→   493→              <button onClick={() => navigate({ page: "anime", id: String(animeId) })} className="text-left group">
+   494→   494→                <h2 className="font-black uppercase text-xl sm:text-2xl xl:text-3xl leading-tight -tracking-[0.01em] group-hover:text-white/80 transition-colors line-clamp-2">
+   495→   495→                  {animeTitle}
+   496→   496→                </h2>
+   497→   497→                {animeTitleRomaji && (
+   498→   498→                  <p className="italic text-white/40 text-xs sm:text-sm mt-0.5 line-clamp-1 uppercase tracking-wide">{animeTitleRomaji}</p>
+   499→   499→                )}
+   500→   500→              </button>
+   501→   501→
+   502→   502→              {/* Genre chips — warm amber like the reference */}
+   503→   503→              {animeGenres?.length > 0 && (
+   504→   504→                <div className="flex items-center gap-1.5 flex-wrap">
+   505→   505→                  {animeGenres.slice(0, 6).map((g: string) => (
+   506→   506→                    <button
+   507→   507→                      key={g}
+   508→   508→                      onClick={() => navigate({ page: "genre", genre: g })}
+   509→   509→                      className="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all hover:brightness-125"
+   510→   510→                      style={{ background: "rgba(217, 119, 6, 0.18)", color: "#FBBF24", border: "1px solid rgba(217, 119, 6, 0.35)" }}
+   511→   511→                    >
+   512→   512→                      {g}
+   513→   513→                    </button>
+   514→   514→                  ))}
+   515→   515→                </div>
+   516→   516→              )}
+   517→   517→
+   518→   518→              {/* Meta row */}
+   519→   519→              <div className="flex items-center gap-2 text-xs font-medium flex-wrap text-white/55">
+   520→   520→                {animeScore ? (
+   521→   521→                  <span className="flex items-center gap-1 text-white">
+   522→   522→                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" style={{ color: "#FBBF24" }}><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+   523→   523→                    {animeScore}%
+   524→   524→                  </span>
+   525→   525→                ) : null}
+   526→   526→                {animeSeason && <><span className="text-white/20">·</span><span>{animeSeason}</span></>}
+   527→   527→                {animeType && <><span className="text-white/20">·</span><span>{animeType}</span></>}
+   528→   528→                {animeEpisodes ? <><span className="text-white/20">·</span><span>{animeEpisodes} eps</span></> : null}
+   529→   529→                {animeDuration ? <><span className="text-white/20">·</span><span>{animeDuration}m</span></> : null}
+   530→   530→                {animeStatus === "RELEASING" && (
+   531→   531→                  <>
+   532→   532→                    <span className="text-white/20">·</span>
+   533→   533→                    <span className="inline-flex items-center gap-1" style={{ color: "#34D399" }}>
+   534→   534→                      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#34D399" }} />
+   535→   535→                      Airing
+   536→   536→                    </span>
+   537→   537→                  </>
+   538→   538→                )}
+   539→   539→                {animeStudios?.length > 0 && <><span className="text-white/20">·</span><span className="text-white/40">{animeStudios.join(", ")}</span></>}
+   540→   540→              </div>
+   541→   541→
+   542→   542→              {/* Description */}
+   543→   543→              {animeDescription && (
+   544→   544→                <div className="cursor-pointer" onClick={() => setInfoExpanded(!infoExpanded)}>
+   545→   545→                  <p className={`text-[13px] text-white/55 leading-relaxed select-text ${infoExpanded ? "" : "line-clamp-3 sm:line-clamp-4"}`}>
+   546→   546→                    {animeDescription.replace(/<[^>]*>/g, "")}
+   547→   547→                  </p>
+   548→   548→                  <span className="text-[11px] text-white/35 hover:text-white/70 font-bold transition-colors">
+   549→   549→                    {infoExpanded ? "Show less" : "Read more"}
+   550→   550→                  </span>
+   551→   551→                </div>
+   552→   552→              )}
+   553→   553→            </div>
+   554→   554→          </div>
+   555→   555→
+   556→   556→          {/* ─── COMMENTS — shown inside left column only on desktop ─── */}
+   557→   557→          {/* On mobile, comments are rendered separately BELOW both columns
+   558→   558→              so episodes appear before comments. We use a duplicate render approach
+   559→   559→              with lg:block / hidden to control which version is visible. */}
+   560→   560→          {animeId && (
+   561→   561→            <div className="w-full flex flex-col gap-4 mt-2 hidden lg:block">
+   562→   562→              <AnimeComments animeId={String(animeId)} animeTitle={animeTitle || "this anime"} episode={episodeNum} />
+   563→   563→            </div>
+   564→   564→          )}
+   565→   565→        </div>{/* end left column */}
+   566→   566→
+   567→   567→        {/* ══ RIGHT COLUMN — Episodes + Related + Recommendations ══ */}
+   568→   568→        <aside className="w-full lg:w-[26%] shrink-0 flex flex-col gap-5 min-w-0">
+   569→   569→
+   570→   570→          {/* Episodes panel — fixed height so Related shows below */}
+   571→   571→          <div className="h-[min(78vh,820px)]">
+   572→   572→            <MiruroEpisodeSidebar
+   573→   573→              episodeList={episodeList}
+   574→   574→              filteredEps={filteredEps}
+   575→   575→              epSearch={epSearch}
+   576→   576→              setEpSearch={setEpSearch}
+   577→   577→              switchEpisode={switchEpisode}
+   578→   578→              episodeNum={episodeNum}
+   579→   579→              nextEp={nextEp}
+   580→   580→              animeImage={animeImage}
+   581→   581→              visibleEpCount={visibleEpCount}
+   582→   582→              setVisibleEpCount={setVisibleEpCount}
+   583→   583→              softsubAvailable={softsubAvailable}
+   584→   584→              hardsubAvailable={hardsubAvailable}
+   585→   585→              dubAvailable={dubAvailable}
+   586→   586→              animeNextAiring={animeNextAiring}
+   587→   587→              countdown={countdown}
+   588→   588→            />
+   589→   589→          </div>
+   590→   590→
+   591→   591→          {/* RELATED */}
+   592→   592→          {relations?.length > 0 && (
+   593→   593→            <div className="flex flex-col gap-2.5">
+   594→   594→              <h3 className="flex items-center gap-1 text-base font-black tracking-wide uppercase">
+   595→   595→                <svg className="w-4 h-4 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg>
+   596→   596→                Related
+   597→   597→              </h3>
+   598→   598→              <div className="flex flex-col gap-2">
+   599→   599→                {relations.slice(0, 6).map((rel: any, idx: number) => (
+   600→   600→                  <SideMediaCard key={`${rel.id}-${idx}`} item={rel} subtitle={rel.relationType?.replace(/_/g, " ")} navigate={navigate} />
+   601→   601→                ))}
+   602→   602→              </div>
+   603→   603→            </div>
+   604→   604→          )}
+   605→   605→
+   606→   606→          {/* RECOMMENDATIONS */}
+   607→   607→          {recommendations?.length > 0 && (
+   608→   608→            <div className="flex flex-col gap-2.5">
+   609→   609→              <h3 className="flex items-center gap-1 text-base font-black tracking-wide uppercase">
+   610→   610→                <svg className="w-4 h-4 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg>
+   611→   611→                Recommendations
+   612→   612→              </h3>
+   613→   613→              <div className="flex flex-col gap-2">
+   614→   614→                {recommendations.slice(0, 8).map((rec: any, idx: number) => (
+   615→   615→                  <SideMediaCard key={`${rec.id}-${idx}`} item={rec} navigate={navigate} />
+   616→   616→                ))}
+   617→   617→              </div>
+   618→   618→            </div>
+   619→   619→          )}
+   620→   620→        </aside>
+   621→   621→
+   622→   622→        {/* ─── MOBILE-ONLY COMMENTS ─── */}
+   623→   623→        {/* On mobile (<lg), comments appear AFTER the episode sidebar
+   624→   624→            so the episode list comes first, then comments below. */}
+   625→   625→        {animeId && (
+   626→   626→          <div className="w-full flex flex-col gap-4 mt-2 lg:hidden">
+   627→   627→            <AnimeComments animeId={String(animeId)} animeTitle={animeTitle || "this anime"} episode={episodeNum} />
+   628→   628→          </div>
+   629→   629→        )}
+   630→   630→
+   631→   631→      </div>{/* end two-column row */}
+   632→   632→
+   633→   633→      {/* Keyboard shortcuts modal */}
+   634→   634→      {showShortcuts && (
+   635→   635→        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
+   636→   636→          <div className="w-full max-w-sm mx-4 rounded-xl bg-black border border-white/10 shadow-2xl overflow-hidden" onClick={(e: any) => e.stopPropagation()}>
+   637→   637→            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+   638→   638→              <h3 className="text-sm font-bold text-white">Keyboard Shortcuts</h3>
+   639→   639→              <button onClick={() => setShowShortcuts(false)} className="p-1 rounded text-white/40 hover:text-white transition-colors">
+   640→   640→                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
+   641→   641→              </button>
+   642→   642→            </div>
+   643→   643→            <div className="p-5 space-y-3">
+   644→   644→              {[
+   645→   645→                { key: "N", desc: "Next episode" }, { key: "P", desc: "Previous episode" },
+   646→   646→                { key: "Space / K", desc: "Play / Pause" }, { key: "F", desc: "Fullscreen" },
+   647→   647→                { key: "M", desc: "Mute / Unmute" }, { key: "?", desc: "Toggle this panel" },
+   648→   648→              ].map(s => (
+   649→   649→                <div key={s.key} className="flex items-center justify-between">
+   650→   650→                  <span className="text-xs text-white/55">{s.desc}</span>
+   651→   651→                  <kbd className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-mono font-bold text-white border border-white/10">{s.key}</kbd>
+   652→   652→                </div>
+   653→   653→              ))}
+   654→   654→            </div>
+   655→   655→          </div>
+   656→   656→        </div>
+   657→   657→      )}
+   658→   658→    </div>
+   659→   659→  );
+   660→   660→}
+   661→   661→
+   662→   662→// ============================================================
+   663→   663→// MiruroEpisodeSidebar — episode list panel
+   664→   664→//   - Bordered cards, spoiler blur w/ eye toggle
+   665→   665→//   - 1-100 range dropdown for long anime
+   666→   666→//   - Filter search
+   667→   667→//   - Next-episode countdown footer bar
+   668→   668→// ============================================================
+   669→   669→
+   670→   670→type EpisodeViewMode = "card" | "block" | "list";
+   671→   671→
+   672→   672→function MiruroEpisodeSidebar({
+   673→   673→  episodeList, filteredEps, epSearch, setEpSearch, switchEpisode,
+   674→   674→  episodeNum, nextEp, animeImage, visibleEpCount, setVisibleEpCount,
+   675→   675→  softsubAvailable, hardsubAvailable, dubAvailable,
+   676→   676→  animeNextAiring, countdown,
+   677→   677→}: any) {
+   678→   678→  const EPS_PER_PAGE = 100;
+   679→   679→  const totalEps = episodeList?.length || 0;
+   680→   680→  const totalPages = Math.ceil(totalEps / EPS_PER_PAGE);
+   681→   681→
+   682→   682→  const [spoilerOn, setSpoilerOn] = useState(true); // spoiler blur on by default
+   683→   683→  // View mode: "card" (picture + text), "block" (number grid), "list" (compact rows)
+   684→   684→  const [viewMode, setViewMode] = useState<EpisodeViewMode>("card");
+   685→   685→  // Search toggle — hidden by default, user clicks the magnifier to reveal
+   686→   686→  const [showSearch, setShowSearch] = useState(false);
+   687→   687→  // Range window starts at the page containing the current episode
+   688→   688→  // (e.g. open One Piece EP 540 → show 501-600)
+   689→   689→  const [page, setPage] = useState(() => Math.max(0, Math.floor((episodeNum - 1) / EPS_PER_PAGE)));
+   690→   690→  const [showPageMenu, setShowPageMenu] = useState(false);
+   691→   691→  const listRef = useRef<HTMLDivElement | null>(null);
+   692→   692→
+   693→   693→  // When search is opened, focus the input
+   694→   694→  const searchInputRef = useRef<HTMLInputElement | null>(null);
+   695→   695→  useEffect(() => {
+   696→   696→    if (showSearch && searchInputRef.current) {
+   697→   697→      searchInputRef.current.focus();
+   698→   698→    }
+   699→   699→  }, [showSearch]);
+   700→   700→
+   701→   701→  // Derived-state adjustment during render (React's documented pattern):
+   702→   702→  // when the episode changes, jump the range window to its page.
+   703→   703→  // Search doesn't need a reset — pagination is bypassed while searching.
+   704→   704→  const [prevEpNum, setPrevEpNum] = useState(episodeNum);
+   705→   705→  if (prevEpNum !== episodeNum) {
+   706→   706→    setPrevEpNum(episodeNum);
+   707→   707→    const target = Math.floor((episodeNum - 1) / EPS_PER_PAGE);
+   708→   708→    if (target >= 0) setPage(target);
+   709→   709→  }
+   710→   710→
+   711→   711→  // Apply pagination: if not searching and >100 eps, show only current page
+   712→   712→  const pagedEps = (() => {
+   713→   713→    if (epSearch) return filteredEps; // search bypasses pagination
+   714→   714→    if (totalPages <= 1) return filteredEps;
+   715→   715→    const start = page * EPS_PER_PAGE;
+   716→   716→    return filteredEps?.slice(start, start + EPS_PER_PAGE) || [];
+   717→   717→  })();
+   718→   718→
+   719→   719→  const pageLabel = totalPages > 1
+   720→   720→    ? `${page * EPS_PER_PAGE + 1} - ${Math.min((page + 1) * EPS_PER_PAGE, totalEps)}`
+   721→   721→    : `1 - ${totalEps}`;
+   722→   722→
+   723→   723→  // Countdown footer: "Episode 1170 in 6d 17h · Sun, Jul 12, 06:22"
+   724→   724→  const countdownShort = (countdown || "").split(" ").slice(0, 2).join(" ");
+   725→   725→  const airDateLabel = animeNextAiring?.airingAt
+   726→   726→    ? new Date(animeNextAiring.airingAt * 1000).toLocaleString("en-US", {
+   727→   727→        weekday: "short", month: "short", day: "numeric",
+   728→   728→        hour: "2-digit", minute: "2-digit", hour12: false,
+   729→   729→      })
+   730→   730→    : "";
+   731→   731→
+   732→   732→  return (
+   733→   733→    <div className="flex flex-col w-full h-full bg-white/[0.02] rounded-xl border border-white/[0.06] overflow-hidden">
+   734→   734→      {/* ─── Header: Up Next + view toggle + search + spoiler toggle ─── */}
+   735→   735→      <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] gap-2">
+   736→   736→        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+   737→   737→          <div className="text-sm font-bold line-clamp-1">
+   738→   738→            {nextEp ? `Up Next` : `Now Playing`}
+   739→   739→          </div>
+   740→   740→          <div className="text-xs text-white/40 line-clamp-1">
+   741→   741→            {filteredEps?.find((ep: any) => ep.number === (nextEp || episodeNum))?.title || `Episode ${nextEp || episodeNum}`}
+   742→   742→          </div>
+   743→   743→        </div>
+   744→   744→
+   745→   745→        {/* Action buttons cluster — search toggle + view modes + spoiler */}
+   746→   746→        <div className="flex items-center gap-1 shrink-0">
+   747→   747→          {/* Search toggle button */}
+   748→   748→          <button
+   749→   749→            onClick={() => setShowSearch(!showSearch)}
+   750→   750→            className={`shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${showSearch ? 'bg-white/15 text-white' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
+   751→   751→            title="Search episodes"
+   752→   752→          >
+   753→   753→            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+   754→   754→          </button>
+   755→   755→
+   756→   756→          {/* View mode toggle — 3 icons (card / block / list) */}
+   757→   757→          <div className="flex items-center gap-0.5 bg-white/5 rounded-md p-0.5">
+   758→   758→            {/* Card view — grid of picture cards */}
+   759→   759→            <button
+   760→   760→              onClick={() => setViewMode("card")}
+   761→   761→              className={`w-6 h-6 rounded flex items-center justify-center transition-all ${viewMode === 'card' ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+   762→   762→              title="Card view (picture + title)"
+   763→   763→            >
+   764→   764→              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+   765→   765→            </button>
+   766→   766→            {/* Block view — compact number grid */}
+   767→   767→            <button
+   768→   768→              onClick={() => setViewMode("block")}
+   769→   769→              className={`w-6 h-6 rounded flex items-center justify-center transition-all ${viewMode === 'block' ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+   770→   770→              title="Block view (numbers only)"
+   771→   771→            >
+   772→   772→              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="17" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17" y="17" width="5" height="5" rx="1"/></svg>
+   773→   773→            </button>
+   774→   774→            {/* List view — compact horizontal rows */}
+   775→   775→            <button
+   776→   776→              onClick={() => setViewMode("list")}
+   777→   777→              className={`w-6 h-6 rounded flex items-center justify-center transition-all ${viewMode === 'list' ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
+   778→   778→              title="List view (compact rows)"
+   779→   779→            >
+   780→   780→              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+   781→   781→            </button>
+   782→   782→          </div>
+   783→   783→
+   784→   784→          {/* Spoiler eye toggle */}
+   785→   785→          <button
+   786→   786→            onClick={() => setSpoilerOn(!spoilerOn)}
+   787→   787→            className={`shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${spoilerOn ? 'bg-white/10 text-white' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
+   788→   788→            title={spoilerOn ? 'Spoilers hidden — click to show' : 'Spoilers visible — click to hide'}
+   789→   789→          >
+   790→   790→            {spoilerOn ? (
+   791→   791→              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" /></svg>
+   792→   792→            ) : (
+   793→   793→              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2z" /></svg>
+   794→   794→            )}
+   795→   795→          </button>
+   796→   796→        </div>
+   797→   797→      </div>
+   798→   798→
+   799→   799→      {/* ─── Pagination + Search row — pagination always shows, search is toggleable ─── */}
+   800→   800→      {(totalPages > 1 || showSearch) && (
+   801→   801→        <div className="flex items-center px-3 py-2 gap-2 border-b border-white/[0.06]">
+   802→   802→          {/* Range dropdown (1-100) — only if >100 episodes */}
+   803→   803→          {totalPages > 1 && (
+   804→   804→            <div className="relative shrink-0">
+   805→   805→              <button
+   806→   806→                onClick={() => setShowPageMenu(!showPageMenu)}
+   807→   807→                className="flex items-center gap-1 bg-white/[0.06] hover:bg-white/[0.1] h-8 px-3 rounded-lg text-xs font-bold text-white/80 transition-all"
+   808→   808→              >
+   809→   809→                {pageLabel}
+   810→   810→                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
+   811→   811→              </button>
+   812→   812→              {showPageMenu && (
+   813→   813→                <div className="absolute top-full left-0 mt-1 bg-black/80 backdrop-blur-xl border border-white/15 rounded-lg overflow-hidden min-w-[100px] py-1 shadow-2xl z-30 max-h-[300px] overflow-y-auto">
+   814→   814→                  {Array.from({ length: totalPages }, (_, i) => (
+   815→   815→                    <button
+   816→   816→                      key={i}
+   817→   817→                      onClick={() => { setPage(i); setShowPageMenu(false); listRef.current?.scrollTo({ top: 0 }); }}
+   818→   818→                      className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors ${page === i ? 'font-bold' : 'text-white/60'}`}
+   819→   819→                      style={page === i ? { color: ACCENT } : undefined}
+   820→   820→                    >
+   821→   821→                      {i * EPS_PER_PAGE + 1} - {Math.min((i + 1) * EPS_PER_PAGE, totalEps)}
+   822→   822→                    </button>
+   823→   823→                  ))}
+   824→   824→                </div>
+   825→   825→              )}
+   826→   826→            </div>
+   827→   827→          )}
+   828→   828→
+   829→   829→          {/* Filter episodes search — only visible when showSearch is true */}
+   830→   830→          {showSearch && (
+   831→   831→            <div className="flex grow items-center bg-white/[0.04] hover:bg-white/[0.06] focus-within:bg-white/[0.06] h-8 rounded-lg overflow-hidden px-2.5">
+   832→   832→              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-white/30 shrink-0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+   833→   833→              <input
+   834→   834→                ref={searchInputRef}
+   835→   835→                type="text"
+   836→   836→                value={epSearch}
+   837→   837→                onChange={(e: any) => { setEpSearch(e.target.value); setVisibleEpCount(50); }}
+   838→   838→                placeholder="Filter episodes..."
+   839→   839→                className="w-full px-2 bg-transparent text-xs text-white placeholder-white/30 focus:outline-none"
+   840→   840→              />
+   841→   841→              {epSearch && (
+   842→   842→                <button
+   843→   843→                  onClick={() => { setEpSearch(""); setShowSearch(false); }}
+   844→   844→                  className="shrink-0 ml-1 text-white/40 hover:text-white"
+   845→   845→                  title="Clear and close search"
+   846→   846→                >
+   847→   847→                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M6 18L18 6M6 6l12 12"/></svg>
+   848→   848→                </button>
+   849→   849→              )}
+   850→   850→            </div>
+   851→   851→          )}
+   852→   852→        </div>
+   853→   853→      )}
+   854→   854→
+   855→   855→      {/* ─── Episode list — scrollable, renders based on viewMode ─── */}
+   856→   856→      <div className="flex flex-col overflow-hidden flex-1 min-h-0">
+   857→   857→        <div
+   858→   858→          ref={listRef}
+   859→   859→          className={`overflow-y-auto overscroll-y-contain flex-1 min-h-0 p-2 ${
+   860→   860→            viewMode === "block" ? "grid grid-cols-4 gap-1.5" : "flex flex-col gap-2"
+   861→   861→          }`}
+   862→   862→          onScroll={(e: any) => {
+   863→   863→            const el = e.target;
+   864→   864→            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+   865→   865→              setVisibleEpCount((prev: number) => Math.min(prev + 50, pagedEps?.length || 0));
+   866→   866→            }
+   867→   867→          }}
+   868→   868→        >
+   869→   869→          {pagedEps?.length > 0 ? (
+   870→   870→            pagedEps.slice(0, visibleEpCount).map((ep: any) => {
+   871→   871→              if (viewMode === "block") {
+   872→   872→                return (
+   873→   873→                  <EpisodeBlock
+   874→   874→                    key={ep.number}
+   875→   875→                    ep={ep}
+   876→   876→                    isActive={ep.number === episodeNum}
+   877→   877→                    onClick={() => switchEpisode(ep.number)}
+   878→   878→                  />
+   879→   879→                );
+   880→   880→              }
+   881→   881→              if (viewMode === "list") {
+   882→   882→                return (
+   883→   883→                  <EpisodeListRow
+   884→   884→                    key={ep.number}
+   885→   885→                    ep={ep}
+   886→   886→                    isActive={ep.number === episodeNum}
+   887→   887→                    onClick={() => switchEpisode(ep.number)}
+   888→   888→                  />
+   889→   889→                );
+   890→   890→              }
+   891→   891→              return (
+   892→   892→                <EpisodeCard
+   893→   893→                  key={ep.number}
+   894→   894→                  ep={ep}
+   895→   895→                  isActive={ep.number === episodeNum}
+   896→   896→                  spoilerOn={spoilerOn}
+   897→   897→                  animeImage={animeImage}
+   898→   898→                  softsubAvailable={softsubAvailable}
+   899→   899→                  hardsubAvailable={hardsubAvailable}
+   900→   900→                  dubAvailable={dubAvailable}
+   901→   901→                  onClick={() => switchEpisode(ep.number)}
+   902→   902→                />
+   903→   903→              );
+   904→   904→            })
+   905→   905→          ) : (
+   906→   906→            <div className={`text-center py-12 ${viewMode === "block" ? "col-span-4" : ""}`}>
+   907→   907→              <p className="text-white/30 text-xs">{episodeList?.length === 0 ? "Loading episodes..." : "No episodes found"}</p>
+   908→   908→            </div>
+   909→   909→          )}
+   910→   910→        </div>
+   911→   911→      </div>
+   912→   912→
+   913→   913→      {/* ─── Next-episode countdown footer ─── */}
+   914→   914→      {animeNextAiring && countdownShort && (
+   915→   915→        <div className="flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.08] bg-white/[0.03] text-xs">
+   916→   916→          <svg className="w-3.5 h-3.5 shrink-0" style={{ color: ACCENT }} viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+   917→   917→          <span className="font-bold text-white">
+   918→   918→            Episode {animeNextAiring.episode} in {countdownShort}
+   919→   919→          </span>
+   920→   920→          {airDateLabel && (
+   921→   921→            <>
+   922→   922→              <span className="text-white/25">·</span>
+   923→   923→              <span className="text-white/45 truncate">{airDateLabel}</span>
+   924→   924→            </>
+   925→   925→          )}
+   926→   926→        </div>
+   927→   927→      )}
+   928→   928→    </div>
+   929→   929→  );
+   930→   930→}
+   931→   931→
+   932→   932→// ─── Episode Card — horizontal: thumb (left, blurrable) | text ───
+   933→   933→function EpisodeCard({ ep, isActive, spoilerOn, animeImage, softsubAvailable, hardsubAvailable, dubAvailable, onClick }: any) {
+   934→   934→  const epThumb = ep.thumbnail || ep.image || "";
+   935→   935→  const fallbackThumb = animeImage || "";
+   936→   936→  const isFiller = !!ep.filler;
+   937→   937→
+   938→   938→  // Active = purple, Filler = gold
+   939→   939→  const cardStyle = isActive
+   940→   940→    ? { background: "rgba(147, 51, 234, 0.12)", borderColor: "rgba(147, 51, 234, 0.5)" }
+   941→   941→    : isFiller
+   942→   942→    ? { background: "rgba(255, 215, 0, 0.06)", borderColor: "rgba(255, 215, 0, 0.3)" }
+   943→   943→    : undefined;
+   944→   944→  const cardClass = isActive
+   945→   945→    ? "border-[#9333EA]/50"
+   946→   946→    : isFiller
+   947→   947→    ? "border-[#FFD700]/30 hover:border-[#FFD700]/50"
+   948→   948→    : "border-white/10 hover:border-white/20 hover:bg-white/[0.04]";
+   949→   949→
+   950→   950→  return (
+   951→   951→    <button
+   952→   952→      onClick={onClick}
+   953→   953→      className={`flex flex-row w-full rounded-lg overflow-hidden border transition-all text-left shrink-0 ${cardClass}`}
+   954→   954→      style={{ height: '100px', ...cardStyle }}
+   955→   955→      title={`${ep.number}. ${ep.title || `Episode ${ep.number}`}`}
+   956→   956→    >
+   957→   957→      {/* THUMBNAIL (LEFT) — only this gets blurred */}
+   958→   958→      <div className="relative shrink-0 overflow-hidden bg-white/[0.04]" style={{ width: '110px', height: '100%' }}>
+   959→   959→        {epThumb ? (
+   960→   960→          <img
+   961→   961→            src={epThumb}
+   962→   962→            alt=""
+   963→   963→            className={`absolute inset-0 w-full h-full object-cover transition-all duration-300 ${spoilerOn ? 'blur-2xl scale-125 brightness-[0.3]' : ''}`}
+   964→   964→            loading="lazy"
+   965→   965→            onError={(e: any) => {
+   966→   966→              if (fallbackThumb && e.target.src !== fallbackThumb) {
+   967→   967→                e.target.src = fallbackThumb;
+   968→   968→                e.target.style.opacity = '0.3';
+   969→   969→              }
+   970→   970→            }}
+   971→   971→          />
+   972→   972→        ) : fallbackThumb ? (
+   973→   973→          <img src={fallbackThumb} alt="" className={`absolute inset-0 w-full h-full object-cover opacity-30 transition-all duration-300 ${spoilerOn ? 'blur-2xl scale-125' : ''}`} loading="lazy" />
+   974→   974→        ) : (
+   975→   975→          <div className="absolute inset-0 w-full h-full flex items-center justify-center text-lg font-bold text-white/15">{ep.number}</div>
+   976→   976→        )}
+   977→   977→
+   978→   978→        {/* Spoiler overlay */}
+   979→   979→        {spoilerOn && (epThumb || fallbackThumb) && (
+   980→   980→          <div className="absolute inset-0 flex items-center justify-center">
+   981→   981→            <div className="bg-black/70 backdrop-blur-md rounded-full px-2 py-0.5 flex items-center gap-1">
+   982→   982→              <svg className="w-2.5 h-2.5 text-white/70" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z" /></svg>
+   983→   983→              <span className="text-[8px] font-bold text-white/70 uppercase tracking-wider">Spoiler</span>
+   984→   984→            </div>
+   985→   985→          </div>
+   986→   986→        )}
+   987→   987→
+   988→   988→        {/* Active play overlay */}
+   989→   989→        {isActive && !spoilerOn && (
+   990→   990→          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+   991→   991→            <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+   992→   992→              <svg className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+   993→   993→            </div>
+   994→   994→          </div>
+   995→   995→        )}
+   996→   996→
+   997→   997→        {/* EP badge — purple for active, gold for filler */}
+   998→   998→        <span className={`absolute left-1 bottom-1 backdrop-blur-sm text-[9px] font-bold px-1.5 py-0.5 rounded ${isActive ? "bg-[#9333EA] text-white" : isFiller ? "bg-[#FFD700]/80 text-black" : "bg-black/80 text-white"}`}>EP {ep.number}</span>
+   999→   999→      </div>
+  1000→  1000→
+  1001→  1001→      {/* TEXT SECTION (RIGHT) — never blurred */}
+  1002→  1002→      <div className="flex flex-col flex-1 min-w-0 p-2.5 gap-1 justify-between">
+  1003→  1003→        <div className={`text-xs font-bold line-clamp-1 leading-tight ${isActive ? "text-[#A78BFA]" : isFiller ? "text-[#FFD700]" : "text-white"}`}>
+  1004→  1004→          {ep.title || `Episode ${ep.number}`}
+  1005→  1005→        </div>
+  1006→  1006→        <div className="text-[10px] text-white/45 line-clamp-2 leading-snug">
+  1007→  1007→          {ep.description || `Episode ${ep.number} of the series.`}
+  1008→  1008→        </div>
+  1009→  1009→        <div className="flex items-center justify-between gap-1.5">
+  1010→  1010→          <div className="flex items-center gap-1.5 min-w-0">
+  1011→  1011→            {ep.airDate && (
+  1012→  1012→              <span className="text-[9px] text-white/40 truncate">{ep.airDate}</span>
+  1013→  1013→            )}
+  1014→  1014→            {ep.filler && (
+  1015→  1015→              <span className="text-[8px] text-white/30 font-medium shrink-0">Filler</span>
+  1016→  1016→            )}
+  1017→  1017→          </div>
+  1018→  1018→          <div className="flex items-center gap-1 shrink-0">
+  1019→  1019→            {softsubAvailable && (
+  1020→  1020→              <span className="text-[8px] font-bold text-white/40 bg-white/[0.06] px-1 py-0.5 rounded" title="Subtitles available">CC</span>
+  1021→  1021→            )}
+  1022→  1022→            {hardsubAvailable && (
+  1023→  1023→              <span className="text-[8px] font-bold text-white/40 bg-white/[0.06] px-1 py-0.5 rounded" title="Hardsub available">HS</span>
+  1024→  1024→            )}
+  1025→  1025→            {dubAvailable && (
+  1026→  1026→              <span className="flex items-center gap-0.5 text-[8px] font-bold text-white/40 bg-white/[0.06] px-1 py-0.5 rounded" title="Dub available">
+  1027→  1027→                <svg className="w-2 h-2" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" /></svg>
+  1028→  1028→              </span>
+  1029→  1029→            )}
+  1030→  1030→          </div>
+  1031→  1031→        </div>
+  1032→  1032→      </div>
+  1033→  1033→    </button>
+  1034→  1034→  );
+  1035→  1035→}
+  1036→  1036→
+  1037→  1037→// ─── Block view — compact number tiles in a grid (no thumbnail, no title) ───
+  1038→  1038→// Useful for long anime (One Piece, Naruto) where you just want to jump to EP 540.
+  1039→  1039→function EpisodeBlock({ ep, isActive, onClick }: any) {
+  1040→  1040→  const isFiller = !!ep.filler;
+  1041→  1041→  return (
+  1042→  1042→    <button
+  1043→  1043→      onClick={onClick}
+  1044→  1044→      className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all text-center group ${
+  1045→  1045→        isActive
+  1046→  1046→          ? "bg-[#9333EA] text-white"
+  1047→  1047→          : isFiller
+  1048→  1048→          ? "bg-[#FFD700]/[0.08] text-[#FFD700] hover:bg-[#FFD700]/15 border border-[#FFD700]/30"
+  1049→  1049→          : "bg-white/[0.04] text-white/80 hover:bg-white/[0.1] border border-white/[0.06] hover:border-white/15"
+  1050→  1050→      }`}
+  1051→  1051→      title={`${ep.number}. ${ep.title || `Episode ${ep.number}`}${isFiller ? " (Filler)" : ""}`}
+  1052→  1052→    >
+  1053→  1053→      <span className="text-sm font-extrabold tabular-nums">{ep.number}</span>
+  1054→  1054→      {isFiller && !isActive && (
+  1055→  1055→        <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#FFD700]" />
+  1056→  1056→      )}
+  1057→  1057→      {isActive && (
+  1058→  1058→        <svg className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+  1059→  1059→      )}
+  1060→  1060→    </button>
+  1061→  1061→  );
+  1062→  1062→}
+  1063→  1063→
+  1064→  1064→// ─── List view — compact horizontal rows (episode number + title only, no thumbnail) ───
+  1065→  1065→function EpisodeListRow({ ep, isActive, onClick }: any) {
+  1066→  1066→  const isFiller = !!ep.filler;
+  1067→  1067→  return (
+  1068→  1068→    <button
+  1069→  1069→      onClick={onClick}
+  1070→  1070→      className={`flex items-center gap-2.5 px-2.5 h-9 rounded-md border transition-all text-left shrink-0 ${
+  1071→  1071→        isActive
+  1072→  1072→          ? "bg-[#9333EA]/15 border-[#9333EA]/50"
+  1073→  1073→          : isFiller
+  1074→  1074→          ? "bg-[#FFD700]/[0.04] border-[#FFD700]/20 hover:bg-[#FFD700]/[0.08] hover:border-[#FFD700]/40"
+  1075→  1075→          : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15"
+  1076→  1076→      }`}
+  1077→  1077→      title={`${ep.number}. ${ep.title || `Episode ${ep.number}`}${isFiller ? " (Filler)" : ""}`}
+  1078→  1078→    >
+  1079→  1079→      {/* Episode number — fixed width so titles align */}
+  1080→  1080→      <span
+  1081→  1081→        className={`text-[11px] font-extrabold tabular-nums shrink-0 w-7 text-center px-1 py-0.5 rounded ${
+  1082→  1082→          isActive
+  1083→  1083→            ? "bg-[#9333EA] text-white"
+  1084→  1084→            : isFiller
+  1085→  1085→            ? "bg-[#FFD700]/15 text-[#FFD700]"
+  1086→  1086→            : "bg-white/[0.06] text-white/70"
+  1087→  1087→        }`}
+  1088→  1088→      >
+  1089→  1089→        {ep.number}
+  1090→  1090→      </span>
+  1091→  1091→      {/* Title — truncate */}
+  1092→  1092→      <span
+  1093→  1093→        className={`text-[12px] font-medium truncate flex-1 min-w-0 ${
+  1094→  1094→          isActive ? "text-[#A78BFA]" : isFiller ? "text-[#FFD700]/80" : "text-white/80"
+  1095→  1095→        }`}
+  1096→  1096→      >
+  1097→  1097→        {ep.title || `Episode ${ep.number}`}
+  1098→  1098→      </span>
+  1099→  1099→      {isFiller && (
+  1100→  1100→        <span className="text-[8px] font-bold text-white/30 shrink-0 uppercase tracking-wider">Filler</span>
+  1101→  1101→      )}
+  1102→  1102→      {isActive && (
+  1103→  1103→        <svg className="w-3 h-3 text-[#A78BFA] shrink-0" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+  1104→  1104→      )}
+  1105→  1105→    </button>
+  1106→  1106→  );
+  1107→  1107→}
+  1108→  1108→

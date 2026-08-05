@@ -1,0 +1,2002 @@
+     1→@import "tailwindcss";
+     2→@import "tw-animate-css";
+     3→
+     4→@custom-variant dark (&:is(.dark *));
+     5→
+     6→@theme inline {
+     7→  --color-background: var(--background);
+     8→  --color-foreground: var(--foreground);
+     9→  --font-sans: var(--font-geist-sans);
+    10→  --font-mono: var(--font-geist-mono);
+    11→  --color-sidebar-ring: var(--sidebar-ring);
+    12→  --color-sidebar-border: var(--sidebar-border);
+    13→  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    14→  --color-sidebar-accent: var(--sidebar-accent);
+    15→  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    16→  --color-sidebar-primary: var(--sidebar-primary);
+    17→  --color-sidebar-foreground: var(--sidebar-foreground);
+    18→  --color-sidebar: var(--sidebar);
+    19→  --color-chart-5: var(--chart-5);
+    20→  --color-chart-4: var(--chart-4);
+    21→  --color-chart-3: var(--chart-3);
+    22→  --color-chart-2: var(--chart-2);
+    23→  --color-chart-1: var(--chart-1);
+    24→  --color-ring: var(--ring);
+    25→  --color-input: var(--input);
+    26→  --color-border: var(--border);
+    27→  --color-destructive: var(--destructive);
+    28→  --color-accent-foreground: var(--accent-foreground);
+    29→  --color-accent: var(--accent);
+    30→  --color-muted-foreground: var(--muted-foreground);
+    31→  --color-muted: var(--muted);
+    32→  --color-secondary-foreground: var(--secondary-foreground);
+    33→  --color-secondary: var(--secondary);
+    34→  --color-primary-foreground: var(--primary-foreground);
+    35→  --color-primary: var(--primary);
+    36→  --color-popover-foreground: var(--popover-foreground);
+    37→  --color-popover: var(--popover);
+    38→  --color-card-foreground: var(--card-foreground);
+    39→  --color-card: var(--card);
+    40→  --radius-sm: calc(var(--radius) - 4px);
+    41→  --radius-md: calc(var(--radius) - 2px);
+    42→  --radius-lg: var(--radius);
+    43→  --radius-xl: calc(var(--radius) + 4px);
+    44→  --color-primary-rgb: 124, 58, 237;
+    45→  --color-accent-cyan: #67e8f9;
+    46→  --color-accent-purple: #7c3aed;
+    47→  --color-accent-rose: #be185d;
+    48→  --color-accent-amber: #F59E0B;
+    49→  --color-accent-emerald: #10B981;
+    50→  --color-surface-0: #000000;
+    51→  --color-surface-1: #121212;
+    52→  --color-surface-2: #1c1c1f;
+    53→  --color-surface-3: #27272a;
+    54→  --color-surface-4: #3f3f46;
+    55→}
+    56→
+    57→:root {
+    58→  --radius: 0.75rem;
+    59→  --background: #121212;
+    60→  --foreground: #fafafa;
+    61→  --card: #121212;
+    62→  --card-foreground: #fafafa;
+    63→  --popover: #121212;
+    64→  --popover-foreground: #fafafa;
+    65→  --primary: #ceced1;
+    66→  --primary-foreground: #121212;
+    67→  --secondary: #141414;
+    68→  --secondary-foreground: #fafafa;
+    69→  --muted: #27272a;
+    70→  --muted-foreground: #a1a1aa;
+    71→  --accent: #e28813;
+    72→  --accent-foreground: #121212;
+    73→  --destructive: #be185d;
+    74→  --border: rgba(255, 255, 255, 0.07);
+    75→  --input: rgba(255, 255, 255, 0.06);
+    76→  --ring: #7c3aed;
+    77→  --chart-1: #7c3aed;
+    78→  --chart-2: #9d6ef8;
+    79→  --chart-3: #c4b5fd;
+    80→  --chart-4: #5b21b6;
+    81→  --chart-5: #10B981;
+    82→  --sidebar: #121212;
+    83→  --sidebar-foreground: #fafafa;
+    84→  --sidebar-primary: #ceced1;
+    85→  --sidebar-primary-foreground: #121212;
+    86→  --sidebar-accent: #1c1c1f;
+    87→  --sidebar-accent-foreground: #fafafa;
+    88→  --sidebar-border: rgba(255, 255, 255, 0.03);
+    89→  --sidebar-ring: #cecfcf;
+    90→
+    91→  /* ═══════════════════════════════════════════════════════════════
+    92→     ANIVEXA DESIGN SYSTEM — Kurovexa-inspired Premium Dark Theme
+    93→     Ported from https://github.com/walterwhite-69/Anivexa
+    94→     ═══════════════════════════════════════════════════════════════ */
+    95→
+    96→  /* Backgrounds — Shiroko-matched palette */
+    97→  --bg-app: #121212;
+    98→  --bg-surface: #121212;
+    99→  --bg-surface-2: #1c1c1f;
+   100→  --bg-surface-3: #27272a;
+   101→  --bg-elevated: #121212;
+   102→
+   103→  /* Glass effects — match Shiroko's bg */
+   104→  --glass-bg: rgba(18, 18, 18, 0.85);
+   105→  --glass-bg-hover: rgba(255, 255, 255, 0.08);
+   106→  --glass-border: rgba(255, 255, 255, 0.03);
+   107→  --glass-border-hover: rgba(226, 136, 19, 0.5);
+   108→  --glass-pill-bg: rgba(0, 0, 0, 0.50);
+   109→  --glass-pill-border: rgba(255, 255, 255, 0.10);
+   110→
+   111→  /* Accent — Anivexa violet + rose primary button */
+   112→  --accent-violet: #7c3aed;
+   113→  --accent-violet-light: #9d6ef8;
+   114→  --accent-violet-dark: #5b21b6;
+   115→  --accent-violet-pale: #c4b5fd;
+   116→  --accent-red: #7c3aed;
+   117→  --accent-red-hover: #6d28d9;
+   118→  --accent-red-muted: rgba(124, 58, 237, 0.18);
+   119→  --accent-red-glow: rgba(124, 58, 237, 0.35);
+   120→
+   121→  /* Primary button — Anivexa rose gradient */
+   122→  --btn-primary-grad: linear-gradient(135deg, #e11d48, #881337);
+   123→  --btn-primary-glow: rgba(225, 29, 72, 0.35);
+   124→  --btn-primary-glow-hover: rgba(225, 29, 72, 0.55);
+   125→
+   126→  /* Gradient accents — Anivexa signature */
+   127→  --grad-accent: linear-gradient(135deg, #7c3aed, #4c1d95);
+   128→  --grad-card: linear-gradient(180deg, transparent 35%, rgba(8, 8, 8, 0.99) 100%);
+   129→  --grad-hero: linear-gradient(0deg, rgba(8, 8, 8, 0.95) 0%, rgba(8, 8, 8, 0.3) 50%, transparent 100%);
+   130→
+   131→  /* Secondary accents — Anivexa palette */
+   132→  --accent-gold: #FFB800;
+   133→  --accent-silver: #A8B4C0;
+   134→  --accent-bronze: #CD7F32;
+   135→  --accent-teal: #06b6d4;
+   136→  --accent-amber: #F59E0B;
+   137→  --accent-indigo: #6366F1;
+   138→  --accent-lime: #22c55e;
+   139→  --accent-orange: #FF6B00;
+   140→  --accent-pink: #be185d;
+   141→  --accent-blue: #4A90E2;
+   142→  --accent-light-blue: #67e8f9;
+   143→  --accent-gold-score: #FFB800;
+   144→  --accent-green: #22c55e;
+   145→
+   146→  /* Text — Anivexa zinc scale */
+   147→  --text: #ffffff;
+   148→  --text-secondary: #777790;
+   149→  --text-muted: #404050;
+   150→  --text-faint: #52525B;
+   151→
+   152→  /* Borders — Anivexa subtle + violet-bright */
+   153→  --border-subtle: rgba(255, 255, 255, 0.07);
+   154→  --border-medium: rgba(255, 255, 255, 0.10);
+   155→  --border-strong: rgba(255, 255, 255, 0.15);
+   156→  --border-violet: rgba(124, 58, 237, 0.5);
+   157→
+   158→  /* Status colors */
+   159→  --status-airing: #22c55e;
+   160→  --status-finished: #6366F1;
+   161→  --status-upcoming: #F59E0B;
+   162→
+   163→  /* Overlays */
+   164→  --overlay-light: rgba(0, 0, 0, 0.55);
+   165→  --overlay-heavy: rgba(0, 0, 0, 0.80);
+   166→  --overlay-blur: rgba(8, 8, 8, 0.85);
+   167→
+   168→  /* Transitions — Anivexa cubic-bezier */
+   169→  --t-fast: 150ms;
+   170→  --t-normal: 220ms;
+   171→  --t-slow: 450ms;
+   172→  --t-spring: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+   173→  --t-cubic: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+   174→  --t-cubic-slow: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+   175→
+   176→  /* Shadows — Anivexa card + violet hover glow */
+   177→  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+   178→  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+   179→  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
+   180→  --shadow-card: 0 4px 32px rgba(0, 0, 0, 0.8);
+   181→  --shadow-hover: 0 8px 40px rgba(124, 58, 237, 0.35);
+   182→  --shadow-glow: 0 0 22px rgba(225, 29, 72, 0.35);
+   183→  --shadow-glow-violet: 0 0 22px rgba(124, 58, 237, 0.35);
+   184→
+   185→  /* Radius — Anivexa */
+   186→  --radius-sm: 6px;
+   187→  --radius-md: 10px;
+   188→  --radius-lg: 16px;
+   189→  --radius-pill: 999px;
+   190→
+   191→  /* Layout — Anivexa */
+   192→  --header-h: 62px;
+   193→  --max-w: 1380px;
+   194→
+   195→  /* Legacy compatibility */
+   196→  --bg-color: #080808;
+   197→  --surface-color: #0f0f0f;
+   198→  --primary-color: #7c3aed;
+   199→  --primary-hover: #6d28d9;
+   200→  --text-color: #ffffff;
+   201→  --text-muted: #777790;
+   202→  --success: #22c55e;
+   203→  --card-bg: #0f0f0f;
+   204→  --episode-bg: #000000;
+   205→}
+   206→
+   207→@layer base {
+   208→  * {
+   209→    @apply border-border outline-ring/50;
+   210→  }
+   211→  body {
+   212→    @apply bg-background text-foreground;
+   213→  }
+   214→}
+   215→
+   216→/* ===== SCROLLBAR — anixtv style ===== */
+   217→::-webkit-scrollbar { width: 10px; height: 10px; }
+   218→::-webkit-scrollbar-track { background: var(--bg-color); }
+   219→::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 5px; }
+   220→::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
+   221→html { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) var(--bg-color); scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+   222→
+   223→/* ===== GLASS MORPHISM ===== */
+   224→.glass {
+   225→  background: rgba(0, 0, 0, 0.85);
+   226→  backdrop-filter: blur(20px);
+   227→  -webkit-backdrop-filter: blur(20px);
+   228→  border: 1px solid rgba(255, 255, 255, 0.06);
+   229→}
+   230→.glass-heavy {
+   231→  background: rgba(0, 0, 0, 0.95);
+   232→  backdrop-filter: blur(30px);
+   233→  -webkit-backdrop-filter: blur(30px);
+   234→  border: 1px solid rgba(255, 255, 255, 0.08);
+   235→}
+   236→.glass-card {
+   237→  background: rgba(0, 0, 0, 0.9);
+   238→  backdrop-filter: blur(16px);
+   239→  -webkit-backdrop-filter: blur(16px);
+   240→  border: 1px solid rgba(255, 255, 255, 0.05);
+   241→}
+   242→.glass-nav {
+   243→  background: rgba(0, 0, 0, 0.8);
+   244→  backdrop-filter: blur(20px);
+   245→  -webkit-backdrop-filter: blur(20px);
+   246→}
+   247→
+   248→/* ===== FLOATING NAVBAR — LunarAnime style ===== */
+   249→.floating-nav {
+   250→  transition: all 0.3s ease;
+   251→}
+   252→.floating-nav.scrolled {
+   253→  background: rgba(0, 0, 0, 0.9);
+   254→  backdrop-filter: blur(24px);
+   255→  -webkit-backdrop-filter: blur(24px);
+   256→  border-bottom: 1px solid rgba(230, 57, 70, 0.08);
+   257→  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(230, 57, 70, 0.05);
+   258→}
+   259→.glass-pill {
+   260→  background: rgba(255, 255, 255, 0.08);
+   261→  backdrop-filter: blur(12px);
+   262→  -webkit-backdrop-filter: blur(12px);
+   263→  border: 1px solid rgba(255, 255, 255, 0.1);
+   264→}
+   265→
+   266→/* ===== GLOW EFFECTS ===== */
+   267→.glow-primary {
+   268→  box-shadow: 0 0 20px rgba(230, 57, 70, 0.15), 0 0 60px rgba(230, 57, 70, 0.05);
+   269→}
+   270→.glow-primary-strong {
+   271→  box-shadow: 0 0 12px rgba(230, 57, 70, 0.3), 0 0 40px rgba(230, 57, 70, 0.1);
+   272→}
+   273→
+   274→/* ===== GRADIENT TEXT ===== */
+   275→.gradient-text {
+   276→  background: linear-gradient(135deg, #ffffff, #4CC9F0);
+   277→  -webkit-background-clip: text;
+   278→  -webkit-text-fill-color: transparent;
+   279→  background-clip: text;
+   280→}
+   281→.gradient-text-hero {
+   282→  background: linear-gradient(135deg, #ffffff 0%, #FF6B6B 50%, #4CC9F0 100%);
+   283→  -webkit-background-clip: text;
+   284→  -webkit-text-fill-color: transparent;
+   285→  background-clip: text;
+   286→}
+   287→.gradient-text-warm {
+   288→  background: linear-gradient(135deg, #F59E0B, #F43F5E, #ffffff);
+   289→  -webkit-background-clip: text;
+   290→  -webkit-text-fill-color: transparent;
+   291→  background-clip: text;
+   292→}
+   293→
+   294→/* ===== CONTENT CARD — Anikage glassmorphism style ===== */
+   295→.content-card {
+   296→  transition: transform var(--t-normal), box-shadow var(--t-normal), background-color var(--t-fast);
+   297→  position: relative;
+   298→  border-radius: 8px;
+   299→  overflow: hidden;
+   300→}
+   301→.content-card:hover {
+   302→  transform: translateY(-3px) scale(1.02);
+   303→  box-shadow:
+   304→    0 8px 24px rgba(0, 0, 0, 0.4),
+   305→    0 0 0 1px rgba(255, 255, 255, 0.05),
+   306→    0 0 20px rgba(124, 58, 237, 0.06);
+   307→  z-index: 10;
+   308→}
+   309→
+   310→
+   311→/* ===== SIDEBAR ACTIVE ACCENT — left-border highlight ===== */
+   312→.sidebar-nav-active {
+   313→  position: relative;
+   314→}
+   315→.sidebar-nav-active::before {
+   316→  content: "";
+   317→  position: absolute;
+   318→  left: -2px;
+   319→  top: 25%;
+   320→  bottom: 25%;
+   321→  width: 3px;
+   322→  border-radius: 2px;
+   323→  background: var(--accent-violet, #7c3aed);
+   324→  box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+   325→}
+   326→
+   327→/* ===== GRAIN OVERLAY — film-grain texture to prevent gradient banding ===== */
+   328→.grain-overlay {
+   329→  position: fixed;
+   330→  inset: 0;
+   331→  z-index: 9998;
+   332→  pointer-events: none;
+   333→  opacity: 0.035;
+   334→  mix-blend-mode: overlay;
+   335→  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+   336→  background-repeat: repeat;
+   337→  background-size: 256px 256px;
+   338→}
+   339→
+   340→/* ===== HERO GRADIENT ===== */
+   341→.hero-gradient {
+   342→  background: linear-gradient(
+   343→    135deg,
+   344→    rgba(230, 57, 70, 0.08) 0%,
+   345→    rgba(255, 107, 107, 0.05) 30%,
+   346→    rgba(244, 63, 94, 0.03) 60%,
+   347→    transparent 100%
+   348→  );
+   349→}
+   350→.hero-gradient-strong {
+   351→  background: linear-gradient(
+   352→    135deg,
+   353→    rgba(230, 57, 70, 0.15) 0%,
+   354→    rgba(255, 107, 107, 0.1) 35%,
+   355→    rgba(244, 63, 94, 0.05) 65%,
+   356→    transparent 100%
+   357→  );
+   358→}
+   359→
+   360→/* ===== HORIZONTAL SCROLL ===== */
+   361→.scroll-container {
+   362→  scrollbar-width: none;
+   363→  -ms-overflow-style: none;
+   364→}
+   365→.scroll-container::-webkit-scrollbar { display: none; }
+   366→
+   367→/* ===== ANIMATIONS ===== */
+   368→@keyframes fadeIn {
+   369→  from { opacity: 0; transform: translateY(6px); }
+   370→  to { opacity: 1; transform: translateY(0); }
+   371→}
+   372→.fade-in { animation: fadeIn 0.3s ease-out; }
+   373→
+   374→@keyframes slideUp {
+   375→  from { opacity: 0; transform: translateY(20px); }
+   376→  to { opacity: 1; transform: translateY(0); }
+   377→}
+   378→.slide-up { animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+   379→
+   380→@keyframes slideDown {
+   381→  from { opacity: 0; transform: translateY(-10px); }
+   382→  to { opacity: 1; transform: translateY(0); }
+   383→}
+   384→.slide-down { animation: slideDown 0.25s ease-out; }
+   385→
+   386→@keyframes scaleIn {
+   387→  from { opacity: 0; transform: scale(0.96); }
+   388→  to { opacity: 1; transform: scale(1); }
+   389→}
+   390→.scale-in { animation: scaleIn 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+   391→
+   392→@keyframes shimmer {
+   393→  0% { background-position: -200% 0; }
+   394→  100% { background-position: 200% 0; }
+   395→}
+   396→.shimmer {
+   397→  background: linear-gradient(90deg, #0a0a14 25%, #0f0f1a 50%, #0a0a14 75%);
+   398→  background-size: 200% 100%;
+   399→  animation: shimmer 1.5s ease-in-out infinite;
+   400→}
+   401→
+   402→@keyframes pulseGlow {
+   403→  0%, 100% { opacity: 0.4; }
+   404→  50% { opacity: 1; }
+   405→}
+   406→.pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
+   407→
+   408→@keyframes heroSlide {
+   409→  0% { opacity: 0; transform: scale(1.05); }
+   410→  100% { opacity: 1; transform: scale(1); }
+   411→}
+   412→.hero-slide { animation: heroSlide 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+   413→
+   414→/* ===== HERO BANNER TRANSITIONS — smooth crossfade + content slide ===== */
+   415→@keyframes ltv-hero-crossfade {
+   416→  0% { opacity: 0; transform: scale(1.08); }
+   417→  100% { opacity: 1; transform: scale(1); }
+   418→}
+   419→@keyframes ltv-hero-content-slide {
+   420→  0% { opacity: 0; transform: translateY(30px); }
+   421→  100% { opacity: 1; transform: translateY(0); }
+   422→}
+   423→/* Cinematic dimming effect — overlay starts transparent then darkens,
+   424→   like shiroko.co's "lights dimming in a theater" feel */
+   425→@keyframes ltv-hero-dim {
+   426→  0% { opacity: 0; }
+   427→  100% { opacity: 1; }
+   428→}
+   429→/* Progressive blackout — banner starts bright, then blacks out over 3s.
+   430→   Creates the shiroko.co-style effect where the image darkens after load. */
+   431→@keyframes ltv-hero-blackout {
+   432→  0% { background: rgba(0, 0, 0, 0); }
+   433→  40% { background: rgba(0, 0, 0, 0.3); }
+   434→  100% { background: rgba(0, 0, 0, 0.65); }
+   435→}
+   436→
+   437→@keyframes carouselProgress {
+   438→  from { width: 0%; }
+   439→  to { width: 100%; }
+   440→}
+   441→
+   442→@keyframes gradientShift {
+   443→  0%, 100% { background-position: 0% 50%; }
+   444→  50% { background-position: 100% 50%; }
+   445→}
+   446→.gradient-shift {
+   447→  background-size: 200% 200%;
+   448→  animation: gradientShift 3s ease infinite;
+   449→}
+   450→
+   451→/* ===== KEN BURNS for Hero ===== */
+   452→@keyframes kenBurns {
+   453→  0% { transform: scale(1.05); }
+   454→  100% { transform: scale(1.0); }
+   455→}
+   456→.ken-burns {
+   457→  animation: kenBurns 10s ease-out forwards;
+   458→}
+   459→
+   460→/* ===== STAGGER ANIMATIONS ===== */
+   461→@keyframes staggerReveal {
+   462→  from { opacity: 0; transform: translateY(16px); }
+   463→  to { opacity: 1; transform: translateY(0); }
+   464→}
+   465→.stagger-reveal {
+   466→  opacity: 0;
+   467→  animation: staggerReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+   468→}
+   469→.stagger-1 { animation-delay: 0.1s; }
+   470→.stagger-2 { animation-delay: 0.2s; }
+   471→.stagger-3 { animation-delay: 0.3s; }
+   472→.stagger-4 { animation-delay: 0.4s; }
+   473→.stagger-5 { animation-delay: 0.5s; }
+   474→.stagger-6 { animation-delay: 0.6s; }
+   475→.stagger-7 { animation-delay: 0.7s; }
+   476→.stagger-8 { animation-delay: 0.8s; }
+   477→
+   478→/* ===== VIDEO PLAYER ===== */
+   479→video::-webkit-media-controls { border-radius: 8px; }
+   480→
+   481→/* ===== CAROUSEL DOTS ===== */
+   482→.carousel-dot {
+   483→  transition: all 0.3s ease;
+   484→  border-radius: 2px;
+   485→}
+   486→.carousel-dot.active {
+   487→  width: 24px;
+   488→  background: #ffffff;
+   489→  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+   490→}
+   491→
+   492→/* ===== EPISODE LIST ITEM — anixtv style ===== */
+   493→.episode-item {
+   494→  transition: all 0.15s ease;
+   495→  border-radius: 8px;
+   496→}
+   497→.episode-item:hover {
+   498→  background: rgba(230, 57, 70, 0.06);
+   499→}
+   500→.episode-item.active {
+   501→  background: rgba(230, 57, 70, 0.1);
+   502→  border-left: 3px solid #ffffff;
+   503→  box-shadow: -2px 0 8px rgba(230, 57, 70, 0.1);
+   504→}
+   505→
+   506→/* ===== SKELETON LOADER ===== */
+   507→.skeleton {
+   508→  position: relative;
+   509→  overflow: hidden;
+   510→  background: #0D0D0D;
+   511→  border-radius: 8px;
+   512→}
+   513→.skeleton::after {
+   514→  content: '';
+   515→  position: absolute;
+   516→  inset: 0;
+   517→  background: linear-gradient(90deg, transparent, rgba(230, 57, 70, 0.04), transparent);
+   518→  animation: shimmer 1.5s ease-in-out infinite;
+   519→}
+   520→
+   521→/* ===== SECTION HEADER — anixtv left-border accent ===== */
+   522→.section-header {
+   523→  border-left: 4px solid var(--primary-color);
+   524→  padding-left: 12px;
+   525→}
+   526→
+   527→/* ===== MOBILE BOTTOM NAV ===== */
+   528→.mobile-nav-item {
+   529→  transition: all 0.2s ease;
+   530→}
+   531→.mobile-nav-item.active {
+   532→  color: #ffffff;
+   533→}
+   534→.mobile-nav-item.active .nav-indicator {
+   535→  width: 20px;
+   536→  height: 3px;
+   537→  background: #ffffff;
+   538→  border-radius: 2px;
+   539→  box-shadow: 0 0 6px rgba(230, 57, 70, 0.4);
+   540→}
+   541→
+   542→/* ===== GENRE PILL COLORS ===== */
+   543→.genre-pill-action { background: rgba(244, 63, 94, 0.1); color: #fb7185; border-color: rgba(244, 63, 94, 0.15); }
+   544→.genre-pill-romance { background: rgba(244, 63, 94, 0.1); color: #fb7185; border-color: rgba(244, 63, 94, 0.15); }
+   545→.genre-pill-comedy { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.15); }
+   546→.genre-pill-fantasy { background: rgba(230, 57, 70, 0.1); color: #FF6B6B; border-color: rgba(230, 57, 70, 0.15); }
+   547→.genre-pill-scifi { background: rgba(77, 201, 240, 0.1); color: #4CC9F0; border-color: rgba(77, 201, 240, 0.15); }
+   548→.genre-pill-horror { background: rgba(113, 113, 122, 0.1); color: #a1a1aa; border-color: rgba(113, 113, 122, 0.15); }
+   549→.genre-pill-drama { background: rgba(230, 57, 70, 0.1); color: #FF6B6B; border-color: rgba(230, 57, 70, 0.15); }
+   550→.genre-pill-thriller { background: rgba(230, 57, 70, 0.1); color: #FF6B6B; border-color: rgba(230, 57, 70, 0.15); }
+   551→
+   552→/* ===== BADGE STYLES — anixtv pill shapes ===== */
+   553→.badge-airing {
+   554→  background: rgba(0, 212, 170, 0.1);
+   555→  color: #00D4AA;
+   556→  border: 1px solid rgba(0, 212, 170, 0.2);
+   557→  border-radius: 50px;
+   558→  padding: 2px 10px;
+   559→}
+   560→.badge-score {
+   561→  background: rgba(16, 185, 129, 0.15);
+   562→  color: #34d399;
+   563→  border: 1px solid rgba(16, 185, 129, 0.25);
+   564→  border-radius: 50px;
+   565→  padding: 2px 10px;
+   566→}
+   567→.badge-type {
+   568→  background: rgba(74, 144, 226, 0.1);
+   569→  color: #4A90E2;
+   570→  border: 1px solid rgba(74, 144, 226, 0.2);
+   571→  border-radius: 50px;
+   572→  padding: 2px 10px;
+   573→}
+   574→.badge-sub {
+   575→  background: rgba(230, 57, 70, 0.1);
+   576→  color: #FF6B6B;
+   577→  border: 1px solid rgba(230, 57, 70, 0.2);
+   578→  border-radius: 50px;
+   579→  padding: 2px 10px;
+   580→}
+   581→.badge-dub {
+   582→  background: rgba(124, 58, 237, 0.1);
+   583→  color: #FF6B6B;
+   584→  border: 1px solid rgba(124, 58, 237, 0.2);
+   585→  border-radius: 50px;
+   586→  padding: 2px 10px;
+   587→}
+   588→.badge-movie {
+   589→  background: rgba(244, 63, 94, 0.12);
+   590→  color: #fb7185;
+   591→  border: 1px solid rgba(244, 63, 94, 0.2);
+   592→  border-radius: 50px;
+   593→  padding: 2px 10px;
+   594→}
+   595→.badge-tv {
+   596→  background: rgba(230, 57, 70, 0.12);
+   597→  color: #FF6B6B;
+   598→  border: 1px solid rgba(230, 57, 70, 0.2);
+   599→  border-radius: 50px;
+   600→  padding: 2px 10px;
+   601→}
+   602→.badge-anime {
+   603→  background: rgba(230, 57, 70, 0.12);
+   604→  color: #FF6B6B;
+   605→  border: 1px solid rgba(230, 57, 70, 0.2);
+   606→  border-radius: 50px;
+   607→  padding: 2px 10px;
+   608→}
+   609→.badge-trending {
+   610→  background: linear-gradient(135deg, rgba(230, 57, 70, 0.15), rgba(244, 63, 94, 0.15));
+   611→  color: #FF6B6B;
+   612→  border: 1px solid rgba(230, 57, 70, 0.2);
+   613→  border-radius: 50px;
+   614→  padding: 2px 10px;
+   615→}
+   616→.badge-quality {
+   617→  background: rgba(245, 158, 11, 0.12);
+   618→  color: #fbbf24;
+   619→  border: 1px solid rgba(245, 158, 11, 0.2);
+   620→  border-radius: 50px;
+   621→  padding: 2px 10px;
+   622→}
+   623→
+   624→/* ===== PILL BUTTON — anixtv style ===== */
+   625→.pill-btn {
+   626→  border-radius: 50px;
+   627→  padding: 8px 20px;
+   628→  font-weight: 600;
+   629→  font-size: 13px;
+   630→  transition: all 0.25s ease;
+   631→  display: inline-flex;
+   632→  align-items: center;
+   633→  gap: 8px;
+   634→}
+   635→.pill-btn-primary {
+   636→  background: #ffffff;
+   637→  color: white;
+   638→  box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);
+   639→}
+   640→.pill-btn-primary:hover {
+   641→  background: #D32F3F;
+   642→  box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4);
+   643→  transform: translateY(-1px);
+   644→}
+   645→.pill-btn-ghost {
+   646→  background: rgba(255, 255, 255, 0.08);
+   647→  color: white;
+   648→  border: 1px solid rgba(255, 255, 255, 0.1);
+   649→  backdrop-filter: blur(12px);
+   650→}
+   651→.pill-btn-ghost:hover {
+   652→  background: rgba(255, 255, 255, 0.12);
+   653→  border-color: rgba(255, 255, 255, 0.15);
+   654→}
+   655→
+   656→/* ===== SERVER PILL — anixtv style ===== */
+   657→.server-pill {
+   658→  border-radius: 50px;
+   659→  padding: 8px 16px;
+   660→  font-size: 12px;
+   661→  font-weight: 600;
+   662→  transition: all 0.2s ease;
+   663→  display: inline-flex;
+   664→  align-items: center;
+   665→  gap: 8px;
+   666→  background: rgba(255, 255, 255, 0.05);
+   667→  border: 1px solid rgba(255, 255, 255, 0.08);
+   668→  color: #94a3b8;
+   669→}
+   670→.server-pill:hover {
+   671→  background: rgba(255, 255, 255, 0.08);
+   672→  color: #e2e8f0;
+   673→}
+   674→.server-pill.active {
+   675→  background: rgba(230, 57, 70, 0.15);
+   676→  border-color: rgba(230, 57, 70, 0.3);
+   677→  color: white;
+   678→  box-shadow: 0 0 12px rgba(230, 57, 70, 0.15);
+   679→}
+   680→
+   681→/* ===== SMOOTH IMAGE LOADING ===== */
+   682→.img-load {
+   683→  opacity: 0;
+   684→  transition: opacity 0.4s ease;
+   685→}
+   686→.img-load.loaded {
+   687→  opacity: 1;
+   688→}
+   689→
+   690→/* ===== SECTION DIVIDER ===== */
+   691→.section-divider {
+   692→  height: 1px;
+   693→  background: linear-gradient(90deg, transparent, rgba(230, 57, 70, 0.15), rgba(77, 201, 240, 0.1), transparent);
+   694→}
+   695→
+   696→/* ===== FOCUS RING ===== */
+   697→.focus-ring:focus-visible {
+   698→  outline: 2px solid rgba(230, 57, 70, 0.5);
+   699→  outline-offset: 2px;
+   700→}
+   701→
+   702→/* ===== CARD HOVER BORDER ===== */
+   703→.card-hover-border {
+   704→  position: relative;
+   705→  overflow: hidden;
+   706→}
+   707→.card-hover-border::before {
+   708→  content: '';
+   709→  position: absolute;
+   710→  inset: 0;
+   711→  border-radius: inherit;
+   712→  padding: 1px;
+   713→  background: linear-gradient(135deg, rgba(230, 57, 70, 0.4), transparent 40%, transparent 60%, rgba(77, 201, 240, 0.4));
+   714→  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+   715→  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+   716→  -webkit-mask-composite: xor;
+   717→  mask-composite: exclude;
+   718→  opacity: 0;
+   719→  transition: opacity 0.3s ease;
+   720→}
+   721→.card-hover-border:hover::before {
+   722→  opacity: 1;
+   723→}
+   724→
+   725→/* ===== SELECTION ===== */
+   726→::selection {
+   727→  background: rgba(255, 255, 255, 0.20);
+   728→  color: white;
+   729→}
+   730→
+   731→/* ===== NAV ACTIVE ===== */
+   732→.nav-link-active {
+   733→  color: #ffffff;
+   734→  position: relative;
+   735→}
+   736→.nav-link-active::after {
+   737→  content: '';
+   738→  position: absolute;
+   739→  bottom: -4px;
+   740→  left: 50%;
+   741→  transform: translateX(-50%);
+   742→  width: 4px;
+   743→  height: 4px;
+   744→  border-radius: 50%;
+   745→  background: #ffffff;
+   746→  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+   747→}
+   748→
+   749→/* ===== PLAY BUTTON PULSE ===== */
+   750→.play-pulse {
+   751→  position: relative;
+   752→}
+   753→.play-pulse::after {
+   754→  content: '';
+   755→  position: absolute;
+   756→  inset: -4px;
+   757→  border-radius: inherit;
+   758→  background: rgba(230, 57, 70, 0.25);
+   759→  animation: pulseGlow 2s ease-in-out infinite;
+   760→  z-index: -1;
+   761→}
+   762→
+   763→/* ===== SCROLL BUTTONS — appear on hover ===== */
+   764→.scroll-section {
+   765→  position: relative;
+   766→}
+   767→.scroll-section .scroll-btn {
+   768→  opacity: 0;
+   769→  transition: opacity 0.25s ease;
+   770→}
+   771→.scroll-section:hover .scroll-btn {
+   772→  opacity: 1;
+   773→}
+   774→
+   775→/* ===== 3D POSTER EFFECT ===== */
+   776→.poster-3d {
+   777→  transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+   778→  transform: perspective(800px) rotateY(-12deg) rotateX(5deg);
+   779→  box-shadow: 15px 15px 30px rgba(0, 0, 0, 0.6), -5px -5px 15px rgba(230, 57, 70, 0.05);
+   780→}
+   781→.poster-3d:hover {
+   782→  transform: perspective(800px) rotateY(0deg) rotateX(0deg);
+   783→  box-shadow: 5px 5px 20px rgba(0, 0, 0, 0.5);
+   784→}
+   785→
+   786→/* ===== IMMERSIVE BACKGROUND ===== */
+   787→.immersive-bg {
+   788→  position: fixed;
+   789→  top: 0;
+   790→  left: 0;
+   791→  right: 0;
+   792→  height: 80vh;
+   793→  filter: blur(20px);
+   794→  opacity: 0.3;
+   795→  z-index: -1;
+   796→  background-size: cover;
+   797→  background-position: center;
+   798→}
+   799→
+   800→/* ===== PLAYER GLOW ===== */
+   801→.player-glow {
+   802→  box-shadow: 0 0 40px rgba(230, 57, 70, 0.08), 0 0 80px rgba(230, 57, 70, 0.04);
+   803→}
+   804→
+   805→/* ====================================================================
+   806→   WATCH PAGE — Ultimate Deep Navy Theme
+   807→   Inspiration: Animetsu + ModSyndicate + Anidap + Kuroiru + AnimeX + Anime.nexus
+   808→   ==================================================================== */
+   809→
+   810→/* ── Watch Page Glass Panel — Premium blur (Anidap/Animetsu) ── */
+   811→/* ====================================================================
+   812→   WATCH PAGE — Ultimate Structural Redesign
+   813→   New layout: Cinematic Player → Hero Bar → Server Selector → Tabbed Content
+   814→   ==================================================================== */
+   815→
+   816→/* ── Immersive Backdrop ── */
+   817→.wp-immersive {
+   818→  position: fixed;
+   819→  top: 0;
+   820→  left: 0;
+   821→  right: 0;
+   822→  height: 60vh;
+   823→  filter: blur(40px) saturate(1.3);
+   824→  opacity: 0.15;
+   825→  z-index: -1;
+   826→  background-size: cover;
+   827→  background-position: center;
+   828→  pointer-events: none;
+   829→}
+   830→.wp-immersive::after {
+   831→  content: '';
+   832→  position: absolute;
+   833→  inset: 0;
+   834→  background: linear-gradient(to bottom, transparent 20%, #111827 100%);
+   835→}
+   836→
+   837→/* ── Subtitle / Caption Rendering ── */
+   838→/* Native ::cue is now DISABLED — we use a custom HTML overlay instead
+   839→   (CustomSubtitleOverlay component in subtitle-settings.tsx).
+   840→   The visibility:hidden + opacity:0 below ensures no double-rendering. */
+   841→video::cue {
+   842→  visibility: hidden !important;
+   843→  opacity: 0 !important;
+   844→  background: transparent !important;
+   845→  color: transparent !important;
+   846→}
+   847→video::cue(b), video::cue(i), video::cue(u) {
+   848→  visibility: hidden !important;
+   849→  opacity: 0 !important;
+   850→}
+   851→video:fullscreen::cue {
+   852→  visibility: hidden !important;
+   853→  opacity: 0 !important;
+   854→}
+   855→
+   856→/* ── Cinematic Player Zone ── */
+   857→.wp-player-zone {
+   858→  width: 100%;
+   859→  position: relative;
+   860→  background: #0a0f1a;
+   861→}
+   862→.wp-player-inner {
+   863→  position: relative;
+   864→  width: 100%;
+   865→  aspect-ratio: 16 / 9;
+   866→  max-height: 75vh;
+   867→  overflow: hidden;
+   868→}
+   869→.wp-theater .wp-player-inner {
+   870→  max-height: 100vh;
+   871→  aspect-ratio: unset;
+   872→  height: 100vh;
+   873→}
+   874→
+   875→/* ── Loader Ring ── */
+   876→.wp-loader-ring {
+   877→  position: relative;
+   878→  width: 48px;
+   879→  height: 48px;
+   880→  margin: 0 auto;
+   881→}
+   882→.wp-loader-ring div {
+   883→  position: absolute;
+   884→  inset: 0;
+   885→  border-radius: 50%;
+   886→  border: 2px solid transparent;
+   887→  border-top-color: #ffffff;
+   888→  animation: spin 1s linear infinite;
+   889→}
+   890→.wp-loader-ring div:nth-child(2) {
+   891→  inset: 6px;
+   892→  border-top-color: transparent;
+   893→  border-bottom-color: rgba(230, 57, 70, 0.4);
+   894→  animation-direction: reverse;
+   895→  animation-duration: 1.5s;
+   896→}
+   897→
+   898→/* ── Floating Mini Player — Animetsu style ── */
+   899→.wp-mini-player {
+   900→  position: fixed;
+   901→  bottom: 20px;
+   902→  right: 20px;
+   903→  z-index: 1000;
+   904→  display: flex;
+   905→  align-items: center;
+   906→  gap: 8px;
+   907→  padding: 6px;
+   908→  background: rgba(15, 23, 42, 0.92);
+   909→  backdrop-filter: blur(24px);
+   910→  -webkit-backdrop-filter: blur(24px);
+   911→  border: 1px solid rgba(255, 255, 255, 0.1);
+   912→  border-radius: 16px;
+   913→  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+   914→  animation: slideUpFade 0.3s ease;
+   915→}
+   916→.wp-mini-inner {
+   917→  width: 160px;
+   918→  height: 90px;
+   919→  border-radius: 10px;
+   920→  overflow: hidden;
+   921→  background: #000;
+   922→}
+   923→.wp-mini-info {
+   924→  min-width: 0;
+   925→  max-width: 100px;
+   926→}
+   927→.wp-mini-expand, .wp-mini-close {
+   928→  display: flex;
+   929→  align-items: center;
+   930→  justify-content: center;
+   931→  width: 28px;
+   932→  height: 28px;
+   933→  border-radius: 8px;
+   934→  background: rgba(255, 255, 255, 0.06);
+   935→  border: none;
+   936→  color: rgba(255, 255, 255, 0.4);
+   937→  cursor: pointer;
+   938→  transition: all 0.2s ease;
+   939→}
+   940→.wp-mini-expand:hover, .wp-mini-close:hover {
+   941→  background: rgba(255, 255, 255, 0.12);
+   942→  color: white;
+   943→}
+   944→
+   945→/* ── Content Area ── */
+   946→.wp-content {
+   947→  max-width: 1200px;
+   948→  margin: 0 auto;
+   949→  padding: 0 16px 40px;
+   950→}
+   951→
+   952→/* ── Hero Bar — title + quick actions ── */
+   953→.wp-hero-bar {
+   954→  display: flex;
+   955→  align-items: flex-start;
+   956→  justify-content: space-between;
+   957→  gap: 16px;
+   958→  padding: 20px 0 16px;
+   959→  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+   960→}
+   961→
+   962→/* ── Live Dot ── */
+   963→.wp-live-dot {
+   964→  width: 6px;
+   965→  height: 6px;
+   966→  border-radius: 50%;
+   967→  background: #ffffff;
+   968→  animation: pulseGlow 2s ease-in-out infinite;
+   969→  box-shadow: 0 0 6px rgba(230, 57, 70, 0.3);
+   970→}
+   971→
+   972→/* ── Labels ── */
+   973→.wp-label-xs {
+   974→  font-size: 10px;
+   975→  font-weight: 700;
+   976→  letter-spacing: 0.15em;
+   977→  text-transform: uppercase;
+   978→  color: rgba(255, 255, 255, 0.5);
+   979→}
+   980→
+   981→/* ── Translation Badge ── */
+   982→.wp-trans-badge {
+   983→  display: inline-flex;
+   984→  align-items: center;
+   985→  padding: 2px 8px;
+   986→  font-size: 9px;
+   987→  font-weight: 700;
+   988→  border-radius: 6px;
+   989→  letter-spacing: 0.06em;
+   990→}
+   991→
+   992→/* ── Title ── */
+   993→.wp-title-main {
+   994→  font-size: 20px;
+   995→  font-weight: 800;
+   996→  color: #f1f5f9;
+   997→  line-height: 1.2;
+   998→  letter-spacing: -0.01em;
+   999→}
+  1000→@media (min-width: 640px) {
+  1001→  .wp-title-main { font-size: 26px; }
+  1002→}
+  1003→.wp-subtitle {
+  1004→  font-size: 12px;
+  1005→  color: rgba(255, 255, 255, 0.45);
+  1006→  margin-top: 4px;
+  1007→}
+  1008→
+  1009→/* ── Icon Buttons ── */
+  1010→.wp-icon-btn {
+  1011→  display: flex;
+  1012→  align-items: center;
+  1013→  justify-content: center;
+  1014→  width: 36px;
+  1015→  height: 36px;
+  1016→  border-radius: 10px;
+  1017→  background: rgba(255, 255, 255, 0.04);
+  1018→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1019→  color: rgba(255, 255, 255, 0.35);
+  1020→  cursor: pointer;
+  1021→  transition: all 0.2s ease;
+  1022→}
+  1023→.wp-icon-btn:hover {
+  1024→  background: rgba(255, 255, 255, 0.08);
+  1025→  color: rgba(255, 255, 255, 0.7);
+  1026→}
+  1027→.wp-icon-btn.active {
+  1028→  background: rgba(230, 57, 70, 0.12);
+  1029→  color: #ffffff;
+  1030→  border-color: rgba(230, 57, 70, 0.2);
+  1031→}
+  1032→.wp-icon-btn-sm {
+  1033→  display: flex;
+  1034→  align-items: center;
+  1035→  justify-content: center;
+  1036→  width: 28px;
+  1037→  height: 28px;
+  1038→  border-radius: 7px;
+  1039→  background: rgba(255, 255, 255, 0.04);
+  1040→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1041→  color: rgba(255, 255, 255, 0.35);
+  1042→  cursor: pointer;
+  1043→  transition: all 0.2s ease;
+  1044→}
+  1045→.wp-icon-btn-sm:hover {
+  1046→  background: rgba(255, 255, 255, 0.1);
+  1047→  color: rgba(255, 255, 255, 0.7);
+  1048→}
+  1049→
+  1050→/* ── Episode Arrow Buttons ── */
+  1051→.wp-ep-arrow {
+  1052→  display: flex;
+  1053→  align-items: center;
+  1054→  justify-content: center;
+  1055→  width: 40px;
+  1056→  height: 40px;
+  1057→  border-radius: 12px;
+  1058→  background: rgba(255, 255, 255, 0.04);
+  1059→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1060→  color: rgba(255, 255, 255, 0.4);
+  1061→  cursor: pointer;
+  1062→  transition: all 0.2s ease;
+  1063→}
+  1064→.wp-ep-arrow:hover {
+  1065→  background: rgba(255, 255, 255, 0.08);
+  1066→  color: white;
+  1067→}
+  1068→.wp-ep-arrow-next {
+  1069→  display: flex;
+  1070→  align-items: center;
+  1071→  justify-content: center;
+  1072→  width: 40px;
+  1073→  height: 40px;
+  1074→  border-radius: 12px;
+  1075→  background: #ffffff;
+  1076→  border: none;
+  1077→  color: white;
+  1078→  cursor: pointer;
+  1079→  transition: all 0.2s ease;
+  1080→  box-shadow: 0 4px 15px rgba(230, 57, 70, 0.25);
+  1081→}
+  1082→.wp-ep-arrow-next:hover {
+  1083→  background: #D32F3F;
+  1084→  transform: translateY(-1px);
+  1085→  box-shadow: 0 6px 20px rgba(230, 57, 70, 0.35);
+  1086→}
+  1087→
+  1088→/* ── Accent / Ghost Buttons ── */
+  1089→.wp-btn-accent {
+  1090→  display: inline-flex;
+  1091→  align-items: center;
+  1092→  gap: 6px;
+  1093→  padding: 8px 18px;
+  1094→  font-size: 11px;
+  1095→  font-weight: 700;
+  1096→  color: white;
+  1097→  background: #ffffff;
+  1098→  border-radius: 10px;
+  1099→  border: none;
+  1100→  cursor: pointer;
+  1101→  transition: all 0.2s ease;
+  1102→  box-shadow: 0 4px 15px rgba(230, 57, 70, 0.25);
+  1103→}
+  1104→.wp-btn-accent:hover {
+  1105→  background: #D32F3F;
+  1106→  box-shadow: 0 6px 20px rgba(230, 57, 70, 0.35);
+  1107→  transform: translateY(-1px);
+  1108→}
+  1109→.wp-btn-accent-sm {
+  1110→  display: inline-flex;
+  1111→  align-items: center;
+  1112→  gap: 4px;
+  1113→  padding: 5px 12px;
+  1114→  font-size: 10px;
+  1115→  font-weight: 700;
+  1116→  color: white;
+  1117→  background: #ffffff;
+  1118→  border-radius: 8px;
+  1119→  border: none;
+  1120→  cursor: pointer;
+  1121→  transition: all 0.2s ease;
+  1122→}
+  1123→.wp-btn-accent-sm:hover {
+  1124→  background: #D32F3F;
+  1125→}
+  1126→.wp-btn-ghost {
+  1127→  display: inline-flex;
+  1128→  align-items: center;
+  1129→  gap: 6px;
+  1130→  padding: 8px 16px;
+  1131→  font-size: 11px;
+  1132→  font-weight: 600;
+  1133→  color: white;
+  1134→  background: rgba(255, 255, 255, 0.06);
+  1135→  border: 1px solid rgba(255, 255, 255, 0.1);
+  1136→  border-radius: 10px;
+  1137→  cursor: pointer;
+  1138→  transition: all 0.2s ease;
+  1139→}
+  1140→.wp-btn-ghost:hover {
+  1141→  background: rgba(255, 255, 255, 0.1);
+  1142→  border-color: rgba(255, 255, 255, 0.12);
+  1143→}
+  1144→
+  1145→/* ── Up Next Card — Anime.nexus style ── */
+  1146→.wp-up-next {
+  1147→  display: flex;
+  1148→  align-items: center;
+  1149→  justify-content: space-between;
+  1150→  gap: 12px;
+  1151→  padding: 10px 14px;
+  1152→  margin: 12px 0;
+  1153→  background: rgba(230, 57, 70, 0.04);
+  1154→  border: 1px solid rgba(230, 57, 70, 0.08);
+  1155→  border-radius: 14px;
+  1156→  animation: slideUpFade 0.4s ease;
+  1157→}
+  1158→
+  1159→/* ── Server Zone ── */
+  1160→.wp-server-zone {
+  1161→  display: flex;
+  1162→  align-items: center;
+  1163→  gap: 12px;
+  1164→  padding: 12px 0;
+  1165→  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  1166→  flex-wrap: wrap;
+  1167→}
+  1168→
+  1169→/* ── Translation Toggle ── */
+  1170→.wp-trans-toggle {
+  1171→  display: flex;
+  1172→  align-items: center;
+  1173→  gap: 2px;
+  1174→  padding: 3px;
+  1175→  background: rgba(255, 255, 255, 0.04);
+  1176→  border-radius: 12px;
+  1177→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1178→}
+  1179→.wp-trans-btn {
+  1180→  padding: 7px 14px;
+  1181→  font-size: 10px;
+  1182→  font-weight: 700;
+  1183→  letter-spacing: 0.08em;
+  1184→  text-transform: uppercase;
+  1185→  color: rgba(255, 255, 255, 0.35);
+  1186→  border-radius: 10px;
+  1187→  border: none;
+  1188→  background: none;
+  1189→  cursor: pointer;
+  1190→  transition: all 0.2s ease;
+  1191→}
+  1192→.wp-trans-btn:hover {
+  1193→  color: rgba(255, 255, 255, 0.6);
+  1194→  background: rgba(255, 255, 255, 0.04);
+  1195→}
+  1196→.wp-trans-btn.active-sub {
+  1197→  background: rgba(74, 144, 226, 0.15);
+  1198→  color: #5BA3F5;
+  1199→  border: 1px solid rgba(74, 144, 226, 0.2);
+  1200→}
+  1201→.wp-trans-btn.active-dub {
+  1202→  background: rgba(230, 57, 70, 0.15);
+  1203→  color: #FF6B7A;
+  1204→  border: 1px solid rgba(230, 57, 70, 0.2);
+  1205→}
+  1206→.wp-trans-btn.active-hindi {
+  1207→  background: rgba(255, 107, 0, 0.15);
+  1208→  color: #FF8C3A;
+  1209→  border: 1px solid rgba(255, 107, 0, 0.2);
+  1210→}
+  1211→
+  1212→/* ── Server Pills — AnimeX named style with emojis ── */
+  1213→.wp-server-pills {
+  1214→  display: flex;
+  1215→  flex-wrap: wrap;
+  1216→  gap: 6px;
+  1217→  flex: 1;
+  1218→}
+  1219→.wp-server-pill {
+  1220→  display: inline-flex;
+  1221→  align-items: center;
+  1222→  gap: 6px;
+  1223→  padding: 8px 14px;
+  1224→  font-size: 12px;
+  1225→  font-weight: 600;
+  1226→  color: rgba(255, 255, 255, 0.5);
+  1227→  background: rgba(255, 255, 255, 0.05);
+  1228→  border: 1px solid rgba(255, 255, 255, 0.08);
+  1229→  border-radius: 12px;
+  1230→  cursor: pointer;
+  1231→  transition: all 0.2s ease;
+  1232→}
+  1233→.wp-server-pill:hover {
+  1234→  background: rgba(255, 255, 255, 0.08);
+  1235→  color: rgba(255, 255, 255, 0.8);
+  1236→  border-color: rgba(255, 255, 255, 0.12);
+  1237→}
+  1238→.wp-server-pill.active {
+  1239→  background: rgba(230, 57, 70, 0.15);
+  1240→  border-color: rgba(230, 57, 70, 0.4);
+  1241→  color: white;
+  1242→}
+  1243→.wp-server-emoji {
+  1244→  font-size: 11px;
+  1245→  font-weight: 700;
+  1246→  line-height: 1;
+  1247→  width: 18px;
+  1248→  height: 18px;
+  1249→  border-radius: 5px;
+  1250→  display: inline-flex;
+  1251→  align-items: center;
+  1252→  justify-content: center;
+  1253→  background: rgba(230, 57, 70, 0.12);
+  1254→  color: #ffffff;
+  1255→}
+  1256→.wp-server-name {
+  1257→  font-weight: 700;
+  1258→}
+  1259→.wp-server-num {
+  1260→  font-size: 9px;
+  1261→  font-weight: 600;
+  1262→  color: rgba(255, 255, 255, 0.3);
+  1263→  background: rgba(255, 255, 255, 0.05);
+  1264→  padding: 1px 5px;
+  1265→  border-radius: 4px;
+  1266→}
+  1267→.wp-server-pill.active .wp-server-num {
+  1268→  color: rgba(230, 57, 70, 0.5);
+  1269→  background: rgba(230, 57, 70, 0.1);
+  1270→}
+  1271→
+  1272→/* ── Countdown Bar ── */
+  1273→.wp-countdown-bar {
+  1274→  display: flex;
+  1275→  align-items: center;
+  1276→  gap: 8px;
+  1277→  padding: 10px 14px;
+  1278→  margin: 8px 0;
+  1279→  background: rgba(255, 140, 0, 0.04);
+  1280→  border: 1px solid rgba(255, 140, 0, 0.08);
+  1281→  border-radius: 12px;
+  1282→}
+  1283→.wp-countdown-dot {
+  1284→  width: 6px;
+  1285→  height: 6px;
+  1286→  border-radius: 50%;
+  1287→  background: #FF8C00;
+  1288→  animation: pulseGlow 2s ease-in-out infinite;
+  1289→  box-shadow: 0 0 6px rgba(255, 140, 0, 0.5);
+  1290→}
+  1291→.wp-countdown-inline {
+  1292→  display: flex;
+  1293→  align-items: center;
+  1294→  gap: 6px;
+  1295→  padding: 8px 12px;
+  1296→  background: rgba(255, 140, 0, 0.05);
+  1297→  border: 1px solid rgba(255, 140, 0, 0.1);
+  1298→  border-radius: 10px;
+  1299→}
+  1300→
+  1301→/* ── Tabs Container — Anime.nexus style ── */
+  1302→.wp-tabs-container {
+  1303→  margin-top: 16px;
+  1304→  background: rgba(17, 24, 39, 0.6);
+  1305→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1306→  border-radius: 18px;
+  1307→  overflow: hidden;
+  1308→}
+  1309→
+  1310→/* ── Tab Bar ── */
+  1311→.wp-tab-bar {
+  1312→  display: flex;
+  1313→  align-items: center;
+  1314→  gap: 0;
+  1315→  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  1316→  overflow-x: auto;
+  1317→  scrollbar-width: none;
+  1318→}
+  1319→.wp-tab-bar::-webkit-scrollbar { display: none; }
+  1320→.wp-tab {
+  1321→  display: flex;
+  1322→  align-items: center;
+  1323→  gap: 6px;
+  1324→  padding: 12px 18px;
+  1325→  font-size: 12px;
+  1326→  font-weight: 600;
+  1327→  color: rgba(255, 255, 255, 0.5);
+  1328→  border: none;
+  1329→  border-bottom: 2px solid transparent;
+  1330→  background: none;
+  1331→  cursor: pointer;
+  1332→  transition: all 0.2s ease;
+  1333→  white-space: nowrap;
+  1334→  position: relative;
+  1335→}
+  1336→.wp-tab:hover {
+  1337→  color: rgba(255, 255, 255, 0.7);
+  1338→  background: rgba(255, 255, 255, 0.03);
+  1339→}
+  1340→.wp-tab.active {
+  1341→  color: #ffffff;
+  1342→  border-bottom-color: #ffffff;
+  1343→  background: rgba(230, 57, 70, 0.03);
+  1344→}
+  1345→.wp-tab-count {
+  1346→  font-size: 9px;
+  1347→  font-weight: 700;
+  1348→  padding: 1px 5px;
+  1349→  border-radius: 6px;
+  1350→  background: rgba(255, 255, 255, 0.06);
+  1351→  color: rgba(255, 255, 255, 0.3);
+  1352→}
+  1353→.wp-tab.active .wp-tab-count {
+  1354→  background: rgba(230, 57, 70, 0.12);
+  1355→  color: #ffffff;
+  1356→}
+  1357→
+  1358→/* ── Tab Content ── */
+  1359→.wp-tab-content {
+  1360→  padding: 16px;
+  1361→  min-height: 200px;
+  1362→}
+  1363→
+  1364→/* ── Episode Controls ── */
+  1365→.wp-ep-controls {
+  1366→  display: flex;
+  1367→  align-items: center;
+  1368→  justify-content: space-between;
+  1369→  gap: 8px;
+  1370→  margin-bottom: 12px;
+  1371→}
+  1372→
+  1373→/* ── Search Box ── */
+  1374→.wp-search-box {
+  1375→  position: relative;
+  1376→}
+  1377→.wp-search-icon {
+  1378→  position: absolute;
+  1379→  left: 10px;
+  1380→  top: 50%;
+  1381→  transform: translateY(-50%);
+  1382→  width: 14px;
+  1383→  height: 14px;
+  1384→  color: rgba(255, 255, 255, 0.2);
+  1385→}
+  1386→.wp-search-input {
+  1387→  width: 100%;
+  1388→  padding: 7px 12px 7px 30px;
+  1389→  font-size: 11px;
+  1390→  color: white;
+  1391→  background: rgba(255, 255, 255, 0.04);
+  1392→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1393→  border-radius: 10px;
+  1394→  outline: none;
+  1395→  transition: all 0.2s ease;
+  1396→}
+  1397→.wp-search-input::placeholder { color: rgba(255, 255, 255, 0.2); }
+  1398→.wp-search-input:focus {
+  1399→  border-color: rgba(230, 57, 70, 0.3);
+  1400→  box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.06);
+  1401→}
+  1402→
+  1403→/* ── Jump to Episode — ModSyndicate spinbox ── */
+  1404→.wp-jump-box {
+  1405→  display: flex;
+  1406→  align-items: center;
+  1407→  gap: 4px;
+  1408→}
+  1409→.wp-jump-input {
+  1410→  width: 42px;
+  1411→  padding: 5px 4px;
+  1412→  font-size: 11px;
+  1413→  font-weight: 600;
+  1414→  color: white;
+  1415→  background: rgba(255, 255, 255, 0.04);
+  1416→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1417→  border-radius: 7px;
+  1418→  text-align: center;
+  1419→  outline: none;
+  1420→  -moz-appearance: textfield;
+  1421→}
+  1422→.wp-jump-input::-webkit-inner-spin-button,
+  1423→.wp-jump-input::-webkit-outer-spin-button {
+  1424→  -webkit-appearance: none;
+  1425→}
+  1426→.wp-jump-input:focus {
+  1427→  border-color: rgba(230, 57, 70, 0.3);
+  1428→}
+  1429→.wp-jump-go {
+  1430→  padding: 5px 10px;
+  1431→  font-size: 10px;
+  1432→  font-weight: 700;
+  1433→  color: white;
+  1434→  background: #ffffff;
+  1435→  border: none;
+  1436→  border-radius: 7px;
+  1437→  cursor: pointer;
+  1438→  transition: all 0.15s ease;
+  1439→}
+  1440→.wp-jump-go:hover { background: #D32F3F; }
+  1441→
+  1442→/* ── Episode Grid — compact numbered squares ── */
+  1443→.wp-ep-grid {
+  1444→  display: grid;
+  1445→  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  1446→  gap: 6px;
+  1447→}
+  1448→.wp-ep-grid-item {
+  1449→  position: relative;
+  1450→  display: flex;
+  1451→  flex-direction: column;
+  1452→  align-items: center;
+  1453→  justify-content: center;
+  1454→  aspect-ratio: 1;
+  1455→  border-radius: 10px;
+  1456→  background: rgba(255, 255, 255, 0.04);
+  1457→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1458→  cursor: pointer;
+  1459→  transition: all 0.15s ease;
+  1460→}
+  1461→.wp-ep-grid-item:hover {
+  1462→  background: rgba(255, 255, 255, 0.08);
+  1463→  border-color: rgba(255, 255, 255, 0.1);
+  1464→  transform: translateY(-1px);
+  1465→}
+  1466→.wp-ep-grid-item.active {
+  1467→  background: rgba(230, 57, 70, 0.12);
+  1468→  border-color: rgba(230, 57, 70, 0.3);
+  1469→}
+  1470→.wp-ep-num {
+  1471→  font-size: 14px;
+  1472→  font-weight: 700;
+  1473→  color: rgba(255, 255, 255, 0.5);
+  1474→}
+  1475→.wp-ep-grid-item.active .wp-ep-num {
+  1476→  color: white;
+  1477→}
+  1478→.wp-ep-label {
+  1479→  font-size: 7px;
+  1480→  font-weight: 700;
+  1481→  color: #ffffff;
+  1482→  letter-spacing: 0.1em;
+  1483→  text-transform: uppercase;
+  1484→  margin-top: 1px;
+  1485→}
+  1486→.wp-ep-playing-indicator {
+  1487→  position: absolute;
+  1488→  top: 3px;
+  1489→  right: 3px;
+  1490→  display: flex;
+  1491→  align-items: flex-end;
+  1492→  gap: 1px;
+  1493→  height: 10px;
+  1494→}
+  1495→.wp-ep-playing-indicator span {
+  1496→  width: 2px;
+  1497→  border-radius: 1px;
+  1498→  background: #ffffff;
+  1499→  animation: epBars 0.8s ease-in-out infinite;
+  1500→}
+  1501→.wp-ep-playing-indicator span:nth-child(1) { height: 4px; animation-delay: 0s; }
+  1502→.wp-ep-playing-indicator span:nth-child(2) { height: 7px; animation-delay: 0.15s; }
+  1503→.wp-ep-playing-indicator span:nth-child(3) { height: 5px; animation-delay: 0.3s; }
+  1504→
+  1505→@keyframes epBars {
+  1506→  0%, 100% { transform: scaleY(0.5); }
+  1507→  50% { transform: scaleY(1); }
+  1508→}
+  1509→
+  1510→/* ── Episode Grid Skeleton ── */
+  1511→.wp-ep-grid-skeleton {
+  1512→  aspect-ratio: 1;
+  1513→  border-radius: 10px;
+  1514→  background: rgba(255, 255, 255, 0.03);
+  1515→  animation: pulse 2s ease-in-out infinite;
+  1516→}
+  1517→.wp-ep-loading {
+  1518→  display: grid;
+  1519→  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  1520→  gap: 6px;
+  1521→}
+  1522→
+  1523→/* ── Episode List View ── */
+  1524→.wp-ep-list {
+  1525→  max-height: 500px;
+  1526→  overflow-y: auto;
+  1527→  scrollbar-width: thin;
+  1528→  scrollbar-color: rgba(26, 29, 36, 0.8) transparent;
+  1529→}
+  1530→.wp-ep-list-row {
+  1531→  display: flex;
+  1532→  align-items: center;
+  1533→  gap: 12px;
+  1534→  width: 100%;
+  1535→  padding: 10px 12px;
+  1536→  border-radius: 10px;
+  1537→  border-left: 2px solid transparent;
+  1538→  transition: all 0.15s ease;
+  1539→  cursor: pointer;
+  1540→}
+  1541→.wp-ep-list-row:hover {
+  1542→  background: rgba(255, 255, 255, 0.03);
+  1543→  border-left-color: rgba(255, 255, 255, 0.1);
+  1544→}
+  1545→.wp-ep-list-row.active {
+  1546→  background: rgba(230, 57, 70, 0.06);
+  1547→  border-left-color: #ffffff;
+  1548→}
+  1549→.wp-ep-list-num {
+  1550→  width: 36px;
+  1551→  height: 36px;
+  1552→  border-radius: 9px;
+  1553→  display: flex;
+  1554→  align-items: center;
+  1555→  justify-content: center;
+  1556→  font-size: 12px;
+  1557→  font-weight: 700;
+  1558→  background: rgba(255, 255, 255, 0.04);
+  1559→  color: rgba(255, 255, 255, 0.3);
+  1560→  border: 1px solid rgba(255, 255, 255, 0.04);
+  1561→  transition: all 0.15s ease;
+  1562→  flex-shrink: 0;
+  1563→}
+  1564→.wp-ep-list-num.active {
+  1565→  background: #ffffff;
+  1566→  color: white;
+  1567→  border: none;
+  1568→  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.2);
+  1569→}
+  1570→.wp-ep-bars {
+  1571→  display: flex;
+  1572→  align-items: flex-end;
+  1573→  gap: 2px;
+  1574→  height: 14px;
+  1575→}
+  1576→.wp-ep-bars span {
+  1577→  width: 2.5px;
+  1578→  border-radius: 1px;
+  1579→  background: white;
+  1580→  animation: epBars 0.8s ease-in-out infinite;
+  1581→}
+  1582→.wp-ep-bars span:nth-child(1) { height: 6px; animation-delay: 0s; }
+  1583→.wp-ep-bars span:nth-child(2) { height: 10px; animation-delay: 0.15s; }
+  1584→.wp-ep-bars span:nth-child(3) { height: 8px; animation-delay: 0.3s; }
+  1585→
+  1586→/* ── Info Layout ── */
+  1587→.wp-info-layout {
+  1588→  display: flex;
+  1589→  gap: 20px;
+  1590→}
+  1591→@media (max-width: 640px) {
+  1592→  .wp-info-layout {
+  1593→    flex-direction: column;
+  1594→    align-items: center;
+  1595→  }
+  1596→}
+  1597→.wp-info-poster {
+  1598→  flex-shrink: 0;
+  1599→}
+  1600→.wp-info-poster-inner {
+  1601→  width: 140px;
+  1602→  aspect-ratio: 2/3;
+  1603→  border-radius: 14px;
+  1604→  overflow: hidden;
+  1605→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1606→  position: relative;
+  1607→  cursor: pointer;
+  1608→  transition: transform 0.2s ease;
+  1609→}
+  1610→.wp-info-poster-inner:hover {
+  1611→  transform: scale(1.03);
+  1612→}
+  1613→@media (max-width: 640px) {
+  1614→  .wp-info-poster-inner { width: 120px; }
+  1615→}
+  1616→
+  1617→/* ── Meta Item ── */
+  1618→.wp-meta-item {
+  1619→  display: flex;
+  1620→  align-items: center;
+  1621→  gap: 6px;
+  1622→  padding: 7px 12px;
+  1623→  background: rgba(255, 255, 255, 0.03);
+  1624→  border: 1px solid rgba(255, 255, 255, 0.04);
+  1625→  border-radius: 9px;
+  1626→  font-size: 11px;
+  1627→  color: rgba(255, 255, 255, 0.45);
+  1628→}
+  1629→
+  1630→/* ── Genre Tag ── */
+  1631→.wp-genre-tag {
+  1632→  padding: 4px 10px;
+  1633→  font-size: 10px;
+  1634→  font-weight: 600;
+  1635→  border-radius: 8px;
+  1636→  background: rgba(230, 57, 70, 0.06);
+  1637→  color: rgba(230, 57, 70, 0.5);
+  1638→  border: 1px solid rgba(230, 57, 70, 0.1);
+  1639→  cursor: pointer;
+  1640→  transition: all 0.2s ease;
+  1641→}
+  1642→.wp-genre-tag:hover {
+  1643→  background: rgba(230, 57, 70, 0.12);
+  1644→  color: #ffffff;
+  1645→  border-color: rgba(230, 57, 70, 0.2);
+  1646→}
+  1647→
+  1648→/* ── Section Heading ── */
+  1649→.wp-section-heading {
+  1650→  font-size: 12px;
+  1651→  font-weight: 700;
+  1652→  letter-spacing: 0.1em;
+  1653→  text-transform: uppercase;
+  1654→  color: rgba(255, 255, 255, 0.35);
+  1655→  margin-bottom: 12px;
+  1656→}
+  1657→
+  1658→/* ── Card Row ── */
+  1659→.wp-card-row {
+  1660→  display: flex;
+  1661→  gap: 12px;
+  1662→  overflow-x: auto;
+  1663→  padding-bottom: 8px;
+  1664→  scrollbar-width: none;
+  1665→}
+  1666→.wp-card-row::-webkit-scrollbar { display: none; }
+  1667→.wp-card {
+  1668→  flex-shrink: 0;
+  1669→  width: 130px;
+  1670→  border-radius: 12px;
+  1671→  overflow: hidden;
+  1672→  background: rgba(21, 24, 33, 0.8);
+  1673→  border: 1px solid rgba(255, 255, 255, 0.04);
+  1674→  cursor: pointer;
+  1675→  transition: all 0.2s ease;
+  1676→}
+  1677→.wp-card:hover {
+  1678→  transform: translateY(-3px);
+  1679→  border-color: rgba(230, 57, 70, 0.15);
+  1680→  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  1681→}
+  1682→.wp-card-poster {
+  1683→  width: 100%;
+  1684→  aspect-ratio: 2/3;
+  1685→  overflow: hidden;
+  1686→  position: relative;
+  1687→}
+  1688→.wp-card-badge {
+  1689→  position: absolute;
+  1690→  top: 4px;
+  1691→  left: 4px;
+  1692→  padding: 2px 6px;
+  1693→  border-radius: 5px;
+  1694→  font-size: 7px;
+  1695→  font-weight: 700;
+  1696→  background: rgba(0, 0, 0, 0.7);
+  1697→  color: rgba(255, 255, 255, 0.5);
+  1698→  letter-spacing: 0.06em;
+  1699→}
+  1700→.wp-card-badge.accent {
+  1701→  background: rgba(230, 57, 70, 0.9);
+  1702→  color: white;
+  1703→}
+  1704→.wp-card-score {
+  1705→  position: absolute;
+  1706→  top: 4px;
+  1707→  right: 4px;
+  1708→  padding: 2px 5px;
+  1709→  border-radius: 5px;
+  1710→  font-size: 8px;
+  1711→  font-weight: 700;
+  1712→  background: rgba(0, 0, 0, 0.7);
+  1713→  color: #FFB800;
+  1714→}
+  1715→.wp-card-info {
+  1716→  padding: 8px;
+  1717→}
+  1718→.wp-card-title {
+  1719→  font-size: 10px;
+  1720→  font-weight: 600;
+  1721→  color: rgba(255, 255, 255, 0.5);
+  1722→  line-clamp: 2;
+  1723→  overflow: hidden;
+  1724→  display: -webkit-box;
+  1725→  -webkit-line-clamp: 2;
+  1726→  -webkit-box-orient: vertical;
+  1727→}
+  1728→.wp-card:hover .wp-card-title { color: rgba(255, 255, 255, 0.8); }
+  1729→.wp-card-meta {
+  1730→  font-size: 9px;
+  1731→  color: rgba(255, 255, 255, 0.2);
+  1732→  margin-top: 2px;
+  1733→}
+  1734→
+  1735→/* ── Spoiler Gate — Anime.nexus style ── */
+  1736→.wp-spoiler-gate {
+  1737→  text-align: center;
+  1738→  padding: 40px 20px;
+  1739→  border: 1px dashed rgba(255, 255, 255, 0.06);
+  1740→  border-radius: 14px;
+  1741→}
+  1742→
+  1743→/* ── Comment Input Zone ── */
+  1744→.wp-comment-input-zone {
+  1745→  display: flex;
+  1746→  gap: 10px;
+  1747→}
+  1748→.wp-comment-textarea {
+  1749→  width: 100%;
+  1750→  background: rgba(255, 255, 255, 0.03);
+  1751→  border: 1px solid rgba(255, 255, 255, 0.06);
+  1752→  border-radius: 12px;
+  1753→  padding: 10px 12px;
+  1754→  font-size: 12px;
+  1755→  color: white;
+  1756→  resize: none;
+  1757→  height: 60px;
+  1758→  outline: none;
+  1759→  transition: border-color 0.2s ease;
+  1760→}
+  1761→.wp-comment-textarea::placeholder { color: rgba(255, 255, 255, 0.2); }
+  1762→.wp-comment-textarea:focus {
+  1763→  border-color: rgba(230, 57, 70, 0.3);
+  1764→}
+  1765→
+  1766→/* ── Comment Items ── */
+  1767→.wp-comment-item {
+  1768→  display: flex;
+  1769→  gap: 10px;
+  1770→  padding: 10px;
+  1771→  border-radius: 10px;
+  1772→  background: rgba(255, 255, 255, 0.015);
+  1773→  border: 1px solid rgba(255, 255, 255, 0.02);
+  1774→  transition: background 0.15s ease;
+  1775→}
+  1776→.wp-comment-item:hover {
+  1777→  background: rgba(255, 255, 255, 0.025);
+  1778→}
+  1779→.wp-comment-skeleton {
+  1780→  display: flex;
+  1781→  gap: 10px;
+  1782→  padding: 10px;
+  1783→  animation: pulse 2s ease-in-out infinite;
+  1784→}
+  1785→
+  1786→/* ── Empty State ── */
+  1787→.wp-empty-state {
+  1788→  text-align: center;
+  1789→  padding: 40px 20px;
+  1790→}
+  1791→
+  1792→/* ── Keyboard Shortcuts Overlay ── */
+  1793→.wp-overlay {
+  1794→  position: fixed;
+  1795→  inset: 0;
+  1796→  z-index: 9999;
+  1797→  background: rgba(0, 0, 0, 0.6);
+  1798→  backdrop-filter: blur(8px);
+  1799→  display: flex;
+  1800→  align-items: center;
+  1801→  justify-content: center;
+  1802→  animation: fadeIn 0.15s ease;
+  1803→}
+  1804→.wp-shortcuts-panel {
+  1805→  background: rgba(15, 18, 28, 0.95);
+  1806→  border: 1px solid rgba(255, 255, 255, 0.08);
+  1807→  border-radius: 18px;
+  1808→  padding: 20px 24px;
+  1809→  min-width: 280px;
+  1810→  max-width: 360px;
+  1811→  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  1812→  animation: slideUpFade 0.2s ease;
+  1813→}
+  1814→.wp-kbd {
+  1815→  display: inline-flex;
+  1816→  align-items: center;
+  1817→  justify-content: center;
+  1818→  min-width: 28px;
+  1819→  height: 24px;
+  1820→  padding: 0 8px;
+  1821→  font-size: 11px;
+  1822→  font-weight: 700;
+  1823→  color: rgba(255, 255, 255, 0.5);
+  1824→  background: rgba(255, 255, 255, 0.06);
+  1825→  border: 1px solid rgba(255, 255, 255, 0.1);
+  1826→  border-radius: 6px;
+  1827→  font-family: inherit;
+  1828→}
+  1829→
+  1830→/* ── Animations ── */
+  1831→@keyframes slideUpFade {
+  1832→  from { opacity: 0; transform: translateY(12px); }
+  1833→  to { opacity: 1; transform: translateY(0); }
+  1834→}
+  1835→@keyframes fadeIn {
+  1836→  from { opacity: 0; }
+  1837→  to { opacity: 1; }
+  1838→}
+  1839→@keyframes spin {
+  1840→  from { transform: rotate(0deg); }
+  1841→  to { transform: rotate(360deg); }
+  1842→}
+  1843→
+  1844→/* ====================================================================
+  1845→/* ====================================================================
+  1846→   NAVBAR — Premium Glass Navigation (MioAnime/Kurovexa style)
+  1847→   Pure black glass capsule with gold accents + inline search bar
+  1848→   ==================================================================== */
+  1849→
+  1850→/* CSS Variables for navbar */
+  1851→:root {
+  1852→  --nav-accent-gold: #ffffff;
+  1853→  --nav-accent-gold-light: rgba(255,255,255,0.7);
+  1854→  --nav-accent-gold-dark: #C8924A;
+  1855→  --nav-accent-gold-dim: rgba(255, 255, 255, 0.12);
+  1856→  --nav-accent-gold-rgb: 255, 255, 255;
+  1857→  --nav-bg-primary-rgb: 0, 0, 0;
+  1858→  --nav-bg-secondary-rgb: 10, 10, 12;
+  1859→  --nav-bg-card-rgb: 13, 13, 15;
+  1860→  --nav-text-primary: #ffffff;
+  1861→  --nav-text-secondary: rgba(255, 255, 255, 0.55);
+  1862→  --nav-text-muted: rgba(255, 255, 255, 0.35);
+  1863→  --nav-text-dim: rgba(255, 255, 255, 0.2);
+  1864→  --nav-border-subtle: rgba(255, 255, 255, 0.06);
+  1865→  --nav-border-default: rgba(255, 255, 255, 0.08);
+  1866→  --nav-bg-hover: rgba(255, 255, 255, 0.04);
+  1867→}
+  1868→
+  1869→/* ═══════════════════════════════════════════════════════════════
+  1870→   NAVBAR — AniLight-style 3-element design
+  1871→   1. Logo (standalone, far left)
+  1872→   2. Nav pill (center, glassmorphism, links + divider + search button)
+  1873→   3. Right icons (separate pill, far right, circular icon buttons)
+  1874→   ═══════════════════════════════════════════════════════════════ */
+  1875→
+  1876→/* ── LOGO — inline, first item inside the nav pill ── */
+  1877→.ltv-nav-logo-inline {
+  1878→  display: flex;
+  1879→  align-items: center;
+  1880→  background: transparent;
+  1881→  border: none;
+  1882→  padding: 6px 10px 6px 4px;
+  1883→  margin-right: 4px;
+  1884→  cursor: pointer;
+  1885→  transition: opacity 0.2s ease, transform 0.2s ease;
+  1886→  flex-shrink: 0;
+  1887→}
+  1888→.ltv-nav-logo-inline:hover { opacity: 0.85; transform: scale(1.02); }
+  1889→.ltv-nav-logo-img {
+  1890→  height: 26px;
+  1891→  width: auto;
+  1892→  display: block;
+  1893→}
+  1894→
+  1895→/* Standalone mobile-only logo — the pill (logo + links) hides entirely on
+  1896→   small screens, so this fixed-position logo stands in for it there. */
+  1897→.ltv-nav-logo-mobile {
+  1898→  display: none;
+  1899→  position: fixed;
+  1900→  top: 14px;
+  1901→  left: 16px;
+  1902→  z-index: 101;
+  1903→  background: transparent;
+  1904→  border: none;
+  1905→  padding: 6px 0;
+  1906→  cursor: pointer;
+  1907→}
+  1908→.ltv-nav-logo-mobile img { height: 28px; width: auto; display: block; }
+  1909→
+  1910→/* ── NAV PILL — left-aligned, glassmorphism blur, logo + links together ── */
+  1911→.ltv-nav-pill {
+  1912→  position: fixed;
+  1913→  top: 14px;
+  1914→  left: 24px;
+  1915→  transform: none;
+  1916→  width: auto;
+  1917→  max-width: calc(100% - 180px);
+  1918→  display: flex;
+  1919→  align-items: center;
+  1920→  gap: 6px;
+  1921→  padding: 6px 14px 6px 6px;
+  1922→  /* Dark tint + heavy blur so nav text stays readable over bright banners.
+  1923→     The solid rgba layer alone (no blur support needed) already reads dark;
+  1924→     backdrop-filter adds the frosted blur on top where supported. */
+  1925→  background: rgba(6, 6, 10, 0.88);
+  1926→  backdrop-filter: blur(36px) saturate(160%);
+  1927→  -webkit-backdrop-filter: blur(36px) saturate(160%);
+  1928→  border: 1px solid rgba(255, 255, 255, 0.12);
+  1929→  border-radius: 999px;
+  1930→  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  1931→  z-index: 100;
+  1932→  transition: all 0.3s ease;
+  1933→}
+  1934→.ltv-nav-pill.scrolled {
+  1935→  background: rgba(4, 4, 7, 0.95);
+  1936→  border-color: rgba(255, 255, 255, 0.16);
+  1937→  backdrop-filter: blur(44px) saturate(180%);
+  1938→  -webkit-backdrop-filter: blur(44px) saturate(180%);
+  1939→}
+  1940→
+  1941→/* ── Nav Links ── */
+  1942→.ltv-nav-links {
+  1943→  display: flex;
+  1944→  align-items: center;
+  1945→  gap: 2px;
+  1946→  list-style: none;
+  1947→}
+  1948→.ltv-nav-link {
+  1949→  text-decoration: none;
+  1950→  color: rgba(255, 255, 255, 0.75);
+  1951→  font-size: 0.875rem;
+  1952→  font-weight: 500;
+  1953→  padding: 8px 18px;
+  1954→  border-radius: 999px;
+  1955→  transition: color 0.25s ease, background 0.25s ease;
+  1956→  white-space: nowrap;
+  1957→  cursor: pointer;
+  1958→  border: none;
+  1959→  background: none;
+  1960→}
+  1961→.ltv-nav-link:hover {
+  1962→  color: #fff;
+  1963→  /* Big smooth white hover — like the reference screenshot */
+  1964→  background: rgba(255, 255, 255, 0.14);
+  1965→}
+  1966→.ltv-nav-link.active {
+  1967→  background: #ffffff;
+  1968→  color: #111118;
+  1969→  font-weight: 600;
+  1970→}
+  1971→.ltv-nav-link.active:hover {
+  1972→  background: #ffffff;
+  1973→  color: #111118;
+  1974→}
+  1975→
+  1976→/* ── Divider ── */
+  1977→.ltv-nav-divider {
+  1978→  width: 1px;
+  1979→  height: 20px;
+  1980→  background: rgba(255, 255, 255, 0.18);
+  1981→  margin: 0 4px;
+  1982→  flex-shrink: 0;
+  1983→}
+  1984→
+  1985→/* ── Search Button (inside pill) ── */
+  1986→.ltv-nav-search-btn {
+  1987→  display: flex;
+  1988→  align-items: center;
+  1989→  gap: 7px;
+  1990→  color: rgba(255, 255, 255, 0.72);
+  1991→  font-size: 0.875rem;
+  1992→  font-weight: 500;
+  1993→  padding: 8px 18px 8px 14px;
+  1994→  border-radius: 999px;
+  1995→  cursor: pointer;
+  1996→  transition: color 0.25s ease, background 0.25s ease;
+  1997→  user-select: none;
+  1998→  border: none;
+  1999→  background: none;
+  2000→}
+
+[showing lines 1-2000 of 12053; use offset=2001 with limit to continue reading]

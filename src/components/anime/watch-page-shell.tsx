@@ -29,21 +29,52 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
   disabledIds?: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   const current = options.find(o => o.id === value);
+
+  // Calculate position for fixed dropdown on open
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const isMobile = window.innerWidth < 640;
+      if (isMobile) {
+        // On mobile: position dropdown below the button, full-width with padding
+        setMenuPos({
+          top: rect.bottom + 4,
+          left: 8,
+          width: window.innerWidth - 16,
+        });
+      } else {
+        // On desktop: position aligned to right edge of button
+        setMenuPos({
+          top: rect.bottom + 4,
+          left: rect.right - Math.max(140, rect.width),
+          width: Math.max(140, rect.width),
+        });
+      }
+    }
+    setOpen(!open);
+  };
+
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-white/85 transition-all"
+        ref={btnRef}
+        onClick={handleOpen}
+        className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-white/85 transition-all w-full sm:w-auto"
       >
         {label && <span className="text-[9px] font-bold text-white/35 uppercase tracking-wider">{label}</span>}
-        <span className="max-w-[110px] truncate">{current?.label || value || "—"}</span>
-        <svg className={`w-3 h-3 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
+        <span className="max-w-[110px] truncate flex-1 sm:flex-none text-left">{current?.label || value || "—"}</span>
+        <svg className={`w-3 h-3 text-white/40 transition-transform shrink-0 ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
       </button>
       {open && (
         <>
           <button className="fixed inset-0 z-30 cursor-default" onClick={() => setOpen(false)} aria-label="Close menu" />
-          <div className="absolute top-full right-0 mt-1 bg-[#0a0a0a] border border-white/15 rounded-lg overflow-hidden min-w-[140px] py-1 shadow-2xl z-40 max-h-[280px] overflow-y-auto">
+          <div
+            className="fixed bg-[#0a0a0a] border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl z-40 max-h-[280px] overflow-y-auto"
+            style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+          >
             {options.map(o => {
               const disabled = disabledIds.includes(o.id);
               return (
@@ -51,7 +82,7 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
                   key={o.id}
                   disabled={disabled}
                   onClick={() => { if (!disabled) { onChange(o.id); setOpen(false); } }}
-                  className={`block w-full text-left px-3 py-2 text-xs transition-colors ${o.id === value ? "font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
+                  className={`block w-full text-left px-3 py-2.5 sm:py-2 text-xs sm:text-xs transition-colors ${o.id === value ? "font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
                   style={o.id === value ? { color: ACCENT } : undefined}
                 >
                   {o.label}
@@ -399,9 +430,9 @@ export function WatchPageShell({
                 <span>{epTitle}</span>
               </h1>
 
-              {/* AUDIO + SERVER dropdowns — inline on mobile, side-by-side on desktop */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex flex-col gap-1">
+              {/* AUDIO + SERVER dropdowns — stacked on mobile, side-by-side on desktop */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 shrink-0 w-full sm:w-auto">
+                <div className="flex flex-col gap-1 flex-1 sm:flex-none">
                   <span className="text-[9px] font-bold text-white/35 uppercase tracking-widest flex items-center gap-1">
                     <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 0 0-9 9v7c0 1.1.9 2 2 2h4v-8H5v-1a7 7 0 0 1 14 0v1h-4v8h4a2 2 0 0 0 2-2v-7a9 9 0 0 0-9-9z"/></svg>
                     Audio
@@ -413,7 +444,7 @@ export function WatchPageShell({
                     onChange={(id) => handleTranslationChange(id)}
                   />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 flex-1 sm:flex-none">
                   <span className="text-[9px] font-bold text-white/35 uppercase tracking-widest flex items-center gap-1">
                     <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zm2-6v2h2V7H6zm0 8v2h2v-2H6z"/></svg>
                     Server ({serversForMode.length})
@@ -688,6 +719,8 @@ function MiruroEpisodeSidebar({
   // (e.g. open One Piece EP 540 → show 501-600)
   const [page, setPage] = useState(() => Math.max(0, Math.floor((episodeNum - 1) / EPS_PER_PAGE)));
   const [showPageMenu, setShowPageMenu] = useState(false);
+  const pageMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const [pageMenuPos, setPageMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // When search is opened, focus the input
@@ -803,25 +836,43 @@ function MiruroEpisodeSidebar({
           {totalPages > 1 && (
             <div className="relative shrink-0">
               <button
-                onClick={() => setShowPageMenu(!showPageMenu)}
+                ref={pageMenuBtnRef}
+                onClick={() => {
+                  if (!showPageMenu && pageMenuBtnRef.current) {
+                    const rect = pageMenuBtnRef.current.getBoundingClientRect();
+                    const isMobile = window.innerWidth < 640;
+                    setPageMenuPos({
+                      top: rect.bottom + 4,
+                      left: isMobile ? 8 : rect.left,
+                      width: isMobile ? Math.min(200, window.innerWidth - 16) : Math.max(100, rect.width),
+                    });
+                  }
+                  setShowPageMenu(!showPageMenu);
+                }}
                 className="flex items-center gap-1 bg-white/[0.06] hover:bg-white/[0.1] h-8 px-3 rounded-lg text-xs font-bold text-white/80 transition-all"
               >
                 {pageLabel}
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
               </button>
               {showPageMenu && (
-                <div className="absolute top-full left-0 mt-1 bg-black/80 backdrop-blur-xl border border-white/15 rounded-lg overflow-hidden min-w-[100px] py-1 shadow-2xl z-30 max-h-[300px] overflow-y-auto">
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => { setPage(i); setShowPageMenu(false); listRef.current?.scrollTo({ top: 0 }); }}
-                      className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-colors ${page === i ? 'font-bold' : 'text-white/60'}`}
-                      style={page === i ? { color: ACCENT } : undefined}
-                    >
-                      {i * EPS_PER_PAGE + 1} - {Math.min((i + 1) * EPS_PER_PAGE, totalEps)}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <button className="fixed inset-0 z-30 cursor-default" onClick={() => setShowPageMenu(false)} aria-label="Close page menu" />
+                  <div
+                    className="fixed bg-black/80 backdrop-blur-xl border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl z-40 max-h-[300px] overflow-y-auto"
+                    style={{ top: pageMenuPos.top, left: pageMenuPos.left, width: pageMenuPos.width }}
+                  >
+                    {Array.from({ length: totalPages }, (_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setPage(i); setShowPageMenu(false); listRef.current?.scrollTo({ top: 0 }); }}
+                        className={`block w-full text-left px-3 py-2.5 sm:py-1.5 text-xs hover:bg-white/10 transition-colors ${page === i ? 'font-bold' : 'text-white/60'}`}
+                        style={page === i ? { color: ACCENT } : undefined}
+                      >
+                        {i * EPS_PER_PAGE + 1} - {Math.min((i + 1) * EPS_PER_PAGE, totalEps)}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
