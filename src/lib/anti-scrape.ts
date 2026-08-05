@@ -203,7 +203,10 @@ export function detectBot(request: NextRequest): {
   }
 
   // 5. Suspicious headers — headless Chrome often has these
-  if (request.headers.get("sec-ch-headless") === "?1") {
+  // NOTE: This is checked AFTER the SEO bot whitelist (step 4 above).
+  // Googlebot's Chrome renderer sends sec-ch-headless:?1 but we already
+  // whitelisted it by UA, so this only fires for non-SEO headless browsers.
+  if (!isAllowedSeoBot && request.headers.get("sec-ch-headless") === "?1") {
     score += 50;
     reasons.push("headless-ch-header");
     isHeadless = true;

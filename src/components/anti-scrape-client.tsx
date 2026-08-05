@@ -195,6 +195,8 @@ export default function AntiScrapeClient() {
     // ─── Check for headless browser ───
     // IMPORTANT: Don't flag SEO crawlers (Googlebot, Bingbot) as headless.
     // They use headless Chromium but need full content for indexing.
+    // Googlebot uses a two-phase crawl: first HTTP fetch with "Googlebot" UA,
+    // then JS rendering with a Chrome-like UA. We must not block either phase.
     const userAgent = navigator.userAgent?.toLowerCase() || "";
     const isSeoBot = userAgent.includes("googlebot") || userAgent.includes("bingbot") ||
       userAgent.includes("yandexbot") || userAgent.includes("baiduspider") ||
@@ -202,7 +204,13 @@ export default function AntiScrapeClient() {
       userAgent.includes("facebot") || userAgent.includes("twitterbot") ||
       userAgent.includes("linkedinbot");
 
-    if (isHeadlessEnvironment() && !isSeoBot) {
+    // Also check if we're being rendered by Google's Web Rendering Service
+    // Googlebot-WR sends specific headers; in the JS context, check for
+    // known Google rendering signals.
+    const isGoogleRenderer = typeof document !== "undefined" &&
+      (document.referrer?.includes("google") || false);
+
+    if (isHeadlessEnvironment() && !isSeoBot && !isGoogleRenderer) {
       // Add noise — serve degraded content to headless browsers
       document.documentElement.classList.add("headless-detected");
       // Optionally redirect or show a challenge
@@ -254,30 +262,14 @@ export default function AntiScrapeClient() {
       // Keep console.error and console.warn for real errors
     }
 
-    // ─── Disable common scraping hooks ───
-    // Skip for SEO bots — they need full DOM access for indexing
-    const isSeoCrawler = typeof navigator !== "undefined" && (() => {
-      const ua = navigator.userAgent?.toLowerCase() || "";
-      return ua.includes("googlebot") || ua.includes("bingbot") ||
-        ua.includes("yandexbot") || ua.includes("baiduspider") ||
-        ua.includes("duckduckbot");
-    })();
-
-    if (typeof window !== "undefined" && process.env.NODE_ENV === "production" && !isSeoCrawler) {
-      // Prevent document.querySelectorAll from being easily used by scrapers
-      // by adding a subtle delay that breaks automated timing
-      const origQSA = document.querySelectorAll.bind(document);
-      let qsaCount = 0;
-      document.querySelectorAll = function (selector: string) {
-        qsaCount++;
-        // If called too rapidly (>100 in 1s), it's likely a scraper
-        if (qsaCount > 100) {
-          // Return empty results to starve the scraper
-          return origQSA("nonexistent-element-that-does-not-exist");
-        }
-        return origQSA(selector);
-      };
-    }
+    // ─── REMOVED: QSA override ───
+    // Previously, document.querySelectorAll was overridden to return empty
+    // results after 100 calls. This BROKE Googlebot's JS rendering because
+    // React itself calls QSA hundreds of times during rendering. Google saw
+    // blank pages → didn't index.
+    //
+    // The anti-scrape middleware (server-side) handles real scrapers.
+    // Client-side QSA override hurts SEO more than it helps anti-scrape.
 
     return () => {
       // Cleanup

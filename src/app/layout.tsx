@@ -115,8 +115,8 @@ export const metadata: Metadata = {
   },
   category: "entertainment",
   other: {
-    "google-site-verification": "GOOGLE_SITE_VERIFICATION_CODE",
-    "msvalidate.01": "BING_VALIDATION_CODE",
+    "google-site-verification": process.env.GOOGLE_SITE_VERIFICATION || "",
+    "msvalidate.01": process.env.BING_VALIDATION_CODE || "",
   },
   icons: {
     icon: "/favicon.ico",
@@ -192,7 +192,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
-        <meta name="referrer" content="no-referrer" />
+        <meta name="referrer" content="origin-when-cross-origin" />
         <meta name="google" content="notranslate" />
         {/* canonical is set per-page via generateMetadata — do NOT set a global canonical here */}
         <link rel="home" href={SITE_URL} />
