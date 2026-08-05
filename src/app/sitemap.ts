@@ -3,21 +3,35 @@ import type { MetadataRoute } from "next";
 /**
  * Sitemap for LuffyTV (luffytv.live)
  *
- * Dynamic sitemap that includes:
- * - All static pages (browse, dub, sub, manga, etc.)
- * - Popular anime detail pages fetched from AniList
- * - Watch pages for popular anime
- * - Genre-specific browse pages
+ * SEO-optimized sitemap with slug-based URLs:
+ * - /anime/one-piece-21  (slug + ID — Google reads "one-piece", code extracts ID 21)
+ * - /watch/one-piece-21/1
+ * - /browse, /trending, /schedule, /dub/tamil, /genre/action, etc.
+ *
+ * The slug-ID format is critical for SEO:
+ *   - Google reads the URL and understands it's about "One Piece"
+ *   - Our code extracts the numeric ID from the end for API calls
+ *   - AniLight uses /anime/k-on (pure slug) — we use slug-ID for reliability
  *
  * API routes (/api/*) are blocked in robots.txt.
  * Admin pages (/admin, /aznayeem) are noindex.
  */
 
 const BASE = "https://luffytv.live";
+const ANILIST_API = "https://graphql.anilist.co";
+
+// ── Create URL-friendly slug from anime title ──
+function toSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    || "anime";
+}
 
 // Popular anime IDs to include in sitemap (top anime that people search for)
-// These are AniList IDs for the most-searched anime titles
-// ~83 entries to give Google plenty of content to index
 const POPULAR_ANIME_IDS = [
   // ─── GOAT / Hall of Fame ───
   1,     // Cowboy Bebop
@@ -71,7 +85,7 @@ const POPULAR_ANIME_IDS = [
   158023,// Tsukimichi
   146954,// My Isekai Life
   // ─── Romance & Drama ───
-  10602, // Oregairu (My Teen Romantic Comedy)
+  10602, // Oregairu
   11061, // Hyouka
   11,    // K-On!
   9969,  // Toradora!
@@ -122,7 +136,6 @@ const POPULAR_ANIME_IDS = [
   21939, // JoJo's Bizarre Adventure (2012)
   14691, // JoJo Part 4
   33986, // JoJo Part 5
-  37510, // Mob Psycho 100 II
   37520, // Vinland Saga
   1790,  // Trigun
   1575,  // Lupin III
@@ -139,8 +152,105 @@ const GENRES = [
 // Dub language pages for SEO
 const DUB_LANGUAGES = ["tamil", "hindi", "telugu", "bengali"];
 
+// ── Fetch anime titles from AniList for slug-based URLs ──
+// Returns a map of AniList ID → slug-ID string (e.g., 21 → "one-piece-21")
+async function fetchAnimeSlugs(ids: number[]): Promise<Map<number, string>> {
+  const slugMap = new Map<number, string>();
+
+  // Batch fetch in chunks of 50 (AniList perPage limit)
+  const chunks: number[][] = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    chunks.push(ids.slice(i, i + 50));
+  }
+
+  for (const chunk of chunks) {
+    try {
+      // Use a batch query with perPage
+      const res = await fetch(ANILIST_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `
+            query ($ids: [Int], $page: Int) {
+              Page(page: $page, perPage: 50) {
+                media(id_in: $ids, type: ANIME) {
+                  id
+                  title { romaji english }
+                }
+              }
+            }
+          `,
+          variables: { ids: chunk, page: 1 },
+        }),
+        next: { revalidate: 86400 }, // Cache 24 hours
+      });
+
+      if (!res.ok) continue;
+      const data = await res.json();
+      const media = data?.data?.Page?.media || [];
+
+      for (const m of media) {
+        const title = m.title?.english || m.title?.romaji || "";
+        const slug = title ? `${toSlug(title)}-${m.id}` : `${m.id}`;
+        slugMap.set(m.id, slug);
+      }
+    } catch {
+      // Failed chunk — fall back to numeric IDs
+      for (const id of chunk) {
+        slugMap.set(id, `${id}`);
+      }
+    }
+  }
+
+  // Any IDs not resolved → use numeric
+  for (const id of ids) {
+    if (!slugMap.has(id)) {
+      slugMap.set(id, `${id}`);
+    }
+  }
+
+  return slugMap;
+}
+
+// ── Fetch trending anime from AniList ──
+async function fetchTrendingSlugs(): Promise<Array<{ slug: string; id: number }>> {
+  try {
+    const res = await fetch(ANILIST_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `
+          query {
+            Page(page: 1, perPage: 50) {
+              media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
+                id
+                title { romaji english }
+              }
+            }
+          }
+        `,
+      }),
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const media = data?.data?.Page?.media || [];
+    return media.map((m: any) => {
+      const title = m.title?.english || m.title?.romaji || "";
+      const slug = title ? `${toSlug(title)}-${m.id}` : `${m.id}`;
+      return { slug, id: m.id };
+    });
+  } catch {
+    return [];
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+
+  // ── Fetch anime slugs for SEO-friendly URLs ──
+  const slugMap = await fetchAnimeSlugs(POPULAR_ANIME_IDS);
+  const trendingSlugs = await fetchTrendingSlugs();
 
   const entries: MetadataRoute.Sitemap = [
     // ══════════════════════════════════════════════════════════
@@ -301,53 +411,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.3,
     },
     {
-      url: `${BASE}/settings`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-    {
-      url: `${BASE}/profile`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-
-    // ══════════════════════════════════════════════════════════
-    // SEARCH
-    // ══════════════════════════════════════════════════════════
-    {
       url: `${BASE}/search`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.7,
     },
-
-    // ══════════════════════════════════════════════════════════
-    // EMBED
-    // ══════════════════════════════════════════════════════════
-    {
-      url: `${BASE}/embed`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.2,
-    },
   ];
 
   // ══════════════════════════════════════════════════════════
-  // ANIME DETAIL PAGES — dynamically add popular anime
-  // These are the pages that rank for specific anime searches
+  // ANIME DETAIL PAGES — with SEO-friendly slug-based URLs!
+  //
+  // Instead of /anime/21 (meaningless to Google),
+  // we now generate /anime/one-piece-21
+  // Google reads "one-piece" and understands the page topic.
   // ══════════════════════════════════════════════════════════
   for (const id of POPULAR_ANIME_IDS) {
+    const slug = slugMap.get(id) || `${id}`;
     entries.push({
-      url: `${BASE}/anime/${id}`,
+      url: `${BASE}/anime/${slug}`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.8,
     });
     // Also add the watch page for episode 1
     entries.push({
-      url: `${BASE}/watch/${id}/1`,
+      url: `${BASE}/watch/${slug}/1`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.7,
@@ -355,42 +443,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   // ══════════════════════════════════════════════════════════
-  // DYNAMIC: Fetch trending anime from AniList for even more pages
-  // This runs server-side during sitemap generation
+  // DYNAMIC: Trending anime from AniList for even more pages
   // ══════════════════════════════════════════════════════════
-  try {
-    const res = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `
-          query {
-            Page(page: 1, perPage: 50) {
-              media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
-                id
-              }
-            }
-          }
-        `,
-      }),
-      next: { revalidate: 3600 }, // Cache for 1 hour
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const trendingIds: number[] = data?.data?.Page?.media?.map((m: any) => m.id) || [];
-      for (const id of trendingIds) {
-        if (!POPULAR_ANIME_IDS.includes(id)) {
-          entries.push({
-            url: `${BASE}/anime/${id}`,
-            lastModified: now,
-            changeFrequency: "daily",
-            priority: 0.75,
-          });
-        }
-      }
+  const seenIds = new Set(POPULAR_ANIME_IDS);
+  for (const { slug, id } of trendingSlugs) {
+    if (!seenIds.has(id)) {
+      seenIds.add(id);
+      entries.push({
+        url: `${BASE}/anime/${slug}`,
+        lastModified: now,
+        changeFrequency: "daily",
+        priority: 0.75,
+      });
     }
-  } catch {
-    // AniList fetch failed — skip dynamic entries, static ones still work
   }
 
   return entries;

@@ -579,6 +579,22 @@ export function getSectionNavLinks(route: Route): { id: SectionSubPage; label: s
   return [];
 }
 
+/**
+ * Extract numeric AniList ID from slug-ID format.
+ * "one-piece-21" → "21" (the AniList ID)
+ * "21" → "21" (already numeric)
+ * "some-slug" → "some-slug" (pure slug, no embedded ID — return as-is)
+ */
+function extractAnilistIdFromSlug(input: string): string {
+  // Pure numeric — already an ID
+  if (/^\d+$/.test(input)) return input;
+  // Slug-ID format: "one-piece-21" → extract trailing number
+  const match = input.match(/-(\d+)$/);
+  if (match) return match[1];
+  // Pure slug with no ID — return as-is (component will search by slug)
+  return input;
+}
+
 export function parsePath(pathname: string): { route: Route; subPage: SectionSubPage } {
   // Remove leading slash
   const p = pathname.startsWith("/") ? pathname.slice(1) : pathname;
@@ -599,9 +615,13 @@ export function parsePath(pathname: string): { route: Route; subPage: SectionSub
   if (parts[0] === "home") return { route: { page: "home" }, subPage: "home" };
   if (parts[0] === "discover") return { route: { page: "discover" }, subPage: "home" };
   if (parts[0] === "search") return { route: { page: "search", query: decodeURIComponent(parts[1] || "") }, subPage: "home" };
-  if (parts[0] === "anime" && parts[1]) return { route: { page: "anime", id: parts[1] }, subPage: "home" };
+  // ── Anime detail: /anime/{slug-ID} or /anime/{numeric-ID} ──
+  // "one-piece-21" → id="21" (AniList ID extracted from slug)
+  // "21" → id="21" (plain numeric ID)
+  if (parts[0] === "anime" && parts[1]) return { route: { page: "anime", id: extractAnilistIdFromSlug(parts[1]) }, subPage: "home" };
+  // ── Watch page: /watch/{slug-ID}/{episode} ──
   if (parts[0] === "watch" && parts[1] && parts[2])
-    return { route: { page: "watch", id: parts[1], episode: parseInt(parts[2], 10) || 1 }, subPage: "home" };
+    return { route: { page: "watch", id: extractAnilistIdFromSlug(parts[1]), episode: parseInt(parts[2], 10) || 1 }, subPage: "home" };
   if (parts[0] === "bookmarks") return { route: { page: "bookmarks" }, subPage: "home" };
   if (parts[0] === "watchlist") return { route: { page: "watchlist" }, subPage: "home" };
   if (parts[0] === "history") return { route: { page: "history" }, subPage: "home" };
@@ -610,6 +630,7 @@ export function parsePath(pathname: string): { route: Route; subPage: SectionSub
   if (parts[0] === "tv") return { route: { page: "home" }, subPage: "home" };
   if (parts[0] === "live") return { route: { page: "home" }, subPage: "home" };
   if (parts[0] === "watchnow") return { route: { page: "home" }, subPage: "home" };
+  if (parts[0] === "genre" && parts[1]) return { route: { page: "genre", genre: decodeURIComponent(parts[1].replace(/-/g, " ")) }, subPage: "home" };
   if (parts[0] === "genre") return { route: { page: "home" }, subPage: "genres" };
   if (parts[0] === "movie" && parts[1]) return { route: { page: "home" }, subPage: "home" };
   if (parts[0] === "tvshow" && parts[1]) return { route: { page: "home" }, subPage: "home" };

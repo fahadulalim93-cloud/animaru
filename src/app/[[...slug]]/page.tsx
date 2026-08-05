@@ -7,49 +7,182 @@ import MainPageClient from "./main-page-client";
 // This is a SERVER COMPONENT — it runs on the server and can export
 // generateMetadata. The client component (MainPageClient) handles
 // all the interactive routing/UI.
+//
+// CRITICAL: Every page MUST have a unique title + description.
+// Google treats pages with identical titles as duplicates and
+// only indexes one of them.
 // ═══════════════════════════════════════════════════════════════
 
 const SITE_URL = "https://luffytv.live";
+const ANILIST_API = "https://graphql.anilist.co";
+
+// ── Lightweight AniList fetch for SEO only ──
+// Fetches just the title — used in generateMetadata so that
+// /anime/21 has title "One Piece — Watch Free in HD | LuffyTV"
+// instead of the generic "Anime Details — Watch Free in HD"
+async function fetchAnimeTitleForSeo(id: number): Promise<{
+  title: string;
+  description: string;
+  genres: string[];
+  coverImage: string;
+} | null> {
+  try {
+    const res = await fetch(ANILIST_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `
+          query ($id: Int) {
+            Media(id: $id, type: ANIME) {
+              title { romaji english }
+              description(asHtml: false)
+              genres
+              coverImage { large }
+            }
+          }
+        `,
+        variables: { id },
+      }),
+      next: { revalidate: 86400 }, // Cache for 24 hours — anime titles rarely change
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const m = data?.data?.Media;
+    if (!m) return null;
+    const title = m.title?.english || m.title?.romaji || "";
+    return {
+      title,
+      description: (m.description || "").replace(/<[^>]+>/g, "").slice(0, 200),
+      genres: m.genres || [],
+      coverImage: m.coverImage?.large || "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Create URL-friendly slug from anime title ──
+// "One Piece" → "one-piece", "Jujutsu Kaisen" → "jujutsu-kaisen"
+function toSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")   // Remove special chars
+    .replace(/\s+/g, "-")            // Spaces to hyphens
+    .replace(/-+/g, "-")             // Collapse multiple hyphens
+    .replace(/^-|-$/g, "")           // Trim leading/trailing hyphens
+    || "anime";
+}
+
+// ── Extract numeric AniList ID from slug-123 format ──
+// "one-piece-21" → 21
+// "21" → 21
+// "one-piece" → null (pure slug, no ID)
+function extractAnilistId(input: string): number | null {
+  // Pure numeric
+  if (/^\d+$/.test(input)) return parseInt(input, 10);
+  // Slug-ID format: "one-piece-21" → extract trailing number
+  const match = input.match(/-(\d+)$/);
+  if (match) return parseInt(match[1], 10);
+  return null;
+}
 
 // ── Page-specific SEO config ──
+// Each key maps to a unique page type with unique title + description.
+// This is CRITICAL — if two pages have the same title, Google treats
+// them as duplicates and only indexes one.
 const PAGE_SEO: Record<string, { title: string; description: string; path: string }> = {
   home: {
     title: "LuffyTV — Watch Anime Online Free in HD — Tamil, Hindi, Telugu, Bengali Dub & English Sub",
     description: "Watch anime online free in HD on LuffyTV. Stream 10,000+ anime episodes with Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub. No signup, no ads, instant playback.",
     path: "/",
   },
+  browse: {
+    title: "Browse Anime — All Titles A-Z | LuffyTV",
+    description: "Browse thousands of anime on LuffyTV. Filter by genre, year, format, and language. Tamil, Hindi, Telugu, Bengali dub & English sub. Free HD streaming.",
+    path: "/browse",
+  },
+  trending: {
+    title: "Trending Anime — What's Hot Right Now | LuffyTV",
+    description: "Watch trending anime free in HD on LuffyTV. See what's popular right now with Tamil, Hindi, Telugu, Bengali dub & English sub. Updated daily.",
+    path: "/trending",
+  },
+  "top-rated": {
+    title: "Top Rated Anime — Best of All Time | LuffyTV",
+    description: "Watch the highest-rated anime of all time free in HD on LuffyTV. Curated top anime list with Tamil, Hindi, Telugu, Bengali dub & English sub.",
+    path: "/top-rated",
+  },
+  schedule: {
+    title: "Anime Schedule — New Episodes Today | LuffyTV",
+    description: "See the anime schedule for today and this week on LuffyTV. Find out when new episodes air. Tamil, Hindi, Telugu, Bengali dub & English sub.",
+    path: "/schedule",
+  },
+  genres: {
+    title: "Anime by Genre — Action, Romance, Isekai & More | LuffyTV",
+    description: "Browse anime by genre on LuffyTV. Action, Romance, Isekai, Comedy, Thriller, Sci-Fi, Slice of Life and more. Free HD streaming.",
+    path: "/genres",
+  },
+  dub: {
+    title: "Dubbed Anime — Tamil, Hindi, Telugu, Bengali Dub | LuffyTV",
+    description: "Watch dubbed anime free in HD on LuffyTV. Tamil dub, Hindi dub, Telugu dub, Bengali dub. Thousands of episodes. No signup, no ads.",
+    path: "/dub",
+  },
+  sub: {
+    title: "Subbed Anime — English Subtitles | LuffyTV",
+    description: "Watch subbed anime free in HD with English subtitles on LuffyTV. Thousands of anime episodes. No signup, no ads, instant playback.",
+    path: "/sub",
+  },
+  "dub-tamil": {
+    title: "Tamil Dubbed Anime — Watch in Tamil | LuffyTV",
+    description: "Watch Tamil dubbed anime free in HD on LuffyTV. One Piece, Naruto, Demon Slayer, Jujutsu Kaisen and more in Tamil. No signup required.",
+    path: "/dub/tamil",
+  },
+  "dub-hindi": {
+    title: "Hindi Dubbed Anime — Watch in Hindi | LuffyTV",
+    description: "Watch Hindi dubbed anime free in HD on LuffyTV. Popular anime with Hindi dub. Free streaming, no signup required.",
+    path: "/dub/hindi",
+  },
+  "dub-telugu": {
+    title: "Telugu Dubbed Anime — Watch in Telugu | LuffyTV",
+    description: "Watch Telugu dubbed anime free in HD on LuffyTV. Popular anime with Telugu dub. Free streaming, no signup required.",
+    path: "/dub/telugu",
+  },
+  "dub-bengali": {
+    title: "Bengali Dubbed Anime — Watch in Bengali | LuffyTV",
+    description: "Watch Bengali dubbed anime free in HD on LuffyTV. Popular anime with Bengali dub. Free streaming, no signup required.",
+    path: "/dub/bengali",
+  },
   discover: {
-    title: "Discover Anime — Find Your Next Favorite Show",
+    title: "Discover Anime — Find Your Next Favorite Show | LuffyTV",
     description: "Discover new anime to watch on LuffyTV. Browse trending, popular, and top-rated anime with Tamil, Hindi, Telugu, Bengali dub & English sub. Personalized recommendations.",
     path: "/discover",
   },
   search: {
-    title: "Search Anime — Find Any Anime Instantly",
+    title: "Search Anime — Find Any Anime Instantly | LuffyTV",
     description: "Search thousands of anime on LuffyTV. Find Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub anime. Fast, free streaming in HD.",
     path: "/search",
   },
   anime: {
-    title: "Anime Details — Watch Free in HD",
+    title: "Anime Details — Watch Free in HD | LuffyTV",
     description: "Watch anime free in HD on LuffyTV. Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub available. Full episode list, reviews, and recommendations.",
     path: "/anime",
   },
   watch: {
-    title: "Watch Anime Free in HD — Streaming Now",
+    title: "Watch Anime Free in HD — Streaming Now | LuffyTV",
     description: "Watch anime episodes free in HD on LuffyTV. Multiple servers, Tamil/Hindi/Telugu/Bengali dub & English sub. No signup required.",
     path: "/watch",
   },
   bookmarks: {
-    title: "My Bookmarks — Saved Anime List",
+    title: "My Bookmarks — Saved Anime List | LuffyTV",
     description: "View your saved anime bookmarks on LuffyTV. Quickly access your favorite shows with Tamil, Hindi, Telugu, Bengali dub & English sub.",
     path: "/bookmarks",
   },
   watchlist: {
-    title: "My Watchlist — Anime to Watch Later",
+    title: "My Watchlist — Anime to Watch Later | LuffyTV",
     description: "Manage your anime watchlist on LuffyTV. Track shows you plan to watch with Tamil, Hindi, Telugu, Bengali dub & English sub.",
     path: "/watchlist",
   },
   history: {
-    title: "Watch History — Recently Viewed Anime",
+    title: "Watch History — Recently Viewed Anime | LuffyTV",
     description: "View your recently watched anime on LuffyTV. Resume watching where you left off with Tamil, Hindi, Telugu, Bengali dub & English sub.",
     path: "/history",
   },
@@ -59,7 +192,7 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
     path: "/manga",
   },
   "manga-detail": {
-    title: "Manga Details — Read Free Online",
+    title: "Manga Details — Read Free Online | LuffyTV",
     description: "Read manga free online on LuffyTV. Full chapter list, ratings, and recommendations. No signup required.",
     path: "/manga",
   },
@@ -69,7 +202,7 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
     path: "/novel",
   },
   music: {
-    title: "Anime Music — OST & Openings",
+    title: "Anime Music — OST & Openings | LuffyTV",
     description: "Listen to anime music, OSTs, opening and ending themes on LuffyTV. Stream anime soundtracks free.",
     path: "/music",
   },
@@ -89,7 +222,7 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
     path: "/donate",
   },
   updates: {
-    title: "Latest Updates — New Anime Episodes",
+    title: "Latest Updates — New Anime Episodes | LuffyTV",
     description: "Stay updated with the latest anime episodes on LuffyTV. New releases, seasonal anime, and trending shows.",
     path: "/updates",
   },
@@ -109,27 +242,32 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
     path: "/",
   },
   torrent: {
-    title: "Anime Torrents — Download Anime Episodes",
+    title: "Anime Torrents — Download Anime Episodes | LuffyTV",
     description: "Find and download anime torrents on LuffyTV. Browse by quality, dub/sub, and episode number.",
     path: "/torrent",
+  },
+  genre: {
+    title: "Anime by Genre — Browse All Genres | LuffyTV",
+    description: "Browse anime by genre on LuffyTV. Action, Romance, Isekai, Comedy, Thriller, Sci-Fi and more. Free HD streaming.",
+    path: "/genres",
   },
 };
 
 // ── Parse the slug to determine the page type ──
-function parseSlugForSeo(slug: string[]): { page: string; id?: string } {
+function parseSlugForSeo(slug: string[]): { page: string; id?: string; episode?: number; genreName?: string } {
   if (!slug || slug.length === 0) return { page: "home" };
 
   const first = slug[0];
 
-  // Direct page matches
+  // Direct page matches — each has UNIQUE SEO now
   const pageMap: Record<string, string> = {
-    browse: "home",
-    trending: "home",
-    "top-rated": "home",
-    schedule: "home",
-    genres: "home",
-    dub: "home",
-    sub: "home",
+    browse: "browse",
+    trending: "trending",
+    "top-rated": "top-rated",
+    schedule: "schedule",
+    genres: "genres",
+    dub: "dub",
+    sub: "sub",
     discover: "discover",
     search: "search",
     bookmarks: "bookmarks",
@@ -149,24 +287,40 @@ function parseSlugForSeo(slug: string[]): { page: string; id?: string } {
     features: "landing",
     landing: "landing",
     hub: "hub",
-    embed: "home",
+    embed: "browse", // embed uses browse SEO
   };
 
   if (pageMap[first]) return { page: pageMap[first] };
 
-  // /anime/{id} → anime detail
+  // /anime/{slug-or-id} → anime detail
   if (first === "anime" && slug.length >= 2) {
     return { page: "anime", id: slug[1] };
   }
 
-  // /watch/{id}/{ep} → watch page
+  // /watch/{slug-or-id}/{ep} → watch page
   if (first === "watch" && slug.length >= 2) {
-    return { page: "watch", id: slug[1] };
+    return { page: "watch", id: slug[1], episode: slug[2] ? parseInt(slug[2], 10) : undefined };
   }
 
   // /manga/{id} → manga detail
   if (first === "manga" && slug.length >= 2) {
     return { page: "manga-detail", id: slug[1] };
+  }
+
+  // /genre/{name} → genre page
+  if (first === "genre" && slug.length >= 2) {
+    return { page: "genre", genreName: slug[1] };
+  }
+
+  // /dub/{language} → dub language page
+  if (first === "dub" && slug.length >= 2) {
+    const langMap: Record<string, string> = {
+      tamil: "dub-tamil",
+      hindi: "dub-hindi",
+      telugu: "dub-telugu",
+      bengali: "dub-bengali",
+    };
+    return { page: langMap[slug[1]] || "dub" };
   }
 
   return { page: "home" };
@@ -176,9 +330,12 @@ function parseSlugForSeo(slug: string[]): { page: string; id?: string } {
 // generateMetadata — THE KEY SEO FIX
 //
 // Generates unique title, description, canonical URL, and OG tags
-// for every page. This is what was missing — every page had
-// identical metadata, causing Google to treat them all as
-// duplicates of the homepage.
+// for EVERY page. For anime/watch pages, it fetches the actual
+// anime title from AniList so that Google sees:
+//   "One Piece — Watch Free in HD | LuffyTV"
+// instead of the generic "Anime Details — Watch Free in HD"
+//
+// This is what makes Google index individual anime pages.
 // ═══════════════════════════════════════════════════════════════
 
 export async function generateMetadata({
@@ -187,41 +344,94 @@ export async function generateMetadata({
   params: Promise<{ slug?: string[] }>;
 }): Promise<Metadata> {
   const { slug = [] } = await params;
-  const { page, id } = parseSlugForSeo(slug);
+  const { page, id, episode, genreName } = parseSlugForSeo(slug);
 
-  const seo = PAGE_SEO[page] || PAGE_SEO.home;
+  let title: string;
+  let description: string;
+  let canonicalPath: string;
+  let ogImage = "/og.png";
 
-  // Build the canonical URL for this specific page
-  let canonicalPath = seo.path;
-  if (page === "anime" && id) {
-    canonicalPath = `/anime/${id}`;
-  } else if (page === "watch" && id) {
-    canonicalPath = `/anime/${id}`;
-  } else if (page === "manga-detail" && id) {
-    canonicalPath = `/manga/${id}`;
+  // ── Anime detail page: fetch real title from AniList ──
+  if ((page === "anime" || page === "watch") && id) {
+    const anilistId = extractAnilistId(id);
+    const animeData = anilistId ? await fetchAnimeTitleForSeo(anilistId) : null;
+
+    if (animeData && animeData.title) {
+      // SUCCESS: We got the real anime name from AniList
+      const animeTitle = animeData.title;
+      const genreStr = animeData.genres.length > 0 ? ` — ${animeData.genres.slice(0, 3).join(", ")}` : "";
+
+      if (page === "watch") {
+        const epStr = episode ? ` Episode ${episode}` : "";
+        title = `${animeTitle}${epStr} — Watch Free in HD | LuffyTV`;
+        description = `Watch ${animeTitle}${epStr} free in HD on LuffyTV. Tamil, Hindi, Telugu, Bengali dub & English sub available. Multiple servers, no signup required.`;
+      } else {
+        title = `${animeTitle}${genreStr} — Watch Free in HD | LuffyTV`;
+        description = animeData.description
+          ? `${animeData.description.slice(0, 160)}... Watch ${animeTitle} free in HD on LuffyTV.`
+          : `Watch ${animeTitle} free in HD on LuffyTV. Tamil, Hindi, Telugu, Bengali dub & English sub. Full episode list, reviews, and recommendations.`;
+      }
+
+      if (animeData.coverImage) {
+        ogImage = animeData.coverImage;
+      }
+    } else {
+      // FALLBACK: Couldn't fetch from AniList — use ID in title
+      const displayId = anilistId || id;
+      if (page === "watch") {
+        title = `Watch Anime ${displayId}${episode ? ` Ep ${episode}` : ""} Free in HD | LuffyTV`;
+        description = `Watch anime free in HD on LuffyTV. Multiple servers, Tamil/Hindi/Telugu/Bengali dub & English sub. No signup required.`;
+      } else {
+        title = `Anime ${displayId} — Watch Free in HD | LuffyTV`;
+        description = `Watch anime free in HD on LuffyTV. Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub available. Full episode list and recommendations.`;
+      }
+    }
+
+    // Build canonical — use the raw slug for anime, or just the ID part for watch
+    if (page === "anime") {
+      canonicalPath = `/anime/${id}`;
+    } else {
+      // Watch page canonical → anime detail page (avoid duplicate content)
+      canonicalPath = `/anime/${id}`;
+    }
   }
+  // ── Genre page: dynamic title ──
+  else if (page === "genre" && genreName) {
+    const genreLabel = genreName.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    title = `${genreLabel} Anime — Watch Free in HD | LuffyTV`;
+    description = `Watch the best ${genreLabel} anime free in HD on LuffyTV. Browse top ${genreLabel} titles with Tamil, Hindi, Telugu, Bengali dub & English sub.`;
+    canonicalPath = `/genre/${genreName}`;
+  }
+  // ── All other pages: use the static SEO config ──
+  else {
+    const seo = PAGE_SEO[page] || PAGE_SEO.home;
+    title = seo.title;
+    description = seo.description;
+    canonicalPath = seo.path;
+  }
+
   const canonicalUrl = `${SITE_URL}${canonicalPath}`;
 
   return {
-    title: seo.title,
-    description: seo.description,
+    title,
+    description,
     alternates: {
       canonical: canonicalUrl,
     },
     openGraph: {
-      title: seo.title,
-      description: seo.description,
+      title,
+      description,
       url: canonicalUrl,
       type: page === "home" || page === "landing" ? "website" : "article",
       siteName: "LuffyTV",
       locale: "en_US",
-      images: [{ url: "/og.png", width: 1200, height: 630, alt: seo.title }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
-      title: seo.title,
-      description: seo.description,
-      images: ["/og.png"],
+      title,
+      description,
+      images: [ogImage],
     },
   };
 }

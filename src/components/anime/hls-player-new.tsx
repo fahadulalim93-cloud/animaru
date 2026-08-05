@@ -385,6 +385,25 @@ export default function HLSPlayerNew({
     }, CONTROLS_TIMEOUT);
   }, [playing, CONTROLS_TIMEOUT]);
 
+  // ─── Auto-hide controls when video starts playing ─────────────────
+  // On mobile, there's no mousemove to trigger showControlsTemp(),
+  // so the controls stay visible forever. This effect starts the
+  // auto-hide timer whenever playback begins.
+  useEffect(() => {
+    if (playing) {
+      // Start the auto-hide timer — controls will disappear after CONTROLS_TIMEOUT
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+        setActiveMenu(null);
+      }, CONTROLS_TIMEOUT);
+    } else {
+      // Paused — show controls and cancel any pending hide
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      setShowControls(true);
+    }
+  }, [playing, CONTROLS_TIMEOUT]);
+
   // ─── Fullscreen ───────────────────────────────────────────────────
   useEffect(() => {
     const onFs = () => setFullscreen(!!document.fullscreenElement);
