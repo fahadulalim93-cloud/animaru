@@ -17,41 +17,115 @@ const BASE = "https://luffytv.live";
 
 // Popular anime IDs to include in sitemap (top anime that people search for)
 // These are AniList IDs for the most-searched anime titles
+// ~83 entries to give Google plenty of content to index
 const POPULAR_ANIME_IDS = [
+  // ─── GOAT / Hall of Fame ───
   1,     // Cowboy Bebop
   21,    // One Piece
   30,    // Neon Genesis Evangelion
+  5114,  // Fullmetal Alchemist: Brotherhood
   16498, // Attack on Titan
-  1015,  // One Punch Man
-  21027, // Solo Leveling
   20,    // Naruto
   1735,  // Naruto Shippuden
-  16456, // Re:Zero
-  5114,  // Fullmetal Alchemist: Brotherhood
-  9253,  // Steins;Gate
-  41467, // Bleach: Sennen Kessen Hen
-  30002, // Mushoku Tensei
-  15494, // Sword Art Online
-  10602, // Oregairu
-  11061, // Hyouka
-  11,    // K-On!
-  31964, // Boku no Hero Academia
-  21604, // Kono Subarashii
-  20583, // Overlord
   21459, // Demon Slayer
   40756, // Jujutsu Kaisen
-  11304, // Mob Psycho 100
-  1019,  // Gintama
-  25755, // Made in Abyss
+  1015,  // One Punch Man
+  9253,  // Steins;Gate
   13309, // Death Note
-  37510, // Mob Psycho 100 II
-  38000, // Spy x Family
-  142362,// Frieren
-  160526,// Oshi no Ko
+  41467, // Bleach: Thousand-Year Blood War
+  // ─── Modern Hits (2022-2025) ───
+  21027, // Solo Leveling
+  142362,// Frieren: Beyond Journey's End
   157971,// Sousou no Frieren
+  160526,// Oshi no Ko
   127230,// Cyberpunk Edgerunners
+  38000, // Spy x Family
   153622,// Vinland Saga S2
   131391,// Links
+  150723,// Kaiju No. 8
+  157853,// Dandadan
+  175623,// Wind Breaker
+  163394,// Oshi no Ko S2
+  176940,// Solo Leveling S2
+  // ─── Shonen Giants ───
+  31964, // My Hero Academia
+  20583, // Overlord
+  21604, // KonoSuba
+  15494, // Sword Art Online
+  30002, // Mushoku Tensei
+  11304, // Mob Psycho 100
+  37510, // Mob Psycho 100 II
+  1019,  // Gintama
+  16456, // Re:Zero
+  19815, // No Game No Life
+  21359, // Gate
+  37537, // Dr. Stone
+  11597, // Food Wars (Shokugeki)
+  // ─── Isekai & Fantasy ───
+  11843, // Log Horizon
+  40356, // That Time I Got Reincarnated as a Slime
+  101917,// The Rising of the Shield Hero
+  145023,// Eminence in Shadow
+  129658,// Mushoku Tensei S2
+  104580,// Overlord III
+  158023,// Tsukimichi
+  146954,// My Isekai Life
+  // ─── Romance & Drama ───
+  10602, // Oregairu (My Teen Romantic Comedy)
+  11061, // Hyouka
+  11,    // K-On!
+  9969,  // Toradora!
+  4181,  // Clannad After Story
+  2167,  // Clannad
+  26349, // Your Lie in April
+  28851, // Kono Bijutsubu
+  37999, // Horimiya
+  125574,// Skip and Loafer
+  // ─── Psychological & Thriller ───
+  533,   // Monster
+  746,   // Paranoia Agent
+  4450,  // Code Geass
+  2889,  // Code Geass R2
+  1973,  // Monster (Manga-adapted)
+  1066,  // Ergo Proxy
+  20954, // Psycho-Pass
+  13625, // Psycho-Pass 2
+  // ─── Action & Sci-Fi ───
+  16455, // 86: Eighty-Six
+  125,   // Gunbuster
+  235,   // Legend of the Galactic Heroes
+  14729, // Redline
+  3450,  // Tengen Toppa Gurren Lagann
+  15675, // Akame ga Kill!
+  11757, // Kill la Kill
+  3190,  // Hellsing Ultimate
+  14813, // Akatsuki no Yona
+  // ─── Sports & Music ───
+  15365, // Haikyuu!!
+  10164, // Kuroko no Basket
+  21827, // Yuri on Ice
+  14725, // Ping Pong the Animation
+  12687, // Nozaki-kun
+  // ─── Slice of Life & Comedy ───
+  9494,  // Non Non Biyori
+  28049, // Ms. Kobayashi's Dragon Maid
+  16267, // Hinamatsuri
+  8496,  // Danshi Koukousei no Nichijou
+  20785, // Saiki K
+  36016, // Kaguya-sama: Love is War
+  147558,// Bocchi the Rock!
+  // ─── Classics & Must-Watch ───
+  25755, // Made in Abyss
+  28223, // Made in Abyss S2
+  23755, // Land of the Lustrous
+  13391, // Hunter x Hunter (2011)
+  21939, // JoJo's Bizarre Adventure (2012)
+  14691, // JoJo Part 4
+  33986, // JoJo Part 5
+  37510, // Mob Psycho 100 II
+  37520, // Vinland Saga
+  1790,  // Trigun
+  1575,  // Lupin III
 ];
 
 // Popular genres for browse pages
