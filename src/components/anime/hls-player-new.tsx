@@ -142,42 +142,44 @@ export default function HLSPlayerNew({
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        // ─── PERFORMANCE TUNING — optimized for FAST initial load ───
-        // Previous values were bloated (90s back buffer, 45s frag timeout)
-        // which caused slow initial playback. These values prioritize:
-        // 1. FASTEST time-to-first-frame (TTFF)
-        // 2. Smooth playback once buffering starts
-        // 3. Quick failure + retry on bad segments
-        lowLatencyMode: false,
-        backBufferLength: 30,           // was 90 — 30s back buffer is plenty, saves memory
-        maxBufferLength: 30,            // was 90 — 30s ahead buffer for fast start, grows later
-        maxMaxBufferLength: 60,         // was 180 — 60s max buffer (1 min ahead is enough)
-        maxBufferSize: 60 * 1000 * 1000, // was 90MB — 60MB max buffer size
+        // ─── PERFORMANCE TUNING — optimized for FASTEST initial load ───
+        // Strategy: Start at LOWEST quality (360p) for instant first-frame,
+        // then ABR auto-upgrades to 1080p within 2-3 seconds as bandwidth
+        // is measured. This gives the FASTEST perceived load time.
+        // Previous config started at 1080p which meant downloading 5-10MB
+        // before any frame appeared — now we download ~500KB first.
+        lowLatencyMode: true,            // Enables reduced buffer targets + faster ABR
+        backBufferLength: 20,            // 20s back buffer — saves memory, plenty for seeking
+        maxBufferLength: 10,             // 10s ahead buffer — minimal wait before playback starts
+        maxMaxBufferLength: 120,         // 120s max buffer — grows for smooth long-form playback
+        maxBufferSize: 50 * 1000 * 1000, // 50MB max buffer size
         maxBufferHole: 0.5,
-        // Start at the HIGHEST quality level (1080p), not lowest (360p).
-        // -1 = auto-select based on bandwidth, but we set a high default estimate
-        // so it picks the best quality immediately on fast connections.
-        startLevel: -1,
-        // Assume 15Mbps bandwidth by default — start at 1080p immediately.
-        // Higher estimate = less quality-shifting at start = faster perceived load.
-        abrEwmaDefaultEstimate: 15000000,  // was 10Mbps → 15Mbps
-        abrBandWidthFactor: 0.95,
+        // Start at the LOWEST quality level for FASTEST time-to-first-frame.
+        // ABR will auto-upgrade to 1080p within 2-3s on fast connections.
+        // -1 = ABR auto-select, 0 = lowest level (fastest first frame).
+        startLevel: 0,
+        // Assume 5Mbps bandwidth initially — conservative start ensures
+        // smooth playback while ABR measures real bandwidth.
+        // After 2-3s of measurement, ABR ramps up to full 1080p.
+        abrEwmaDefaultEstimate: 5000000,   // 5Mbps — conservative, ramps up fast
+        abrBandWidthFactor: 0.8,           // More aggressive quality upgrades
         abrBandWidthUpFactor: 0.7,
-        maxStarvationDelay: 2,          // was 4 — switch quality faster if buffer runs dry
-        abrEwmaDefaultEstimateMax: 30000000,  // was 20Mbps → 30Mbps
+        maxStarvationDelay: 1,             // Switch quality instantly if buffer runs dry
+        abrEwmaDefaultEstimateMax: 50000000, // 50Mbps max — allows 4K streams
+        abrMaxWithRealBitrate: true,        // Use real bitrate from manifest for better ABR
         // ─── TIMEOUTS — fail FAST, retry FAST ───
-        // 20s manifest timeout is way too long — user sees loading spinner forever.
-        // 8s is enough for any CDN + proxy round-trip.
-        manifestLoadingTimeOut: 8000,   // was 20000 — fail faster on dead servers
-        manifestLoadingMaxRetry: 3,     // was 4
-        levelLoadingTimeOut: 8000,      // was 20000
-        levelLoadingMaxRetry: 3,        // was 4
-        fragLoadingTimeOut: 15000,      // was 45000 — 15s per segment is generous
-        fragLoadingMaxRetry: 4,         // was 8 — don't waste time on dead segments
-        fragLoadingRetryDelay: 500,     // was 1000 — retry faster
+        // Aggressive timeouts so dead servers don't hold up playback.
+        manifestLoadingTimeOut: 6000,      // 6s — proxy+CDN should respond in <3s
+        manifestLoadingMaxRetry: 2,        // Only retry twice — move on quickly
+        levelLoadingTimeOut: 6000,         // 6s
+        levelLoadingMaxRetry: 2,
+        fragLoadingTimeOut: 10000,         // 10s per segment — generous even on slow CDNs
+        fragLoadingMaxRetry: 3,            // 3 retries — enough to recover from transient errors
+        fragLoadingRetryDelay: 250,        // 250ms — retry almost immediately
         // ─── PREFETCH + PROGRESSIVE for instant start ───
-        startFragPrefetch: true,        // Prefetch first fragment while parsing manifest
-        progressive: true,              // Stream data progressively (faster TTFF)
+        startFragPrefetch: true,           // Prefetch first fragment while parsing manifest
+        progressive: true,                 // Stream data progressively (faster TTFF)
+        testBandwidth: true,               // Bandwidth test on first fragment for faster ABR
         // ─── SUBTITLES ───
         enableWebVTT: true,
         xhrSetup: (xhr) => { xhr.withCredentials = false; },

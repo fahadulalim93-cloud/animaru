@@ -125,8 +125,31 @@ export default function ScraperWatchPage({
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 90,
+        // ─── PERFORMANCE TUNING — FASTEST initial load ───
+        lowLatencyMode: true,
+        backBufferLength: 20,
+        maxBufferLength: 10,
+        maxMaxBufferLength: 120,
+        maxBufferSize: 50 * 1000 * 1000,
+        maxBufferHole: 0.5,
+        startLevel: 0,                     // Lowest quality first → instant first frame
+        abrEwmaDefaultEstimate: 5000000,   // 5Mbps — ABR ramps up to 1080p in ~2s
+        abrBandWidthFactor: 0.8,
+        abrBandWidthUpFactor: 0.7,
+        maxStarvationDelay: 1,
+        abrEwmaDefaultEstimateMax: 50000000,
+        abrMaxWithRealBitrate: true,
+        manifestLoadingTimeOut: 6000,
+        manifestLoadingMaxRetry: 2,
+        levelLoadingTimeOut: 6000,
+        levelLoadingMaxRetry: 2,
+        fragLoadingTimeOut: 10000,
+        fragLoadingMaxRetry: 3,
+        fragLoadingRetryDelay: 250,
+        startFragPrefetch: true,
+        progressive: true,
+        testBandwidth: true,
+        xhrSetup: (xhr) => { xhr.withCredentials = false; },
       });
       hlsRef.current = hls;
       hls.loadSource(currentUrl);

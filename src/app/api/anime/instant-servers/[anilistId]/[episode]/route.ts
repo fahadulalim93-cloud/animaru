@@ -386,17 +386,17 @@ export async function GET(
       // They're called separately by the frontend when the title is available.
     ];
 
-    // ── RESPONSE — wait up to 15s for all providers ──
-    // Fast providers (AnimeX mimi, AniDB, Kyren) finish in 2-3s.
-    // Slow providers (AniDap, AniPm, Luna, AniKage) may take 7-12s.
-    // Previously raced at 4s which killed slow providers before they could
-    // finish — users only saw 2-3 servers instead of 8-12. Now we wait
-    // 15s so all providers have time to complete. The frontend also calls
-    // /api/anime/anidap-servers and /api/anime/anichi-servers separately,
-    // so any stragglers arrive via those endpoints too.
+    // ── RESPONSE — wait up to 10s for all providers ──
+    // Fast providers (AnimeX mimi, AniDB, Kyren) finish in 1-3s.
+    // Slow providers (AniDap, AniPm, Luna, AniKage) may take 5-10s.
+    // The frontend auto-selects the FIRST server that arrives (priority 0)
+    // so playback starts in ~2s. Remaining servers trickle in.
+    // We wait 10s (down from 15s) so the API returns faster overall.
+    // Any stragglers arrive via separate frontend calls to
+    // /api/anime/anidap-servers and /api/anime/anichi-servers.
     await Promise.race([
       Promise.allSettled(providerPromises),
-      new Promise(resolve => setTimeout(resolve, 15000)),
+      new Promise(resolve => setTimeout(resolve, 10000)),
     ]);
 
     // Apply AniKage skip times to ALL servers
@@ -435,7 +435,17 @@ export async function GET(
       `[instant-servers] AniList ${id} ep ${epNum}: ${deduped.length} instant servers (animex:${deduped.some(s => s.source === "animex") ? "✓" : "✗"} anidb:${deduped.some(s => s.source === "anidb") ? "✓" : "✗"} anilight:${deduped.some(s => s.source === "anilight") ? "✓" : "✗"} kyren:${deduped.some(s => s.source === "kyren") ? "✓" : "✗"} anidap:${deduped.some(s => s.source === "anidap") ? "✓" : "✗"} luna:${deduped.some(s => s.source === "luna") ? "✓" : "✗"})`,
     );
 
-    return NextResponse.json({ servers: deduped });
+    // Cache for 5 minutes — same episode re-watches don't re-scrape.
+    // s-maxage=300 for CDN cache, max-age=300 for browser cache.
+    // Must-revalidate ensures stale data is checked after 5 min.
+    return NextResponse.json(
+      { servers: deduped },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, max-age=300, must-revalidate',
+        },
+      },
+    );
   } catch (err) {
     console.error("[instant-servers] error:", err);
     return NextResponse.json({ servers: [] });

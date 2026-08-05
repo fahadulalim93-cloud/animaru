@@ -195,6 +195,12 @@ export default function RootLayout({
         <meta name="google" content="notranslate" />
         {/* canonical is set per-page via generateMetadata — do NOT set a global canonical here */}
         <link rel="home" href={SITE_URL} />
+        {/* Preconnect to proxy worker — saves ~200ms TLS handshake on first m3u8 request */}
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev"} />
+        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev"} />
+        {/* Preconnect to AniList GraphQL API — used for metadata on every page */}
+        <link rel="preconnect" href="https://graphql.anilist.co" />
+        <link rel="dns-prefetch" href="https://graphql.anilist.co" />
         {/* Hidden H1 for brand recognition — Google reads H1 to understand the site brand */}
         <h1 className="sr-only">LuffyTV — Watch Anime Online Free in HD — Tamil Hindi Telugu Bengali Dub & English Sub</h1>
         <script
