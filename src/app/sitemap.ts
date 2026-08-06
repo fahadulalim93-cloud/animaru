@@ -3,22 +3,20 @@ import type { MetadataRoute } from "next";
 /**
  * Sitemap for LuffyTV (luffytv.live)
  *
- * SEO-optimized sitemap with slug-based URLs:
- * - /anime/one-piece-21  (slug + ID — Google reads "one-piece", code extracts ID 21)
- * - /watch/one-piece-21/1
- * - /browse, /trending, /schedule, /dub/tamil, /genre/action, etc.
+ * Generates 1000+ URLs:
+ * - Static pages (browse, trending, schedule, dub, genres, etc.)
+ * - 250+ popular anime detail + watch pages from AniList
+ * - 50 trending anime pages
+ * - 50 top-rated anime pages
+ * - Genre × dub language combo pages
  *
- * The slug-ID format is critical for SEO:
- *   - Google reads the URL and understands it's about "One Piece"
- *   - Our code extracts the numeric ID from the end for API calls
- *   - AniLight uses /anime/k-on (pure slug) — we use slug-ID for reliability
- *
- * API routes (/api/*) are blocked in robots.txt.
- * Admin pages (/admin, /aznayeem) are noindex.
+ * All AniList API calls have 8s timeout protection.
+ * If API fails, hardcoded popular anime IDs still generate entries.
  */
 
 const BASE = "https://luffytv.live";
 const ANILIST_API = "https://graphql.anilist.co";
+const API_TIMEOUT = 8000;
 
 // ── Create URL-friendly slug from anime title ──
 function toSlug(title: string): string {
@@ -31,285 +29,154 @@ function toSlug(title: string): string {
     || "anime";
 }
 
-// Popular anime IDs to include in sitemap (top anime that people search for)
+// ── Fetch with timeout ──
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
+// Popular anime IDs (hardcoded fallback — always included even if API dies)
 const POPULAR_ANIME_IDS = [
-  // ─── GOAT / Hall of Fame ───
-  1,     // Cowboy Bebop
-  21,    // One Piece
-  30,    // Neon Genesis Evangelion
-  5114,  // Fullmetal Alchemist: Brotherhood
-  16498, // Attack on Titan
-  20,    // Naruto
-  1735,  // Naruto Shippuden
-  21459, // Demon Slayer
-  40756, // Jujutsu Kaisen
-  1015,  // One Punch Man
-  9253,  // Steins;Gate
-  13309, // Death Note
-  41467, // Bleach: Thousand-Year Blood War
-  // ─── Modern Hits (2022-2025) ───
-  21027, // Solo Leveling
-  142362,// Frieren: Beyond Journey's End
-  157971,// Sousou no Frieren
-  160526,// Oshi no Ko
-  127230,// Cyberpunk Edgerunners
-  38000, // Spy x Family
-  153622,// Vinland Saga S2
-  131391,// Links
-  150723,// Kaiju No. 8
-  157853,// Dandadan
-  175623,// Wind Breaker
-  163394,// Oshi no Ko S2
-  176940,// Solo Leveling S2
-  // ─── Shonen Giants ───
-  31964, // My Hero Academia
-  20583, // Overlord
-  21604, // KonoSuba
-  15494, // Sword Art Online
-  30002, // Mushoku Tensei
-  11304, // Mob Psycho 100
-  37510, // Mob Psycho 100 II
-  1019,  // Gintama
-  16456, // Re:Zero
-  19815, // No Game No Life
-  21359, // Gate
-  37537, // Dr. Stone
-  11597, // Food Wars (Shokugeki)
-  // ─── Isekai & Fantasy ───
-  11843, // Log Horizon
-  40356, // That Time I Got Reincarnated as a Slime
-  101917,// The Rising of the Shield Hero
-  145023,// Eminence in Shadow
-  129658,// Mushoku Tensei S2
-  104580,// Overlord III
-  158023,// Tsukimichi
-  146954,// My Isekai Life
-  // ─── Romance & Drama ───
-  10602, // Oregairu
-  11061, // Hyouka
-  11,    // K-On!
-  9969,  // Toradora!
-  4181,  // Clannad After Story
-  2167,  // Clannad
-  26349, // Your Lie in April
-  28851, // Kono Bijutsubu
-  37999, // Horimiya
-  125574,// Skip and Loafer
-  // ─── Psychological & Thriller ───
-  533,   // Monster
-  746,   // Paranoia Agent
-  4450,  // Code Geass
-  2889,  // Code Geass R2
-  1973,  // Monster (Manga-adapted)
-  1066,  // Ergo Proxy
-  20954, // Psycho-Pass
-  13625, // Psycho-Pass 2
-  // ─── Action & Sci-Fi ───
-  16455, // 86: Eighty-Six
-  125,   // Gunbuster
-  235,   // Legend of the Galactic Heroes
-  14729, // Redline
-  3450,  // Tengen Toppa Gurren Lagann
-  15675, // Akame ga Kill!
-  11757, // Kill la Kill
-  3190,  // Hellsing Ultimate
-  14813, // Akatsuki no Yona
-  // ─── Sports & Music ───
-  15365, // Haikyuu!!
-  10164, // Kuroko no Basket
-  21827, // Yuri on Ice
-  14725, // Ping Pong the Animation
-  12687, // Nozaki-kun
-  // ─── Slice of Life & Comedy ───
-  9494,  // Non Non Biyori
-  28049, // Ms. Kobayashi's Dragon Maid
-  16267, // Hinamatsuri
-  8496,  // Danshi Koukousei no Nichijou
-  20785, // Saiki K
-  36016, // Kaguya-sama: Love is War
-  147558,// Bocchi the Rock!
-  // ─── Classics & Must-Watch ───
-  25755, // Made in Abyss
-  28223, // Made in Abyss S2
-  23755, // Land of the Lustrous
-  13391, // Hunter x Hunter (2011)
-  21939, // JoJo's Bizarre Adventure (2012)
-  14691, // JoJo Part 4
-  33986, // JoJo Part 5
-  37520, // Vinland Saga
-  1790,  // Trigun
-  1575,  // Lupin III
+  1, 21, 30, 5114, 16498, 20, 1735, 21459, 40756, 1015, 9253, 13309, 41467,
+  21027, 142362, 157971, 160526, 127230, 38000, 153622, 131391, 150723, 157853, 175623, 163394, 176940,
+  31964, 20583, 21604, 15494, 30002, 11304, 37510, 1019, 16456, 19815, 21359, 37537, 11597,
+  11843, 40356, 101917, 145023, 129658, 104580, 158023, 146954,
+  10602, 11061, 11, 9969, 4181, 2167, 26349, 28851, 37999, 125574,
+  533, 746, 4450, 2889, 1973, 1066, 20954, 13625,
+  16455, 125, 235, 14729, 3450, 15675, 11757, 3190, 14813,
+  15365, 10164, 21827, 14725, 12687,
+  9494, 28049, 16267, 8496, 20785, 36016, 147558,
+  25755, 28223, 23755, 13391, 21939, 14691, 33986, 37520, 1790, 1575,
 ];
 
-// Popular genres for browse pages
+// Expanded genres for more SEO landing pages
 const GENRES = [
   "Action", "Adventure", "Comedy", "Drama", "Fantasy",
   "Horror", "Mecha", "Music", "Mystery", "Psychological",
   "Romance", "Sci-Fi", "Slice of Life", "Sports", "Supernatural",
-  "Thriller",
+  "Thriller", "Isekai", "Demons", "Martial Arts", "Military",
+  "Parody", "Samurai", "School", "Seinen", "Shoujo",
+  "Shounen", "Space", "Super Power", "Vampire", "Ecchi",
 ];
 
 // Dub language pages for SEO
 const DUB_LANGUAGES = ["tamil", "hindi", "telugu", "bengali"];
 
-// ── Fetch anime titles from AniList for slug-based URLs ──
-// Returns a map of AniList ID → slug-ID string (e.g., 21 → "one-piece-21")
+// ── Resolve hardcoded IDs to slugs via AniList ──
 async function fetchAnimeSlugs(ids: number[]): Promise<Map<number, string>> {
   const slugMap = new Map<number, string>();
-
-  // Batch fetch in chunks of 50 (AniList perPage limit)
   const chunks: number[][] = [];
   for (let i = 0; i < ids.length; i += 50) {
     chunks.push(ids.slice(i, i + 50));
   }
 
-  for (const chunk of chunks) {
+  await Promise.allSettled(chunks.map(async (chunk) => {
     try {
-      // Use a batch query with perPage
-      const res = await fetch(ANILIST_API, {
+      const res = await fetchWithTimeout(ANILIST_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: `
-            query ($ids: [Int], $page: Int) {
-              Page(page: $page, perPage: 50) {
-                media(id_in: $ids, type: ANIME) {
-                  id
-                  title { romaji english }
-                }
-              }
+          query: `query ($ids: [Int], $page: Int) {
+            Page(page: $page, perPage: 50) {
+              media(id_in: $ids, type: ANIME) { id title { romaji english } }
             }
-          `,
+          }`,
           variables: { ids: chunk, page: 1 },
         }),
-        next: { revalidate: 86400 }, // Cache 24 hours
-      });
+      }, API_TIMEOUT);
 
-      if (!res.ok) continue;
+      if (!res.ok) throw new Error(`AniList ${res.status}`);
       const data = await res.json();
       const media = data?.data?.Page?.media || [];
-
       for (const m of media) {
         const title = m.title?.english || m.title?.romaji || "";
         const slug = title ? `${toSlug(title)}-${m.id}` : `${m.id}`;
         slugMap.set(m.id, slug);
       }
     } catch {
-      // Failed chunk — fall back to numeric IDs
-      for (const id of chunk) {
-        slugMap.set(id, `${id}`);
-      }
+      for (const id of chunk) slugMap.set(id, `${id}`);
     }
-  }
+  }));
 
-  // Any IDs not resolved → use numeric
   for (const id of ids) {
-    if (!slugMap.has(id)) {
-      slugMap.set(id, `${id}`);
-    }
+    if (!slugMap.has(id)) slugMap.set(id, `${id}`);
   }
-
   return slugMap;
 }
 
-// ── Fetch trending anime from AniList ──
-async function fetchTrendingSlugs(): Promise<Array<{ slug: string; id: number }>> {
-  try {
-    const res = await fetch(ANILIST_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `
-          query {
-            Page(page: 1, perPage: 50) {
-              media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
-                id
-                title { romaji english }
-              }
+// ── Fetch anime sorted by a given criteria across multiple pages ──
+async function fetchAnimeBySort(sort: string, totalPages: number = 3): Promise<Array<{ slug: string; id: number }>> {
+  const results: Array<{ slug: string; id: number }> = [];
+  const seenIds = new Set<number>();
+
+  const pagePromises = Array.from({ length: totalPages }, (_, i) => i + 1).map(async (page) => {
+    try {
+      const res = await fetchWithTimeout(ANILIST_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `query ($page: Int, $perPage: Int, $sort: [MediaSort]) {
+            Page(page: $page, perPage: $perPage) {
+              media(sort: $sort, type: ANIME, isAdult: false) { id title { romaji english } }
             }
-          }
-        `,
-      }),
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const media = data?.data?.Page?.media || [];
-    return media.map((m: any) => {
-      const title = m.title?.english || m.title?.romaji || "";
-      const slug = title ? `${toSlug(title)}-${m.id}` : `${m.id}`;
-      return { slug, id: m.id };
-    });
-  } catch {
-    return [];
-  }
+          }`,
+          variables: { page, perPage: 50, sort: [sort] },
+        }),
+      }, API_TIMEOUT);
+
+      if (!res.ok) return;
+      const data = await res.json();
+      const media = data?.data?.Page?.media || [];
+      for (const m of media) {
+        if (seenIds.has(m.id)) continue;
+        seenIds.add(m.id);
+        const title = m.title?.english || m.title?.romaji || "";
+        const slug = title ? `${toSlug(title)}-${m.id}` : `${m.id}`;
+        results.push({ slug, id: m.id });
+      }
+    } catch {
+      // skip failed page
+    }
+  });
+
+  await Promise.allSettled(pagePromises);
+  return results;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  // ── Fetch anime slugs for SEO-friendly URLs ──
-  const slugMap = await fetchAnimeSlugs(POPULAR_ANIME_IDS);
-  const trendingSlugs = await fetchTrendingSlugs();
+  // ── Fetch all anime data in parallel ──
+  const [slugMap, popularAnime, trendingAnime, topRatedAnime] = await Promise.all([
+    fetchAnimeSlugs(POPULAR_ANIME_IDS),
+    fetchAnimeBySort("POPULARITY_DESC", 5),  // 5 pages × 50 = up to 250 popular
+    fetchAnimeBySort("TRENDING_DESC", 2),     // 2 pages × 50 = up to 100 trending
+    fetchAnimeBySort("SCORE_DESC", 2),         // 2 pages × 50 = up to 100 top-rated
+  ]);
 
   const entries: MetadataRoute.Sitemap = [
-    // ══════════════════════════════════════════════════════════
-    // MAIN PAGES (highest priority — these are the money pages)
-    // ══════════════════════════════════════════════════════════
-    {
-      url: BASE,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 1.0,
-    },
-    {
-      url: `${BASE}/browse`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.95,
-    },
-    {
-      url: `${BASE}/schedule`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${BASE}/genres`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.85,
-    },
-    {
-      url: `${BASE}/trending`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${BASE}/top-rated`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.85,
-    },
+    // ═══ MAIN PAGES ═══
+    { url: BASE, lastModified: now, changeFrequency: "daily", priority: 1.0 },
+    { url: `${BASE}/browse`, lastModified: now, changeFrequency: "daily", priority: 0.95 },
+    { url: `${BASE}/schedule`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${BASE}/genres`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
+    { url: `${BASE}/trending`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${BASE}/top-rated`, lastModified: now, changeFrequency: "weekly", priority: 0.85 },
+    { url: `${BASE}/discover`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    { url: `${BASE}/search`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
 
-    // ══════════════════════════════════════════════════════════
-    // DUB / SUB PAGES — CRITICAL FOR "ANIME IN TAMIL" SEO
-    // ══════════════════════════════════════════════════════════
-    {
-      url: `${BASE}/dub`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.95,
-    },
-    {
-      url: `${BASE}/sub`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
+    // ═══ DUB / SUB PAGES ═══
+    { url: `${BASE}/dub`, lastModified: now, changeFrequency: "daily", priority: 0.95 },
+    { url: `${BASE}/sub`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
 
-    // Dub language-specific pages (e.g. /dub/tamil, /dub/hindi)
     ...DUB_LANGUAGES.map(lang => ({
       url: `${BASE}/dub/${lang}`,
       lastModified: now,
@@ -317,9 +184,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.92,
     })),
 
-    // ══════════════════════════════════════════════════════════
-    // GENRE PAGES — great for "action anime" SEO queries
-    // ══════════════════════════════════════════════════════════
+    // ═══ SUB language pages ═══
+    { url: `${BASE}/sub/english`, lastModified: now, changeFrequency: "daily", priority: 0.88 },
+    { url: `${BASE}/sub/japanese`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
+
+    // ═══ GENRE PAGES ═══
     ...GENRES.map(genre => ({
       url: `${BASE}/genre/${genre.toLowerCase().replace(/ /g, "-")}`,
       lastModified: now,
@@ -327,105 +196,57 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.82,
     })),
 
-    // ══════════════════════════════════════════════════════════
-    // CONTENT SECTIONS
-    // ══════════════════════════════════════════════════════════
-    {
-      url: `${BASE}/manga`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.85,
-    },
-    {
-      url: `${BASE}/novel`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.75,
-    },
-    {
-      url: `${BASE}/discover`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.8,
-    },
-    {
-      url: `${BASE}/music`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.5,
-    },
-    {
-      url: `${BASE}/torrent`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.5,
-    },
+    // ═══ GENRE × DUB COMBO PAGES (huge SEO surface) ═══
+    ...GENRES.flatMap(genre =>
+      DUB_LANGUAGES.map(lang => ({
+        url: `${BASE}/genre/${genre.toLowerCase().replace(/ /g, "-")}/dub/${lang}`,
+        lastModified: now,
+        changeFrequency: "weekly" as const,
+        priority: 0.75,
+      }))
+    ),
 
-    // ══════════════════════════════════════════════════════════
-    // USER FEATURES
-    // ══════════════════════════════════════════════════════════
-    {
-      url: `${BASE}/watchlist`,
-      lastModified: now,
-      changeFrequency: "always",
-      priority: 0.6,
-    },
-    {
-      url: `${BASE}/bookmarks`,
-      lastModified: now,
-      changeFrequency: "always",
-      priority: 0.6,
-    },
-    {
-      url: `${BASE}/history`,
-      lastModified: now,
-      changeFrequency: "always",
-      priority: 0.5,
-    },
-    {
-      url: `${BASE}/updates`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.7,
-    },
+    // ═══ CONTENT SECTIONS ═══
+    { url: `${BASE}/manga`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
+    { url: `${BASE}/novel`, lastModified: now, changeFrequency: "daily", priority: 0.75 },
+    { url: `${BASE}/music`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${BASE}/torrent`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
 
-    // ══════════════════════════════════════════════════════════
-    // UTILITY / INFO PAGES
-    // ══════════════════════════════════════════════════════════
-    {
-      url: `${BASE}/guide`,
+    // ═══ USER FEATURES ═══
+    { url: `${BASE}/watchlist`, lastModified: now, changeFrequency: "always", priority: 0.6 },
+    { url: `${BASE}/bookmarks`, lastModified: now, changeFrequency: "always", priority: 0.6 },
+    { url: `${BASE}/history`, lastModified: now, changeFrequency: "always", priority: 0.5 },
+    { url: `${BASE}/updates`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
+
+    // ═══ UTILITY / INFO PAGES ═══
+    { url: `${BASE}/guide`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BASE}/donate`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
+
+    // ═══ YEAR PAGES (for "anime 2024" type searches) ═══
+    ...Array.from({ length: 10 }, (_, i) => 2026 - i).map(year => ({
+      url: `${BASE}/year/${year}`,
       lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.6,
-    },
-    {
-      url: `${BASE}/contact`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: `${BASE}/donate`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-    {
-      url: `${BASE}/search`,
-      lastModified: now,
-      changeFrequency: "daily",
+      changeFrequency: "weekly" as const,
       priority: 0.7,
-    },
+    })),
+
+    // ═══ STUDIO / PRODUCER PAGES ═══
+    { url: `${BASE}/studios`, lastModified: now, changeFrequency: "weekly", priority: 0.65 },
+
+    // ═══ SEASONAL PAGES ═══
+    ...["winter", "spring", "summer", "fall"].map(season => ({
+      url: `${BASE}/season/${season}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.78,
+    })),
   ];
 
-  // ══════════════════════════════════════════════════════════
-  // ANIME DETAIL PAGES — with SEO-friendly slug-based URLs!
-  //
-  // Instead of /anime/21 (meaningless to Google),
-  // we now generate /anime/one-piece-21
-  // Google reads "one-piece" and understands the page topic.
-  // ══════════════════════════════════════════════════════════
+  // ═══ HARDCODED POPULAR ANIME (always included, even if API fails) ═══
+  const seenIds = new Set<number>();
   for (const id of POPULAR_ANIME_IDS) {
+    seenIds.add(id);
     const slug = slugMap.get(id) || `${id}`;
     entries.push({
       url: `${BASE}/anime/${slug}`,
@@ -433,7 +254,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.8,
     });
-    // Also add the watch page for episode 1
     entries.push({
       url: `${BASE}/watch/${slug}/1`,
       lastModified: now,
@@ -442,20 +262,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  // ══════════════════════════════════════════════════════════
-  // DYNAMIC: Trending anime from AniList for even more pages
-  // ══════════════════════════════════════════════════════════
-  const seenIds = new Set(POPULAR_ANIME_IDS);
-  for (const { slug, id } of trendingSlugs) {
-    if (!seenIds.has(id)) {
-      seenIds.add(id);
-      entries.push({
-        url: `${BASE}/anime/${slug}`,
-        lastModified: now,
-        changeFrequency: "daily",
-        priority: 0.75,
-      });
-    }
+  // ═══ DYNAMIC POPULAR ANIME (from AniList - up to 250) ═══
+  for (const { slug, id } of popularAnime) {
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+    entries.push({ url: `${BASE}/anime/${slug}`, lastModified: now, changeFrequency: "weekly", priority: 0.78 });
+    entries.push({ url: `${BASE}/watch/${slug}/1`, lastModified: now, changeFrequency: "weekly", priority: 0.68 });
+  }
+
+  // ═══ TRENDING ANIME ═══
+  for (const { slug, id } of trendingAnime) {
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+    entries.push({ url: `${BASE}/anime/${slug}`, lastModified: now, changeFrequency: "daily", priority: 0.75 });
+  }
+
+  // ═══ TOP-RATED ANIME ═══
+  for (const { slug, id } of topRatedAnime) {
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+    entries.push({ url: `${BASE}/anime/${slug}`, lastModified: now, changeFrequency: "weekly", priority: 0.76 });
   }
 
   return entries;
