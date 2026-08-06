@@ -286,3 +286,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return entries;
 }
+
+// ── Force sitemap to revalidate every 1 hour ──
+// Without this, Next.js caches the sitemap indefinitely and Google
+// keeps seeing the old 24-page version even after code updates.
+export const revalidate = 3600; // 1 hour — Google re-reads fresh data
