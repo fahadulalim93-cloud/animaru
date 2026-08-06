@@ -128,10 +128,12 @@ export const metadata: Metadata = {
 // The SearchAction is what makes Google render a search box under the site's
 // result ("sitelinks search box"), a strong signal for branded queries.
 //
-// NOTE: aggregateRating is ONLY on SoftwareApplication (not Organization),
-// because Google Rich Results requires aggregateRating to be on a type that
-// supports reviews (Product, SoftwareApplication, LocalBusiness, etc.).
-// Putting it on Organization causes "Review has multiple aggregate ratings" error.
+// FIX: "Review has multiple aggregate ratings" error was caused by having both
+// `offers` and `aggregateRating` on SoftwareApplication. Google's rich results
+// parser treats the combination as a Review with its own aggregateRating,
+// creating a duplicate. Fix: separate into SoftwareApplication (with offers only)
+// and a distinct Product entity (with aggregateRating only), so Google never
+// sees both on the same node that it wraps in a Review.
 const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
@@ -164,6 +166,14 @@ const JSON_LD = {
       applicationCategory: "EntertainmentApplication",
       operatingSystem: "Web",
       offers: { "@type": "Offer", price: "0", priceCurrency: "INR", description: "Free anime streaming" },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#rated-app`,
+      name: "LuffyTV",
+      url: SITE_URL,
+      applicationCategory: "EntertainmentApplication",
+      operatingSystem: "Web",
       aggregateRating: { "@type": "AggregateRating", ratingValue: 5, bestRating: 5, ratingCount: 4 },
     },
     {
