@@ -257,7 +257,7 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
   },
   torrent: {
     title: "Anime Torrents — Download Anime Episodes | LuffyTV",
-    description: "Find and download anime torrents on LuffyTV. Browse by quality, dub/sub, and episode number. Free HD anime torrents with Tamil, Hindi, Telugu dub."
+    description: "Find and download anime torrents on LuffyTV. Browse by quality, dub/sub, and episode number. Free HD anime torrents with Tamil, Hindi, Telugu dub.",
     path: "/torrent",
   },
   genre: {
