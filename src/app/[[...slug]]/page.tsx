@@ -106,18 +106,18 @@ function extractAnilistId(input: string): number | null {
 // them as duplicates and only indexes one.
 const PAGE_SEO: Record<string, { title: string; description: string; path: string }> = {
   home: {
-    title: "LuffyTV — Watch Anime Online Free in HD — Tamil, Hindi, Telugu, Bengali Dub & English Sub",
-    description: "Watch anime online free in HD on LuffyTV. Stream 10,000+ anime episodes with Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub. No signup, no ads, instant playback.",
+    title: "Watch Anime Free in HD — Tamil & Hindi Dub | LuffyTV",
+    description: "Watch anime online free in HD on LuffyTV. Stream 10,000+ anime with Tamil dub, Hindi dub, Telugu dub, Bengali dub & English sub. No signup, no ads, instant playback.",
     path: "/",
   },
   browse: {
     title: "Browse Anime — All Titles A-Z | LuffyTV",
-    description: "Browse thousands of anime on LuffyTV. Filter by genre, year, format, and language. Tamil, Hindi, Telugu, Bengali dub & English sub. Free HD streaming.",
+    description: "Browse thousands of anime on LuffyTV. Filter by genre, year, format, and language. Tamil, Hindi, Telugu, Bengali dub & English sub available. Free HD streaming, no signup.",
     path: "/browse",
   },
   trending: {
-    title: "Trending Anime — What's Hot Right Now | LuffyTV",
-    description: "Watch trending anime free in HD on LuffyTV. See what's popular right now with Tamil, Hindi, Telugu, Bengali dub & English sub. Updated daily.",
+    title: "Trending Anime — What's Hot Now | LuffyTV",
+    description: "Watch trending anime free in HD on LuffyTV. See what's popular right now with Tamil, Hindi, Telugu, Bengali dub & English sub. Updated daily, no signup required.",
     path: "/trending",
   },
   "top-rated": {
@@ -152,17 +152,17 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
   },
   "dub-hindi": {
     title: "Hindi Dubbed Anime — Watch in Hindi | LuffyTV",
-    description: "Watch Hindi dubbed anime free in HD on LuffyTV. Popular anime with Hindi dub. Free streaming, no signup required.",
+    description: "Watch Hindi dubbed anime free in HD on LuffyTV. One Piece, Naruto, Demon Slayer, Jujutsu Kaisen and more in Hindi. No signup required, instant playback.",
     path: "/dub/hindi",
   },
   "dub-telugu": {
     title: "Telugu Dubbed Anime — Watch in Telugu | LuffyTV",
-    description: "Watch Telugu dubbed anime free in HD on LuffyTV. Popular anime with Telugu dub. Free streaming, no signup required.",
+    description: "Watch Telugu dubbed anime free in HD on LuffyTV. Popular anime like One Piece, Naruto, Demon Slayer with Telugu dub. Free streaming, no signup required.",
     path: "/dub/telugu",
   },
   "dub-bengali": {
     title: "Bengali Dubbed Anime — Watch in Bengali | LuffyTV",
-    description: "Watch Bengali dubbed anime free in HD on LuffyTV. Popular anime with Bengali dub. Free streaming, no signup required.",
+    description: "Watch Bengali dubbed anime free in HD on LuffyTV. Popular anime like One Piece, Naruto with Bengali dub. Free streaming, no signup required.",
     path: "/dub/bengali",
   },
   discover: {
@@ -257,12 +257,12 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
   },
   torrent: {
     title: "Anime Torrents — Download Anime Episodes | LuffyTV",
-    description: "Find and download anime torrents on LuffyTV. Browse by quality, dub/sub, and episode number.",
+    description: "Find and download anime torrents on LuffyTV. Browse by quality, dub/sub, and episode number. Free HD anime torrents with Tamil, Hindi, Telugu dub."
     path: "/torrent",
   },
   genre: {
     title: "Anime by Genre — Browse All Genres | LuffyTV",
-    description: "Browse anime by genre on LuffyTV. Action, Romance, Isekai, Comedy, Thriller, Sci-Fi and more. Free HD streaming.",
+    description: "Browse anime by genre on LuffyTV. Action, Romance, Isekai, Comedy, Thriller, Sci-Fi, Slice of Life and more. Free HD streaming, no signup required.",
     path: "/genres",
   },
   studios: {
@@ -425,16 +425,21 @@ export async function generateMetadata({
     if (animeData && animeData.title) {
       // SUCCESS: We got the real anime name from AniList
       const animeTitle = animeData.title;
-      const genreStr = animeData.genres.length > 0 ? ` — ${animeData.genres.slice(0, 3).join(", ")}` : "";
+      // Only add genres if title stays under 60 chars (Google limit)
+      const genreStr = animeData.genres.length > 0 ? ` — ${animeData.genres.slice(0, 2).join(", ")}` : "";
+      const baseTitle = `${animeTitle}${genreStr} — Watch Free in HD | LuffyTV`;
+      // Trim to 60 chars max — Google truncates longer titles
+      const maxTitle = baseTitle.length > 60 ? `${animeTitle} — Watch Free in HD | LuffyTV` : baseTitle;
 
       if (page === "watch") {
-        const epStr = episode ? ` Episode ${episode}` : "";
+        const epStr = episode ? ` Ep ${episode}` : "";
         title = `${animeTitle}${epStr} — Watch Free in HD | LuffyTV`;
-        description = `Watch ${animeTitle}${epStr} free in HD on LuffyTV. Tamil, Hindi, Telugu, Bengali dub & English sub available. Multiple servers, no signup required.`;
+        title = title.length > 60 ? title.replace(" — Watch Free in HD | LuffyTV", " | LuffyTV") : title;
+        description = `Watch ${animeTitle}${episode ? ` Episode ${episode}` : ""} free in HD on LuffyTV. Tamil, Hindi, Telugu, Bengali dub & English sub. Multiple servers, no signup required.`;
       } else {
-        title = `${animeTitle}${genreStr} — Watch Free in HD | LuffyTV`;
+        title = maxTitle;
         description = animeData.description
-          ? `${animeData.description.slice(0, 160)}... Watch ${animeTitle} free in HD on LuffyTV.`
+          ? `${animeData.description.slice(0, 130)}... Watch free on LuffyTV.`
           : `Watch ${animeTitle} free in HD on LuffyTV. Tamil, Hindi, Telugu, Bengali dub & English sub. Full episode list, reviews, and recommendations.`;
       }
 
