@@ -16,6 +16,20 @@ import MainPageClient from "./main-page-client";
 const SITE_URL = "https://luffytv.live";
 const ANILIST_API = "https://graphql.anilist.co";
 
+// ── Fetch with 6s timeout (prevents SEO render from hanging) ──
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 6000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
 // ── Lightweight AniList fetch for SEO only ──
 // Fetches just the title — used in generateMetadata so that
 // /anime/21 has title "One Piece — Watch Free in HD | LuffyTV"
@@ -27,7 +41,7 @@ async function fetchAnimeTitleForSeo(id: number): Promise<{
   coverImage: string;
 } | null> {
   try {
-    const res = await fetch(ANILIST_API, {
+    const res = await fetchWithTimeout(ANILIST_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -43,8 +57,7 @@ async function fetchAnimeTitleForSeo(id: number): Promise<{
         `,
         variables: { id },
       }),
-      next: { revalidate: 86400 }, // Cache for 24 hours — anime titles rarely change
-    });
+    }, 6000);
     if (!res.ok) return null;
     const data = await res.json();
     const m = data?.data?.Media;
@@ -251,6 +264,31 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
     description: "Browse anime by genre on LuffyTV. Action, Romance, Isekai, Comedy, Thriller, Sci-Fi and more. Free HD streaming.",
     path: "/genres",
   },
+  studios: {
+    title: "Anime Studios — Browse by Studio | LuffyTV",
+    description: "Browse anime by studio on LuffyTV. MAPPA, Ufotable, Wit Studio, Bones, A-1 Pictures and more. Free HD streaming.",
+    path: "/studios",
+  },
+  "sub-english": {
+    title: "English Subbed Anime — Watch with English Subtitles | LuffyTV",
+    description: "Watch English subbed anime free in HD on LuffyTV. Thousands of anime with accurate English subtitles. No signup, no ads.",
+    path: "/sub/english",
+  },
+  "sub-japanese": {
+    title: "Japanese Anime — Raw & Subbed | LuffyTV",
+    description: "Watch Japanese anime free in HD on LuffyTV. Raw and English subbed episodes. No signup, no ads.",
+    path: "/sub/japanese",
+  },
+  year: {
+    title: "Anime by Year — Browse Release Year | LuffyTV",
+    description: "Browse anime by release year on LuffyTV. Find anime from 2025, 2024, 2023 and older. Free HD streaming.",
+    path: "/year",
+  },
+  season: {
+    title: "Anime by Season — Winter, Spring, Summer, Fall | LuffyTV",
+    description: "Browse anime by season on LuffyTV. Winter, Spring, Summer, and Fall anime seasons. Free HD streaming.",
+    path: "/season",
+  },
 };
 
 // ── Parse the slug to determine the page type ──
@@ -321,6 +359,33 @@ function parseSlugForSeo(slug: string[]): { page: string; id?: string; episode?:
       bengali: "dub-bengali",
     };
     return { page: langMap[slug[1]] || "dub" };
+  }
+
+  // /sub/{language} → sub language page
+  if (first === "sub" && slug.length >= 2) {
+    const subLangMap: Record<string, string> = {
+      english: "sub-english",
+      japanese: "sub-japanese",
+    };
+    return { page: subLangMap[slug[1]] || "sub" };
+  }
+
+  // /year/{year} → year page
+  if (first === "year" && slug.length >= 2) {
+    return { page: "year", genreName: slug[1] };
+  }
+
+  // /season/{season} → season page
+  if (first === "season" && slug.length >= 2) {
+    return { page: "season", genreName: slug[1] };
+  }
+
+  // /studios → studios page
+  if (first === "studios") return { page: "studios" };
+
+  // /genre/{name}/dub/{lang} → genre×dub combo page
+  if (first === "genre" && slug.length >= 4 && slug[2] === "dub") {
+    return { page: "genre", genreName: `${slug[1]}-dub-${slug[3]}` };
   }
 
   return { page: "home" };
@@ -395,12 +460,36 @@ export async function generateMetadata({
       canonicalPath = `/anime/${id}`;
     }
   }
-  // ── Genre page: dynamic title ──
+  // ── Genre page: dynamic title (also handles genre×dub combos) ──
   else if (page === "genre" && genreName) {
-    const genreLabel = genreName.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-    title = `${genreLabel} Anime — Watch Free in HD | LuffyTV`;
-    description = `Watch the best ${genreLabel} anime free in HD on LuffyTV. Browse top ${genreLabel} titles with Tamil, Hindi, Telugu, Bengali dub & English sub.`;
-    canonicalPath = `/genre/${genreName}`;
+    // Check for genre×dub combo like "action-dub-tamil"
+    const dubMatch = genreName.match(/^(.+)-dub-(tamil|hindi|telugu|bengali)$/);
+    if (dubMatch) {
+      const genreLabel = dubMatch[1].replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const langLabel = dubMatch[2].replace(/\b\w/g, c => c.toUpperCase());
+      title = `${genreLabel} Anime in ${langLabel} Dub — Watch Free | LuffyTV`;
+      description = `Watch the best ${genreLabel} anime in ${langLabel} dub free in HD on LuffyTV. Top ${genreLabel} titles dubbed in ${langLabel}. No signup required.`;
+      canonicalPath = `/genre/${genreName}`;
+    } else {
+      const genreLabel = genreName.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      title = `${genreLabel} Anime — Watch Free in HD | LuffyTV`;
+      description = `Watch the best ${genreLabel} anime free in HD on LuffyTV. Browse top ${genreLabel} titles with Tamil, Hindi, Telugu, Bengali dub & English sub.`;
+      canonicalPath = `/genre/${genreName}`;
+    }
+  }
+  // ── Year page: dynamic title ──
+  else if (page === "year" && genreName) {
+    const yearNum = genreName;
+    title = `Anime ${yearNum} — Watch ${yearNum} Anime Free in HD | LuffyTV`;
+    description = `Watch ${yearNum} anime free in HD on LuffyTV. Browse all anime released in ${yearNum} with Tamil, Hindi, Telugu, Bengali dub & English sub.`;
+    canonicalPath = `/year/${yearNum}`;
+  }
+  // ── Season page: dynamic title ──
+  else if (page === "season" && genreName) {
+    const seasonLabel = genreName.replace(/\b\w/g, c => c.toUpperCase());
+    title = `${seasonLabel} Anime — Watch ${seasonLabel} Season Anime | LuffyTV`;
+    description = `Watch ${seasonLabel} season anime free in HD on LuffyTV. New and returning shows for ${seasonLabel}. Tamil, Hindi, Telugu, Bengali dub & English sub.`;
+    canonicalPath = `/season/${genreName}`;
   }
   // ── All other pages: use the static SEO config ──
   else {

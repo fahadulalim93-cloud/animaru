@@ -16,19 +16,19 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "Googlebot",
         allow: "/",
         disallow: ["/api/", "/admin", "/aznayeem"],
-        crawlDelay: 1,
+        // No crawlDelay for Google — let it crawl as fast as possible
       },
       {
         userAgent: "Bingbot",
         allow: "/",
         disallow: ["/api/", "/admin", "/aznayeem"],
-        crawlDelay: 2,
+        crawlDelay: 1,
       },
       {
         userAgent: "YandexBot",
         allow: "/",
         disallow: ["/api/", "/admin", "/aznayeem"],
-        crawlDelay: 3,
+        crawlDelay: 2,
       },
       {
         userAgent: "Twitterbot",
@@ -42,7 +42,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         disallow: ["/api/", "/admin", "/aznayeem", "/_next/"],
-        crawlDelay: 5,
+        crawlDelay: 2,
       },
     ],
     sitemap: `${BASE}/sitemap.xml`,
