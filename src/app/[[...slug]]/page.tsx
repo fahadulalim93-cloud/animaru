@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import MainPageClient from "./main-page-client";
+import { generateStructuredData } from "@/lib/structured-data";
 
 // ═══════════════════════════════════════════════════════════════
 // SEO: Per-page metadata via generateMetadata
@@ -525,7 +526,77 @@ export async function generateMetadata({
   };
 }
 
-// ── Server component — renders the client component ──
-export default function Page() {
-  return <MainPageClient />;
+// ── Server component — renders the client component + per-page JSON-LD ──
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug?: string[] }>;
+}) {
+  const { slug = [] } = await params;
+  const { page, id, episode, genreName } = parseSlugForSeo(slug);
+
+  // Determine structured data type
+  let sdType: "tvseries" | "video" | "collection" | "webpage";
+  let sdTitle = "";
+  let sdDescription = "";
+  let sdUrl = `${SITE_URL}${slug.length > 0 ? `/${slug.join("/")}` : ""}`;
+  let sdImage = "/og.png";
+
+  if (page === "anime" && id) {
+    const anilistId = extractAnilistId(id);
+    const animeData = anilistId ? await fetchAnimeTitleForSeo(anilistId) : null;
+    if (animeData?.title) {
+      sdTitle = `${animeData.title} — Watch Free in HD | LuffyTV`;
+      sdDescription = animeData.description || `Watch ${animeData.title} free in HD on LuffyTV.`;
+      sdImage = animeData.coverImage || "/og.png";
+    } else {
+      sdTitle = `Anime ${anilistId || id} — Watch Free in HD | LuffyTV`;
+      sdDescription = "Watch anime free in HD on LuffyTV.";
+    }
+    sdType = "tvseries";
+    sdUrl = `${SITE_URL}/anime/${id}`;
+  } else if (page === "watch" && id) {
+    const anilistId = extractAnilistId(id);
+    const animeData = anilistId ? await fetchAnimeTitleForSeo(anilistId) : null;
+    if (animeData?.title) {
+      sdTitle = `${animeData.title}${episode ? ` Episode ${episode}` : ""} — Watch Free in HD | LuffyTV`;
+      sdDescription = `Watch ${animeData.title}${episode ? ` Episode ${episode}` : ""} free in HD on LuffyTV.`;
+      sdImage = animeData.coverImage || "/og.png";
+    } else {
+      sdTitle = `Watch Anime ${anilistId || id} Free in HD | LuffyTV`;
+      sdDescription = "Watch anime free in HD on LuffyTV.";
+    }
+    sdType = "video";
+    sdUrl = `${SITE_URL}/watch/${id}${episode ? `/${episode}` : ""}`;
+  } else if (page === "genre" || page === "year" || page === "season") {
+    const seo = PAGE_SEO[page];
+    sdType = "collection";
+    sdTitle = seo?.title || `${page} Anime — LuffyTV`;
+    sdDescription = seo?.description || "Browse anime on LuffyTV.";
+    sdUrl = `${SITE_URL}/${slug.join("/")}`;
+  } else {
+    const seo = PAGE_SEO[page] || PAGE_SEO.home;
+    sdType = "webpage";
+    sdTitle = seo.title;
+    sdDescription = seo.description;
+    sdUrl = `${SITE_URL}${seo.path}`;
+  }
+
+  const structuredData = generateStructuredData({
+    type: sdType,
+    title: sdTitle,
+    description: sdDescription,
+    url: sdUrl,
+    image: sdImage,
+  });
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <MainPageClient />
+    </>
+  );
 }
