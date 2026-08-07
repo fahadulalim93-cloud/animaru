@@ -1,32 +1,23 @@
-// Embed Server Providers for LuffyTV — Pokemon-named servers
+// Server Providers for LuffyTV — One Piece-named servers
 //
-// CLEAN PROVIDER LIST:
-//
-// Anime Servers (SUB/DUB) in priority order:
-//   0. Miku          (YumeZone/Miruro)  — AniList ID — Miruro miku provider, HLS+embed, auto-switch
-//   1. Pikachu       (VidNest Anime)    — AniList ID — sub/dub/hindi, iframe
-//   2. Eevee         (VidNest AnimePahe) — AniList ID — sub/dub, iframe
-//   3. Charizard     (Videasy)          — AniList ID — auto sub/dub, iframe
-//   4. Zoro          (YumeZone/Megaplay) — AniList ID — Megaplay embed, sub+dub
-//   5. Kiwi          (YumeZone/Miruro)  — AniList ID — Miruro kiwi provider, HLS
-//   6. Arc           (YumeZone/Miruro)  — AniList ID — Miruro arc provider, HLS
-//   7. Umbreon       (AniVexa/AniNeko)  — AniList ID — HLS embeds
-//   8. Mewtwo        (AniVexa/AllAnime) — AniList ID — 6+ Sources, MP4+Iframe
-//   9. Bulbasaur     (AnimeX)           — AniList ID — GraphQL+REST, HLS proxy
+// Anime Servers (SUB/DUB) — HLS only, no embed/iframe:
+//   0. Luffy         (YumeZone/Miruro Miku) — AniList ID — HLS, sub+dub, auto-switch
+//   1. Brook         (YumeZone/Miruro Kiwi) — AniList ID — HLS, sub+dub
+//   2. Jinbe         (YumeZone/Miruro Arc)  — AniList ID — HLS, sub+dub
+//   3. Law           (YumeZone/Miruro Bee)  — AniList ID — HLS, sub only
+//   4. Franky        (AnimeX)              — AniList ID — GraphQL+REST, HLS proxy
 //
 // Miruro V3 Servers (SEPARATE route — NOT in instant-servers):
-//   These use the NEW api.luffytv.online backend with proper sub/dub handling
-//   and proxy wrapping. Each provider gets its own entry.
-//   10. Miruro Kiwi    (Miruro V3)  — AniList ID — HLS, sub+dub, uwucdn proxy
-//   11. Miruro Pewe    (Miruro V3)  — AniList ID — HLS, sub+dub
-//   12. Miruro Bee     (Miruro V3)  — AniList ID — HLS, sub only
-//   13. Miruro Bonk    (Miruro V3)  — AniList ID — HLS, sub+dub
-//   14. Miruro Ally    (Miruro V3)  — AniList ID — HLS, sub+dub
-//   15. Miruro Moo     (Miruro V3)  — AniList ID — HLS, sub+dub
+//   5. Kidd          (Miruro V3 Kiwi)  — AniList ID — HLS, sub+dub
+//   6. Bonney        (Miruro V3 Pewe)  — AniList ID — HLS, sub+dub
+//   7. Bege          (Miruro V3 Bee)   — AniList ID — HLS, sub only
+//   8. Urouge        (Miruro V3 Bonk)  — AniList ID — HLS, sub+dub
+//   9. Apoo          (Miruro V3 Ally)  — AniList ID — HLS, sub+dub
+//   10. Drake        (Miruro V3 Moo)   — AniList ID — HLS, sub+dub
 //
-// Hindi Servers:
-//   Charmander      (AniXtv)           — AniList ID — Hindi dub
-//   Flareon         (VidNest Hindi)    — AniList ID — Hindi dub
+// Hindi Servers (embed/iframe allowed):
+//   Shanks         (AniXtv)        — AniList ID — Hindi dub, iframe
+//   Rayleigh       (VidNest Hindi) — AniList ID — Hindi dub, iframe
 //
 // TMDB Servers for Movies/TV kept separately
 
@@ -84,24 +75,8 @@ const yumezoneMiku: EmbedServer = {
   },
 };
 
-const yumezoneZoro: EmbedServer = {
-  id: "yz-zoro",
-  name: "Usopp",
-  priority: 4,
-  supportsSub: true,
-  supportsDub: true,
-  supportsHindi: false,
-  idType: "anilist",
-  color: "#22C55E",
-  category: "anime",
-  streamType: "iframe",
-  noSandbox: true,
-  generateUrl: (p) => {
-    if (!p.anilistId) return "";
-    const lang = p.translation === "dub" ? "dub" : "sub";
-    return `https://megaplay.buzz/stream/ani/${p.anilistId}/${p.episode}/${lang}`;
-  },
-};
+// REMOVED: yumezoneZoro (Usopp) — iframe/embed server removed per user request
+// Only HLS servers are kept for anime. Embed servers kept ONLY for Hindi.
 
 const yumezoneKiwi: EmbedServer = {
   id: "yz-kiwi",
@@ -160,91 +135,10 @@ const yumezoneBee: EmbedServer = {
   },
 };
 
-// =====================================================
-// ANIME SERVERS — One Piece-named, priority order
-// =====================================================
-
-const vidnestAnime: EmbedServer = {
-  id: "vidnest-anime",
-  name: "Zoro",
-  priority: 0,
-  supportsSub: true,
-  supportsDub: true,
-  supportsHindi: true,
-  idType: "anilist",
-  color: "#FFD700",
-  category: "anime",
-  streamType: "iframe",
-  generateUrl: (p) => {
-    if (!p.anilistId) return "";
-    const lang = p.translation === "hindi" ? "hindi" : p.translation === "dub" ? "dub" : "sub";
-    return `https://vidnest.fun/anime/${p.anilistId}/${p.episode}/${lang}`;
-  },
-};
-
-const vidnestAnimepahe: EmbedServer = {
-  id: "vidnest-animepahe",
-  name: "Nami",
-  priority: 1,
-  supportsSub: true,
-  supportsDub: true,
-  supportsHindi: false,
-  idType: "anilist",
-  color: "#C084FC",
-  category: "anime",
-  streamType: "iframe",
-  generateUrl: (p) => {
-    if (!p.anilistId) return "";
-    const lang = p.translation === "dub" ? "dub" : "sub";
-    return `https://vidnest.fun/animepahe/${p.anilistId}/${p.episode}/${lang}`;
-  },
-};
-
-const videasyAnime: EmbedServer = {
-  id: "videasy-anime",
-  name: "Sanji",
-  priority: 2,
-  supportsSub: true,
-  supportsDub: true,
-  supportsHindi: false,
-  idType: "anilist",
-  color: "#F97316",
-  category: "anime",
-  streamType: "iframe",
-  generateUrl: (p) => {
-    if (!p.anilistId) return "";
-    return `https://player.videasy.net/anime/${p.anilistId}/${p.episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&color=E63946`;
-  },
-};
-
-// =====================================================
-// ANIVEXA SERVERS — Only AniNeko (iframe) + AllAnime
-// Public API: https://anivexa-api-tawny.vercel.app
-// =====================================================
-
-const ANIVEXA_PROVIDER_CONFIG: Array<{ id: string; name: string; color: string; priority: number; tip: string }> = [
-  { id: "anineko", name: "Chopper",  color: "#1E293B", priority: 4, tip: "HLS Embeds, Reliable" },
-  { id: "allmanga", name: "Robin",  color: "#6366F1", priority: 5, tip: "6+ Sources, MP4+Iframe" },
-];
-
-const anivexaServers: EmbedServer[] = ANIVEXA_PROVIDER_CONFIG.map((prov) => ({
-  id: `anivexa-${prov.id}`,
-  name: prov.name,
-  priority: prov.priority,
-  supportsSub: true,
-  supportsDub: true,
-  supportsHindi: false,
-  idType: "anilist" as const,
-  color: prov.color,
-  category: "anime" as const,
-  streamType: "iframe" as const,
-  noSandbox: true,
-  generateUrl: (p: EmbedUrlParams) => {
-    if (!p.anilistId) return "";
-    const lang = p.translation === "dub" ? "dub" : "sub";
-    return `/api/anivexa/watch?anilistId=${p.anilistId}&episode=${p.episode}&type=${lang}&provider=${prov.id}`;
-  },
-}));
+// REMOVED: All embed/iframe anime servers (VidNest, VidNest AnimePahe, Videasy, AniVexa)
+// per user request — no embed servers for anime, only for Hindi.
+// These were: Zoro (vidnest-anime), Nami (vidnest-animepahe), Sanji (videasy-anime),
+// Chopper (anivexa-anineko), Robin (anivexa-allmanga)
 
 // =====================================================
 // ANIMEX SERVER — Single server that auto-races providers
@@ -395,19 +289,17 @@ const TMDB_SERVERS: EmbedServer[] = [];
 // =====================================================
 
 const ANIME_SERVERS: EmbedServer[] = [
-  yumezoneMiku,       // Miku (YumeZone/Miruro — best provider, auto-switch)
-  vidnestAnime,       // Pikachu
-  vidnestAnimepahe,   // Eevee
-  videasyAnime,       // Charizard
-  yumezoneZoro,       // Zoro (YumeZone/Megaplay embed)
-  ...anivexaServers,  // Umbreon(AniNeko), Mewtwo(AllAnime)
-  animexServer,       // Bulbasaur(AnimeX)
-  ...miruroV3Servers, // Miruro V3: Kiwi, Pewe, Bee, Bonk, Ally, Moo (SEPARATE route — replaces old yz-kiwi/arc/bee)
+  yumezoneMiku,       // Luffy (YumeZone/Miruro Miku — best provider, auto-switch)
+  yumezoneKiwi,       // Brook (YumeZone/Miruro Kiwi)
+  yumezoneArc,        // Jinbe (YumeZone/Miruro Arc)
+  yumezoneBee,        // Law (YumeZone/Miruro Bee)
+  animexServer,       // Franky (AnimeX)
+  ...miruroV3Servers, // Kidd, Bonney, Bege, Urouge, Apoo, Drake (Miruro V3)
 ];
 
 const HINDI_SERVERS: EmbedServer[] = [
-  anixtvHindi,       // Charmander
-  vidnestHindi,      // Flareon
+  anixtvHindi,       // Shanks (AniXtv)
+  vidnestHindi,      // Rayleigh (VidNest Hindi)
 ];
 
 const ALL_SERVERS: EmbedServer[] = [
@@ -467,15 +359,13 @@ export function hasHindiSupport(anilistId?: number): boolean {
  * Check if a server uses HLS (M3U8) streaming instead of iframe
  */
 export function isHlsServer(serverId: string): boolean {
-  return serverId.startsWith("animex-") || serverId.startsWith("anivexa-") || serverId.startsWith("yz-") || serverId.startsWith("miruro-v3-");
+  return serverId.startsWith("animex-") || serverId.startsWith("yz-") || serverId.startsWith("miruro-v3-");
 }
 
 /**
  * Check if a server is from AniVexa (needs availability checking)
  */
-export function isAnivexaServer(serverId: string): boolean {
-  return serverId.startsWith("anivexa-");
-}
+// REMOVED: isAnivexaServer — AniVexa embed servers removed per user request
 
 /**
  * Check if a server is from AnimeX (needs availability checking)
@@ -502,7 +392,4 @@ export function getMiruroV3Provider(serverId: string): string {
 /**
  * Get the tip/label for an anivexa provider
  */
-export function getAnivexaProviderTip(serverId: string): string {
-  const prov = ANIVEXA_PROVIDER_CONFIG.find(p => `anivexa-${p.id}` === serverId);
-  return prov?.tip || "";
-}
+// REMOVED: getAnivexaProviderTip — AniVexa embed servers removed per user request

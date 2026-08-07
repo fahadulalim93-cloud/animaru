@@ -68,7 +68,7 @@ export async function GET(
 
       return {
         id: `anineko-to:${urlKey}:${r.type}${r.hardsub ? ":hsub" : ""}`,
-        name: `AniNeko ${r.serverName}${r.type === "dub" ? " (Dub)" : r.hardsub ? " (HS)" : ""}`,
+        name: `Chopper ${r.serverName}${r.type === "dub" ? " (Dub)" : r.hardsub ? " (HS)" : ""}`,
         source: "anineko-to" as const,
         provider: r.serverName.toLowerCase().replace(/\s/g, ""),
         type: r.type,

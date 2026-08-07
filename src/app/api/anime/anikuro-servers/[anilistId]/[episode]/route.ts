@@ -7,7 +7,7 @@
  * Running separately prevents the slowest provider from blocking others.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAnikuroSources } from "@/lib/anikuro-api";
+import { fetchAnikuroSources, ANIKURO_PROVIDER_NAMES } from "@/lib/anikuro-api";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,7 +47,7 @@ export async function GET(
 
     const servers: AniKuroServer[] = results.map((r: any) => ({
       id: `anikuro:${r.provider}:${r.type}`,
-      name: `AniKuro ${r.provider[0].toUpperCase() + r.provider.slice(1)}${r.type === "dub" ? " (Dub)" : ""}`,
+      name: `${ANIKURO_PROVIDER_NAMES[r.provider] || (r.provider[0].toUpperCase() + r.provider.slice(1))}${r.type === "dub" ? " (Dub)" : ""}`,
       source: "anikuro" as const,
       provider: r.provider,
       type: r.type,

@@ -196,7 +196,7 @@ export async function resolveAniKoto(
 
       if (result?.m3u8Url) {
         servers.push({
-          name: `AniKoto ${audio === "sub" ? "Sub" : "Dub"}`,
+          name: `Inazuma ${audio === "sub" ? "Sub" : "Dub"}`,
           m3u8Url: result.m3u8Url,
           embedUrl: result.embedUrl,
           type: audio,
@@ -211,7 +211,7 @@ export async function resolveAniKoto(
       } else if (result) {
         // m3u8 extraction failed but we have the embed URL
         servers.push({
-          name: `AniKoto ${audio === "sub" ? "Sub" : "Dub"} (Embed)`,
+          name: `Inazuma ${audio === "sub" ? "Sub" : "Dub"} (Embed)`,
           m3u8Url: null,
           embedUrl: result.embedUrl,
           type: audio,
@@ -236,7 +236,7 @@ export async function resolveAniKoto(
             const vidwishResult = await extractVidWishStream(realIdMatch[1], audio);
             if (vidwishResult?.m3u8Url) {
               servers.push({
-                name: `AniKoto VidWish ${audio === "sub" ? "Sub" : "Dub"}`,
+                name: `Inazuma VidWish ${audio === "sub" ? "Sub" : "Dub"}`,
                 m3u8Url: vidwishResult.m3u8Url,
                 embedUrl: vidwishResult.embedUrl,
                 type: audio,
@@ -278,7 +278,7 @@ export async function resolveAniKoto(
                     // Try to extract m3u8 from the embed URL
                     const result = await extractMegaPlayStream(url, audio);
                     servers.push({
-                      name: `AniKoto ${audio === "sub" ? "Sub" : "Dub"}`,
+                      name: `Inazuma ${audio === "sub" ? "Sub" : "Dub"}`,
                       m3u8Url: result?.m3u8Url || null,
                       embedUrl: url,
                       type: audio,
