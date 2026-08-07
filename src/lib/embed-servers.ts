@@ -272,6 +272,26 @@ const vidnestHindi: EmbedServer = {
   },
 };
 
+// DesiDubAnime — Cloud/No-Ads server from scraped database
+// Auto-updated by scripts/desidub-updater.py on schedule
+const desidubCloud: EmbedServer = {
+  id: "desidub-cloud",
+  name: "Buggy",
+  priority: 2,
+  supportsSub: false,
+  supportsDub: false,
+  supportsHindi: true,
+  idType: "anilist",
+  color: "#22C55E",
+  category: "hindi",
+  streamType: "iframe",
+  generateUrl: (p) => {
+    const title = p.title ? encodeURIComponent(p.title) : "";
+    if (!title) return "";
+    return `/api/anime/desidub/watch?title=${title}&episode=${p.episode}`;
+  },
+};
+
 // =====================================================
 // TMDB SERVERS — Movies/TV Shows
 //
@@ -300,6 +320,7 @@ const ANIME_SERVERS: EmbedServer[] = [
 const HINDI_SERVERS: EmbedServer[] = [
   anixtvHindi,       // Shanks (AniXtv)
   vidnestHindi,      // Rayleigh (VidNest Hindi)
+  desidubCloud,      // Buggy (DesiDubAnime Cloud — no ads)
 ];
 
 const ALL_SERVERS: EmbedServer[] = [
