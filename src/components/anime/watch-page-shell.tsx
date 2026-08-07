@@ -184,8 +184,8 @@ export function WatchPageShell({
   //   - Other providers           → Sub/Dub/Hardsub per their type
   const serversForMode = (serverList || []).filter((s: any) => {
     if (translation === "hindi") {
-      // Hindi tab: ALL AnixTV servers + AnimoStream + WatchAnimeWorld
-      return s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld";
+      // Hindi tab: ALL AnixTV servers + AnimoStream + WatchAnimeWorld + DesiDubAnime
+      return s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld" || s.source === "desidub";
     }
     if (translation === "dub") {
       // Dub tab: English dub only — exclude Hindi sources (AnixTV + AnimoStream)
@@ -727,8 +727,8 @@ export function WatchPageShell({
       {/* Download modal — show download options */}
       {showDownloadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDownloadModal(false)}>
-          <div className="w-full max-w-md mx-4 rounded-xl bg-[#1a1a2e] border border-white/10 shadow-2xl overflow-hidden" onClick={(e: any) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <div className="w-full max-w-md mx-4 rounded-xl bg-[#111] border border-white/10 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col" onClick={(e: any) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <svg className="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                 Download Episode
@@ -737,7 +737,7 @@ export function WatchPageShell({
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto">
               <div className="text-xs text-white/50">{animeTitle} — Episode {episodeNum}</div>
               {downloadUrl ? (
                 <div className="space-y-3">
@@ -794,6 +794,16 @@ export function WatchPageShell({
                   </div>
                 </div>
               )}
+              {/* Explore downloads link — routes to our /download page */}
+              <div className="pt-2 border-t border-white/10 text-center">
+                <button
+                  onClick={() => { setShowDownloadModal(false); window.location.href = '/download'; }}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline cursor-pointer"
+                >
+                  Want to explore downloads?
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>

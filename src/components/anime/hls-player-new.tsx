@@ -1411,15 +1411,13 @@ function DownloadModal({ animeId, episodeNum, onClose }: { animeId: string; epis
             <div className="text-center py-6">
               <p className="text-xs text-white/40 mb-3">{error}</p>
               {/* Even on error, show the explore link */}
-              <a
-                href="https://animex.one/community/download"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline"
+              <button
+                onClick={() => { onClose(); window.location.href = '/download'; }}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline cursor-pointer"
               >
                 Want to explore downloads?
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </a>
+              </button>
             </div>
           )}
 
@@ -1453,15 +1451,13 @@ function DownloadModal({ animeId, episodeNum, onClose }: { animeId: string; epis
 
               {/* "Want to explore downloads?" link at bottom */}
               <div className="mt-3 pt-3 border-t border-white/8 text-center">
-                <a
-                  href="https://animex.one/community/download"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline"
+                <button
+                  onClick={() => { onClose(); window.location.href = '/download'; }}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline cursor-pointer"
                 >
                   Want to explore downloads?
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </a>
+                </button>
               </div>
             </div>
           )}

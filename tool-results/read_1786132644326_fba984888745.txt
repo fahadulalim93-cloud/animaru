@@ -1,0 +1,727 @@
+     1→"use client";
+     2→
+     3→import { create } from "zustand";
+     4→import { persist } from "zustand/middleware";
+     5→import { trackXPForUser } from "@/lib/xp-tracker";
+     6→
+     7→// ============================================================
+     8→// Anime Types (from AllAnime + Miruro)
+     9→// ============================================================
+    10→
+    11→export interface AnimeItem {
+    12→  _id: string;
+    13→  name: string;
+    14→  englishName?: string;
+    15→  thumbnail?: string;
+    16→  score?: number;
+    17→  type?: string;
+    18→  status?: string;
+    19→  genres?: string[];
+    20→  availableEpisodes?: Record<string, number>;
+    21→  season?: string;
+    22→  description?: string;
+    23→}
+    24→
+    25→export interface MiruroAnimeItem {
+    26→  id: number;
+    27→  title: { romaji?: string; english?: string; native?: string };
+    28→  coverImage?: { extraLarge?: string; large?: string; medium?: string; color?: string };
+    29→  bannerImage?: string;
+    30→  genres?: string[];
+    31→  averageScore?: number;
+    32→  popularity?: number;
+    33→  episodes?: number;
+    34→  type?: string;
+    35→  status?: string;
+    36→  description?: string;
+    37→  season?: string;
+    38→  seasonYear?: number;
+    39→  countryOfOrigin?: string;
+    40→}
+    41→
+    42→// ============================================================
+    43→// TMDB Content Types
+    44→// ============================================================
+    45→
+    46→export interface TMDBContentItem {
+    47→  id: number;
+    48→  title?: string;
+    49→  name?: string;
+    50→  original_title?: string;
+    51→  original_name?: string;
+    52→  overview?: string;
+    53→  poster_path?: string;
+    54→  backdrop_path?: string;
+    55→  vote_average?: number;
+    56→  vote_count?: number;
+    57→  release_date?: string;
+    58→  first_air_date?: string;
+    59→  genre_ids?: number[];
+    60→  popularity?: number;
+    61→  media_type?: "movie" | "tv";
+    62→  adult?: boolean;
+    63→  origin_country?: string[];
+    64→  original_language?: string;
+    65→}
+    66→
+    67→// ============================================================
+    68→// Bookmark & History
+    69→// ============================================================
+    70→
+    71→export interface BookmarkItem {
+    72→  id: string;
+    73→  animeId: string;
+    74→  animeName: string;
+    75→  thumbnail?: string;
+    76→  score?: number;
+    77→  type?: string;
+    78→  status?: string;
+    79→  createdAt: string;
+    80→}
+    81→
+    82→export interface HistoryItem {
+    83→  id: string;
+    84→  animeId: string;
+    85→  animeName: string;
+    86→  thumbnail?: string;
+    87→  episodeNum: number;
+    88→  progress: number;
+    89→  duration: number;
+    90→  updatedAt: string;
+    91→}
+    92→
+    93→// ============================================================
+    94→// Generic per-type Library / Progress / Activity
+    95→// (anime keeps its own history/bookmarks above; this covers
+    96→//  manga, movies, tv & novels so the profile can show every
+    97→//  section in sync)
+    98→// ============================================================
+    99→
+   100→export type MediaKind = "manga" | "movie" | "tv" | "novel";
+   101→
+   102→/** A saved title ("My List" / bookmark) for a non-anime section. */
+   103→export interface LibraryEntry {
+   104→  key: string;          // `${kind}:${mediaId}`
+   105→  kind: MediaKind;
+   106→  mediaId: string;
+   107→  title: string;
+   108→  cover?: string;
+   109→  meta?: string;        // e.g. "Manhwa" / "2021" / "24 ch"
+   110→  score?: number;
+   111→  addedAt: number;      // epoch ms
+   112→  resume: Route;        // detail route to reopen the title
+   113→}
+   114→
+   115→/** Latest reading/watching position for a non-anime title (Continue). */
+   116→export interface MediaProgressEntry {
+   117→  key: string;          // `${kind}:${mediaId}`
+   118→  kind: MediaKind;
+   119→  mediaId: string;
+   120→  title: string;
+   121→  cover?: string;
+   122→  unitLabel: string;    // "Ch. 45" / "S1·E3" / "Ch. 12"
+   123→  percent: number;      // 0-100 best-effort
+   124→  updatedAt: number;    // epoch ms
+   125→  resume: Route;        // exact watch/read route to resume
+   126→}
+   127→
+   128→/** Append-only activity log — powers XP, level, streaks & heatmap. */
+   129→export interface ActivityEvent {
+   130→  ts: number;                       // epoch ms
+   131→  kind: MediaKind | "anime";
+   132→  xp: number;
+   133→}
+   134→
+   135→// ============================================================
+   136→// Route Types
+   137→// ============================================================
+   138→
+   139→type Route =
+   140→  | { page: "landing" }
+   141→  | { page: "hub" }
+   142→  | { page: "home" }
+   143→  | { page: "discover" }
+   144→  | { page: "search"; query?: string }
+   145→  | { page: "anime"; id: string }
+   146→  | { page: "watch"; id: string; episode: number; title?: string; image?: string }
+   147→  | { page: "genre"; genre: string }
+   148→  | { page: "bookmarks" }
+   149→  | { page: "history" }
+   150→  | { page: "watchlist" }
+   151→  | { page: "movies" }
+   152→  | { page: "tv" }
+   153→  | { page: "manga" }
+   154→  | { page: "manga-detail"; id: string }
+   155→  | { page: "manga-read"; id: string; chapterId: string }
+   156→  | { page: "movie-detail"; id: number }
+   157→  | { page: "tv-detail"; id: number }
+   158→  | { page: "movie-watch"; id: number }
+   159→  | { page: "tv-watch"; id: number; season: number; episode: number }
+   160→  | { page: "watchnow" }
+   161→  | { page: "contact" }
+   162→  | { page: "donate" }
+   163→  | { page: "updates" }
+   164→  | { page: "donate-crypto" }
+   165→  | { page: "guide" }
+   166→  | { page: "features" }
+   167→  | { page: "novel" }
+   168→  | { page: "novel-detail"; novelId: string; novelTitle: string; novelCover: string; novelAuthor: string; novelSource: string }
+   169→  | { page: "novel-read"; novelId: string; novelTitle: string; chapterId: string; chapterNum: number; chapterTitle: string; totalChapters: number; novelSource: string }
+   170→  | { page: "signin" }
+   171→  | { page: "signup" }
+   172→  | { page: "profile" }
+   173→  | { page: "leaderboard" }
+   174→  | { page: "mod" }
+   175→  | { page: "settings" }
+   176→  | { page: "music" }
+   177→  | { page: "torrent" }
+   178→  | { page: "download" }
+   179→  | { page: "scraper" }
+   180→  | { page: "scraper-anime"; id: string }
+   181→  | { page: "scraper-watch"; id: string; episode: string; site: string };
+   182→
+   183→// ============================================================
+   184→// App Store
+   185→// ============================================================
+   186→
+   187→// Section sub-page type — each section can have its own sub-navigation
+   188→export type SectionSubPage = "home" | "sub" | "dub" | "schedule" | "genres" | "browse" | "trending" | "top-rated" | "tv-channels" | "sports" | "news" | "popular" | "recently-added" | "recently-updated";
+   189→
+   190→interface AppState {
+   191→  route: Route;
+   192→  navigate: (route: Route) => void;
+   193→  sectionSubPage: SectionSubPage;
+   194→  setSectionSubPage: (subPage: SectionSubPage) => void;
+   195→  bookmarks: BookmarkItem[];
+   196→  setBookmarks: (items: BookmarkItem[]) => void;
+   197→  history: HistoryItem[];
+   198→  setHistory: (items: HistoryItem[]) => void;
+   199→  /** Add or update a history entry (called when user starts/resumes watching) */
+   200→  addToHistory: (item: {
+   201→    animeId: string;
+   202→    animeName: string;
+   203→    thumbnail?: string;
+   204→    episodeNum: number;
+   205→    progress?: number;
+   206→    duration?: number;
+   207→  }) => void;
+   208→  /** Update progress for an existing history entry (called periodically during playback) */
+   209→  updateHistoryProgress: (animeId: string, episodeNum: number, progress: number, duration: number) => void;
+   210→  isBookmarked: (animeId: string) => boolean;
+   211→  // ── Generic per-type library / progress / activity (manga/movie/tv/novel) ──
+   212→  library: LibraryEntry[];
+   213→  mediaProgress: MediaProgressEntry[];
+   214→  activity: ActivityEvent[];
+   215→  /** Toggle-add a title to the user's library ("My List"). */
+   216→  addToLibrary: (entry: Omit<LibraryEntry, "key" | "addedAt"> & { addedAt?: number }) => void;
+   217→  removeFromLibrary: (kind: MediaKind, mediaId: string) => void;
+   218→  isInLibrary: (kind: MediaKind, mediaId: string) => boolean;
+   219→  /** Upsert a Continue-position and log an activity event (awards XP). */
+   220→  recordMediaProgress: (
+   221→    entry: Omit<MediaProgressEntry, "key" | "updatedAt"> & { updatedAt?: number },
+   222→    xp?: number,
+   223→  ) => void;
+   224→  // ── Auth (localStorage-based, persisted) ──
+   225→  user: User | null;
+   226→  setUser: (user: User | null) => void;
+   227→  logout: () => void;
+   228→  // ── Auth modal (overlay — appears on top of any page) ──
+   229→  // Per user request: sign-in/sign-up should appear as a centered modal
+   230→  // overlay on top of the current anime page, NOT navigate to a separate page.
+   231→  authModal: { mode: "signin" | "signup"; message?: string } | null;
+   232→  openAuthModal: (mode: "signin" | "signup", message?: string) => void;
+   233→  closeAuthModal: () => void;
+   234→  // ── AniList account link (OAuth implicit grant, persisted) ──
+   235→  anilistToken: string | null;
+   236→  anilistUser: { id: number; name: string; avatar?: string } | null;
+   237→  anilistEntries: { mediaId: number; status: string; progress: number; title: string; cover?: string }[];
+   238→  setAnilistAuth: (
+   239→    token: string,
+   240→    user: { id: number; name: string; avatar?: string },
+   241→    entries: { mediaId: number; status: string; progress: number; title: string; cover?: string }[],
+   242→  ) => void;
+   243→  clearAnilistAuth: () => void;
+   244→  // ── MyAnimeList account link (OAuth PKCE, persisted) ──
+   245→  malToken: string | null;
+   246→  malUser: { id: number; name: string; avatar?: string } | null;
+   247→  setMalAuth: (token: string, user: { id: number; name: string; avatar?: string }) => void;
+   248→  clearMalAuth: () => void;
+   249→  // ── Add-to-list connect prompt (shown from "+" buttons when the user
+   250→  //     hasn't linked AniList or MAL yet) ──
+   251→  connectListModalOpen: boolean;
+   252→  openConnectListModal: () => void;
+   253→  closeConnectListModal: () => void;
+   254→  // ── Edit list entry modal (shown from "+" buttons once AniList/MAL is
+   255→  //     linked — status/score/progress/dates/notes, synced to AniList) ──
+   256→  editListTarget: { id: number; title: string; cover?: string } | null;
+   257→  openEditListModal: (anime: { id: number; title: string; cover?: string }) => void;
+   258→  closeEditListModal: () => void;
+   259→  // ── App preferences / settings (persisted) ──
+   260→  prefs: AppPrefs;
+   261→  setPref: <K extends keyof AppPrefs>(key: K, value: AppPrefs[K]) => void;
+   262→}
+   263→
+   264→// ============================================================
+   265→// App preferences (Settings page)
+   266→// ============================================================
+   267→export interface AppPrefs {
+   268→  theme: string; // theme key — see THEMES in settings-page
+   269→  // General
+   270→  homepageTrailer: boolean;
+   271→  titleLanguage: "english" | "romaji";
+   272→  episodeThumbnails: boolean;
+   273→  episodeSortAsc: boolean;
+   274→  preferredLanguage: "sub" | "dub";
+   275→  nsfw: boolean;
+   276→  comments: boolean;
+   277→  // Player defaults
+   278→  autoNext: boolean;
+   279→  autoSkip: boolean;
+   280→  autoplay: boolean;
+   281→  muteAudio: boolean;
+   282→  skipForward: number; // seconds
+   283→  playbackRate: number;
+   284→  quality: "auto" | "360" | "480" | "720" | "1080";
+   285→  loadStrategy: "idle" | "visible" | "eager";
+   286→  skipFillers: boolean;
+   287→  ambientMode: boolean;
+   288→  volume: number; // 0-100
+   289→  // Account
+   290→  privacyPublic: boolean;
+   291→  incognito: boolean;
+   292→}
+   293→
+   294→export const DEFAULT_PREFS: AppPrefs = {
+   295→  theme: "default",
+   296→  homepageTrailer: true,
+   297→  titleLanguage: "english",
+   298→  episodeThumbnails: true,
+   299→  episodeSortAsc: true,
+   300→  preferredLanguage: "sub",
+   301→  nsfw: false,
+   302→  comments: true,
+   303→  autoNext: true,
+   304→  autoSkip: false,
+   305→  autoplay: true,
+   306→  muteAudio: false,
+   307→  skipForward: 85,
+   308→  playbackRate: 1,
+   309→  quality: "auto",
+   310→  loadStrategy: "eager",
+   311→  skipFillers: false,
+   312→  ambientMode: false,
+   313→  volume: 100,
+   314→  privacyPublic: true,
+   315→  incognito: false,
+   316→};
+   317→
+   318→// ============================================================
+   319→// User type
+   320→// ============================================================
+   321→export interface User {
+   322→  id: string;
+   323→  username: string;
+   324→  name: string;
+   325→  email: string;
+   326→  avatar?: string;       // emoji or letter
+   327→  avatarColor?: string;  // bg color for avatar
+   328→  bio?: string;
+   329→  createdAt: string;
+   330→  // ── Profile customization ──
+   331→  accentColor?: string;  // themes XP bar / badges / active tabs
+   332→  avatarEmoji?: string;  // optional emoji shown instead of the letter
+   333→  banner?: string;       // header banner preset key
+   334→  favorites?: string[];  // favorite genres shown as chips
+   335→  tagline?: string;      // short flair under the name
+   336→  avatarFrame?: string;  // equipped avatar frame key (see FRAMES in avatar-frames.ts)
+   337→  avatarImage?: string;  // custom avatar image (character portrait or imported image/data URI)
+   338→  bannerImage?: string;  // custom profile banner image (overrides the random AniList banner)
+   339→}
+   340→
+   341→export const useAppStore = create<AppState>()(
+   342→  persist(
+   343→    (set, get) => ({
+   344→  route: { page: "home" },
+   345→  sectionSubPage: "home",
+   346→  setSectionSubPage: (subPage) => {
+   347→    set({ sectionSubPage: subPage });
+   348→    // Sync the URL bar when sub-page changes (e.g. Browse, Schedule, Genres)
+   349→    if (typeof window !== "undefined") {
+   350→      const currentRoute = get().route;
+   351→      if (currentRoute.page === "home") {
+   352→        const subPagePath: Record<string, string> = {
+   353→          "home": "/",
+   354→          "browse": "/browse",
+   355→          "schedule": "/schedule",
+   356→          "genres": "/genres",
+   357→          "sub": "/sub",
+   358→          "dub": "/dub",
+   359→          "trending": "/trending",
+   360→          "top-rated": "/top-rated",
+   361→        };
+   362→        const path = subPagePath[subPage] || `/${subPage}`;
+   363→        history.replaceState(null, "", path);
+   364→      }
+   365→    }
+   366→  },
+   367→  navigate: (route) => {
+   368→    // Reset section sub-page when navigating to a new section
+   369→    const subPage = "home";
+   370→    set({ route, sectionSubPage: subPage });
+   371→    if (typeof window !== "undefined") {
+   372→      let path = "/";
+   373→      if (route.page === "landing") path = "/";
+   374→      else if (route.page === "hub") path = "/hub";
+   375→      else if (route.page === "home") path = "/";
+   376→      else if (route.page === "discover") path = "/discover";
+   377→      else if (route.page === "search" && route.query)
+   378→        path = `/search/${encodeURIComponent(route.query)}`;
+   379→      else if (route.page === "search") path = "/search";
+   380→      else if (route.page === "anime")
+   381→        path = `/anime/${route.id}`;
+   382→      else if (route.page === "watch")
+   383→        path = `/watch/${route.id}/${route.episode}`;
+   384→      else if (route.page === "genre")
+   385→        path = `/genre/${encodeURIComponent(route.genre)}`;
+   386→      else if (route.page === "bookmarks") path = "/bookmarks";
+   387→      else if (route.page === "watchlist") path = "/watchlist";
+   388→      else if (route.page === "history") path = "/history";
+   389→      else if (route.page === "movies") path = "/movies";
+   390→      else if (route.page === "tv") path = "/tv";
+   391→      else if (route.page === "manga") path = "/manga";
+   392→      else if (route.page === "manga-detail")
+   393→        path = `/manga/${route.id}`;
+   394→      else if (route.page === "manga-read")
+   395→        path = `/read-manga/${route.id}/${route.chapterId}`;
+   396→      else if (route.page === "movie-detail")
+   397→        path = `/movie/${route.id}`;
+   398→      else if (route.page === "tv-detail")
+   399→        path = `/tvshow/${route.id}`;
+   400→      else if (route.page === "movie-watch")
+   401→        path = `/watch-movie/${route.id}`;
+   402→      else if (route.page === "tv-watch")
+   403→        path = `/watch-tv/${route.id}/${route.season}/${route.episode}`;
+   404→      else if (route.page === "watchnow") path = "/watchnow";
+   405→      else if (route.page === "contact") path = "/contact";
+   406→      else if (route.page === "donate") path = "/donate";
+   407→      else if (route.page === "updates") path = "/updates";
+   408→      else if (route.page === "donate-crypto") path = "/donate/crypto";
+   409→      else if (route.page === "features") path = "/features";
+   410→      else if (route.page === "novel") path = "/novel";
+   411→      else if (route.page === "novel-detail") path = `/novel/${encodeURIComponent(route.novelId)}`;
+   412→      else if (route.page === "novel-read") path = `/read-novel/${encodeURIComponent(route.novelId)}/${route.chapterNum}`;
+   413→      else if (route.page === "signin") path = "/signin";
+   414→      else if (route.page === "signup") path = "/signup";
+   415→      else if (route.page === "profile") path = "/profile";
+   416→      else if (route.page === "settings") path = "/settings";
+   417→      else if (route.page === "music") path = "/music";
+   418→      else if (route.page === "torrent") path = "/torrent";
+   419→      else if (route.page === "download") path = "/download";
+   420→      else if (route.page === "scraper") path = "/scraper";
+   421→      else if (route.page === "scraper-anime") path = `/scraper/anime/${route.id}`;
+   422→      else if (route.page === "scraper-watch") path = `/scraper/watch/${route.site}/${route.id}/${encodeURIComponent(route.episode)}`;
+   423→      history.pushState(null, "", path);
+   424→      window.scrollTo(0, 0);
+   425→    }
+   426→  },
+   427→  bookmarks: [],
+   428→  setBookmarks: (items) => set({ bookmarks: items }),
+   429→  history: [],
+   430→  setHistory: (items) => set({ history: items }),
+   431→  addToHistory: (item) => set((state) => {
+   432→    const id = `${item.animeId}-${item.episodeNum}`;
+   433→    const now = new Date().toISOString();
+   434→    // Remove any existing entry for this anime+episode, then prepend
+   435→    const filtered = state.history.filter(
+   436→      (h) => !(h.animeId === item.animeId && h.episodeNum === item.episodeNum)
+   437→    );
+   438→    const newEntry: HistoryItem = {
+   439→      id,
+   440→      animeId: item.animeId,
+   441→      animeName: item.animeName,
+   442→      thumbnail: item.thumbnail,
+   443→      episodeNum: item.episodeNum,
+   444→      progress: item.progress || 0,
+   445→      duration: item.duration || 0,
+   446→      updatedAt: now,
+   447→    };
+   448→    // Keep at most 50 entries
+   449→    // ── Secret XP: award 10 XP for watching an episode (fire-and-forget) ──
+   450→    trackXPForUser(get().user, 10, "episode_watched");
+   451→    return { history: [newEntry, ...filtered].slice(0, 50) };
+   452→  }),
+   453→  updateHistoryProgress: (animeId, episodeNum, progress, duration) => set((state) => ({
+   454→    history: state.history.map((h) =>
+   455→      h.animeId === animeId && h.episodeNum === episodeNum
+   456→        ? { ...h, progress, duration, updatedAt: new Date().toISOString() }
+   457→        : h
+   458→    ),
+   459→  })),
+   460→  isBookmarked: (animeId) => get().bookmarks.some((b) => b.animeId === animeId),
+   461→  // ── Generic library / progress / activity ──
+   462→  library: [],
+   463→  mediaProgress: [],
+   464→  activity: [],
+   465→  addToLibrary: (entry) => set((state) => {
+   466→    const key = `${entry.kind}:${entry.mediaId}`;
+   467→    if (state.library.some((e) => e.key === key)) return {};
+   468→    const newEntry: LibraryEntry = { ...entry, key, addedAt: entry.addedAt ?? Date.now() };
+   469→    return { library: [newEntry, ...state.library].slice(0, 500) };
+   470→  }),
+   471→  removeFromLibrary: (kind, mediaId) => set((state) => ({
+   472→    library: state.library.filter((e) => e.key !== `${kind}:${mediaId}`),
+   473→  })),
+   474→  isInLibrary: (kind, mediaId) => get().library.some((e) => e.key === `${kind}:${mediaId}`),
+   475→  recordMediaProgress: (entry, xp = 0) => set((state) => {
+   476→    const key = `${entry.kind}:${entry.mediaId}`;
+   477→    const now = entry.updatedAt ?? Date.now();
+   478→    const existing = state.mediaProgress.find((p) => p.key === key);
+   479→    // Award XP at most once per title per calendar day (keeps XP/heatmap honest
+   480→    // even though progress ticks fire often).
+   481→    const sameDay = (a: number, b: number) => {
+   482→      const da = new Date(a), db = new Date(b);
+   483→      return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+   484→    };
+   485→    const grant = xp > 0 && !(existing && sameDay(existing.updatedAt, now));
+   486→    const filtered = state.mediaProgress.filter((p) => p.key !== key);
+   487→    const newEntry: MediaProgressEntry = { ...entry, key, updatedAt: now };
+   488→    const activity = grant
+   489→      ? [{ ts: now, kind: entry.kind, xp }, ...state.activity].slice(0, 3000)
+   490→      : state.activity;
+   491→    return {
+   492→      mediaProgress: [newEntry, ...filtered].slice(0, 200),
+   493→      activity,
+   494→    };
+   495→  }),
+   496→  // ── Auth state ──
+   497→  user: null,
+   498→  setUser: (user) => {
+   499→    set({ user });
+   500→    // Close the auth modal automatically on successful sign-in / sign-up
+   501→    if (user) set({ authModal: null });
+   502→  },
+   503→  logout: () => set({ user: null }),
+   504→  // ── Auth modal actions ──
+   505→  authModal: null,
+   506→  openAuthModal: (mode, message) => set({ authModal: { mode, message } }),
+   507→  closeAuthModal: () => set({ authModal: null }),
+   508→  // ── AniList account link ──
+   509→  anilistToken: null,
+   510→  anilistUser: null,
+   511→  anilistEntries: [],
+   512→  setAnilistAuth: (token, user, entries) => set({ anilistToken: token, anilistUser: user, anilistEntries: entries }),
+   513→  clearAnilistAuth: () => set({ anilistToken: null, anilistUser: null, anilistEntries: [] }),
+   514→  // ── MyAnimeList account link ──
+   515→  malToken: null,
+   516→  malUser: null,
+   517→  setMalAuth: (token, user) => set({ malToken: token, malUser: user }),
+   518→  clearMalAuth: () => set({ malToken: null, malUser: null }),
+   519→  // ── Add-to-list connect prompt ──
+   520→  connectListModalOpen: false,
+   521→  openConnectListModal: () => set({ connectListModalOpen: true }),
+   522→  closeConnectListModal: () => set({ connectListModalOpen: false }),
+   523→  // ── Edit list entry modal ──
+   524→  editListTarget: null,
+   525→  openEditListModal: (anime) => set({ editListTarget: anime }),
+   526→  closeEditListModal: () => set({ editListTarget: null }),
+   527→  // ── App preferences ──
+   528→  prefs: DEFAULT_PREFS,
+   529→  setPref: (key, value) => set((state) => ({ prefs: { ...state.prefs, [key]: value } })),
+   530→    }),
+   531→    {
+   532→      name: "luffytv-store",
+   533→      partialize: (state) => ({
+   534→        history: state.history,
+   535→        bookmarks: state.bookmarks,
+   536→        user: state.user,
+   537→        anilistToken: state.anilistToken,
+   538→        anilistUser: state.anilistUser,
+   539→        anilistEntries: state.anilistEntries,
+   540→        malToken: state.malToken,
+   541→        malUser: state.malUser,
+   542→        prefs: state.prefs,
+   543→        library: state.library,
+   544→        mediaProgress: state.mediaProgress,
+   545→        activity: state.activity,
+   546→      }),
+   547→    }
+   548→  )
+   549→);
+   550→
+   551→// Get the section-specific nav links based on current route
+   552→export function getSectionNavLinks(route: Route): { id: SectionSubPage; label: string }[] {
+   553→  const page = route.page;
+   554→
+   555→  // Manga section — has its OWN navbar (Popular, Top Rated, Recently Added)
+   556→  if (page === "manga" || page === "manga-detail" || page === "manga-read") {
+   557→    return [
+   558→      { id: "home", label: "Home" },
+   559→      { id: "popular", label: "Popular" },
+   560→      { id: "top-rated", label: "Top Rated" },
+   561→      { id: "recently-added", label: "Recently Added" },
+   562→    ];
+   563→  }
+   564→  
+   565→  // Anime section (includes home, anime detail, watch, genre, bookmarks, history)
+   566→  if (page === "home" || page === "anime" || page === "watch" || page === "genre" || page === "bookmarks" || page === "history") {
+   567→    return [
+   568→      { id: "home", label: "Home" },
+   569→      { id: "sub", label: "SUB" },
+   570→      { id: "dub", label: "DUB" },
+   571→      { id: "browse", label: "Browse" },
+   572→      { id: "schedule", label: "Schedule" },
+   573→      { id: "genres", label: "Genres" },
+   574→    ];
+   575→  }
+   576→  
+   577→  
+   578→  // Default — no section-specific nav
+   579→  return [];
+   580→}
+   581→
+   582→/**
+   583→ * Extract numeric AniList ID from slug-ID format.
+   584→ * "one-piece-21" → "21" (the AniList ID)
+   585→ * "21" → "21" (already numeric)
+   586→ * "some-slug" → "some-slug" (pure slug, no embedded ID — return as-is)
+   587→ */
+   588→function extractAnilistIdFromSlug(input: string): string {
+   589→  // Pure numeric — already an ID
+   590→  if (/^\d+$/.test(input)) return input;
+   591→  // Slug-ID format: "one-piece-21" → extract trailing number
+   592→  const match = input.match(/-(\d+)$/);
+   593→  if (match) return match[1];
+   594→  // Pure slug with no ID — return as-is (component will search by slug)
+   595→  return input;
+   596→}
+   597→
+   598→export function parsePath(pathname: string): { route: Route; subPage: SectionSubPage } {
+   599→  // Remove leading slash
+   600→  const p = pathname.startsWith("/") ? pathname.slice(1) : pathname;
+   601→  // Root path → anime home
+   602→  if (!p) return { route: { page: "home" }, subPage: "home" };
+   603→  const parts = p.split("/");
+   604→
+   605→  // ── First-class sub-page paths (SEO-friendly URLs) ──
+   606→  if (parts[0] === "browse") return { route: { page: "home" }, subPage: "browse" };
+   607→  if (parts[0] === "schedule") return { route: { page: "home" }, subPage: "schedule" };
+   608→  if (parts[0] === "genres") return { route: { page: "home" }, subPage: "genres" };
+   609→  if (parts[0] === "sub") return { route: { page: "home" }, subPage: "sub" };
+   610→  if (parts[0] === "dub") return { route: { page: "home" }, subPage: "dub" };
+   611→  if (parts[0] === "trending") return { route: { page: "home" }, subPage: "trending" };
+   612→  if (parts[0] === "top-rated") return { route: { page: "home" }, subPage: "top-rated" };
+   613→
+   614→  if (parts[0] === "hub") return { route: { page: "hub" }, subPage: "home" };
+   615→  if (parts[0] === "home") return { route: { page: "home" }, subPage: "home" };
+   616→  if (parts[0] === "discover") return { route: { page: "discover" }, subPage: "home" };
+   617→  if (parts[0] === "search") return { route: { page: "search", query: decodeURIComponent(parts[1] || "") }, subPage: "home" };
+   618→  // ── Anime detail: /anime/{slug-ID} or /anime/{numeric-ID} ──
+   619→  // "one-piece-21" → id="21" (AniList ID extracted from slug)
+   620→  // "21" → id="21" (plain numeric ID)
+   621→  if (parts[0] === "anime" && parts[1]) return { route: { page: "anime", id: extractAnilistIdFromSlug(parts[1]) }, subPage: "home" };
+   622→  // ── Watch page: /watch/{slug-ID}/{episode} ──
+   623→  if (parts[0] === "watch" && parts[1] && parts[2])
+   624→    return { route: { page: "watch", id: extractAnilistIdFromSlug(parts[1]), episode: parseInt(parts[2], 10) || 1 }, subPage: "home" };
+   625→  if (parts[0] === "bookmarks") return { route: { page: "bookmarks" }, subPage: "home" };
+   626→  if (parts[0] === "watchlist") return { route: { page: "watchlist" }, subPage: "home" };
+   627→  if (parts[0] === "history") return { route: { page: "history" }, subPage: "home" };
+   628→  // Retired sections — redirect to anime home
+   629→  if (parts[0] === "movies") return { route: { page: "home" }, subPage: "home" };
+   630→  if (parts[0] === "tv") return { route: { page: "home" }, subPage: "home" };
+   631→  if (parts[0] === "live") return { route: { page: "home" }, subPage: "home" };
+   632→  if (parts[0] === "watchnow") return { route: { page: "home" }, subPage: "home" };
+   633→  if (parts[0] === "genre" && parts[1]) return { route: { page: "genre", genre: decodeURIComponent(parts[1].replace(/-/g, " ")) }, subPage: "home" };
+   634→  if (parts[0] === "genre") return { route: { page: "home" }, subPage: "genres" };
+   635→  if (parts[0] === "movie" && parts[1]) return { route: { page: "home" }, subPage: "home" };
+   636→  if (parts[0] === "tvshow" && parts[1]) return { route: { page: "home" }, subPage: "home" };
+   637→  if (parts[0] === "watch-movie" && parts[1]) return { route: { page: "home" }, subPage: "home" };
+   638→  if (parts[0] === "watch-tv") return { route: { page: "home" }, subPage: "home" };
+   639→  if (parts[0] === "live-watch") return { route: { page: "home" }, subPage: "home" };
+   640→  if (parts[0] === "live-tv-watch") return { route: { page: "home" }, subPage: "home" };
+   641→  if (parts[0] === "manga" && parts[1]) return { route: { page: "manga-detail", id: parts[1] }, subPage: "home" };
+   642→  if (parts[0] === "manga") return { route: { page: "manga" }, subPage: "home" };
+   643→  if (parts[0] === "read-manga" && parts[1] && parts[2])
+   644→    return { route: { page: "manga-read", id: parts[1], chapterId: parts[2] }, subPage: "home" };
+   645→  if (parts[0] === "contact") return { route: { page: "contact" }, subPage: "home" };
+   646→  if (parts[0] === "donate" && parts[1] === "crypto") return { route: { page: "donate-crypto" }, subPage: "home" };
+   647→  if (parts[0] === "donate") return { route: { page: "donate" }, subPage: "home" };
+   648→  if (parts[0] === "updates") return { route: { page: "updates" }, subPage: "home" };
+   649→  if (parts[0] === "guide") return { route: { page: "guide" }, subPage: "home" };
+   650→  if (parts[0] === "features") return { route: { page: "features" }, subPage: "home" };
+   651→  if (parts[0] === "novel" && parts[1]) return { route: { page: "novel-detail", novelId: decodeURIComponent(parts[1]), novelTitle: "", novelCover: "", novelAuthor: "", novelSource: "readlightnovel" }, subPage: "home" };
+   652→  if (parts[0] === "novel") return { route: { page: "novel" }, subPage: "home" };
+   653→  if (parts[0] === "read-novel" && parts[1] && parts[2]) return { route: { page: "novel-read", novelId: decodeURIComponent(parts[1]), novelTitle: "", chapterId: `chapter-${parts[2]}`, chapterNum: parseInt(parts[2]), chapterTitle: "", totalChapters: 0, novelSource: "readlightnovel" }, subPage: "home" };
+   654→  if (parts[0] === "signin") return { route: { page: "signin" }, subPage: "home" };
+   655→  if (parts[0] === "signup") return { route: { page: "signup" }, subPage: "home" };
+   656→  if (parts[0] === "profile") return { route: { page: "profile" }, subPage: "home" };
+   657→  if (parts[0] === "leaderboard") return { route: { page: "leaderboard" }, subPage: "home" };
+   658→  if (parts[0] === "mod") return { route: { page: "mod" }, subPage: "home" };
+   659→  if (parts[0] === "settings") return { route: { page: "settings" }, subPage: "home" };
+   660→  if (parts[0] === "scraper" && parts[1] === "anime" && parts[2])
+   661→    return { route: { page: "scraper-anime", id: parts[2] }, subPage: "home" };
+   662→  if (parts[0] === "scraper" && parts[1] === "watch" && parts[2] && parts[3] && parts[4])
+   663→    return { route: { page: "scraper-watch", site: parts[2], id: parts[3], episode: decodeURIComponent(parts[4]) }, subPage: "home" };
+   664→  if (parts[0] === "scraper") return { route: { page: "scraper" }, subPage: "home" };
+   665→  if (parts[0] === "music") return { route: { page: "music" }, subPage: "home" };
+   666→  if (parts[0] === "torrent") return { route: { page: "torrent" }, subPage: "home" };
+   667→  if (parts[0] === "download") return { route: { page: "download" }, subPage: "home" };
+   668→  // Fallback
+   669→  return { route: { page: "home" }, subPage: "home" };
+   670→}
+   671→
+   672→// Legacy hash-based parser (kept for AniList/MAL OAuth redirect handling)
+   673→export function parseHash(hash: string): Route {
+   674→  const h = hash.replace("#", "");
+   675→  if (!h) return { page: "home" };
+   676→  const parts = h.split("/");
+   677→  if (parts[0] === "anime" && parts[1]) return { page: "anime", id: parts[1] };
+   678→  if (parts[0] === "watch" && parts[1] && parts[2])
+   679→    return { page: "watch", id: parts[1], episode: parseInt(parts[2], 10) || 1 };
+   680→  return { page: "home" };
+   681→}
+   682→
+   683→// ============================================================
+   684→// Helper Functions
+   685→// ============================================================
+   686→
+   687→export function getAnimeTitle(anime: AnimeItem | MiruroAnimeItem): string {
+   688→  if (!anime) return "Unknown";
+   689→  if ("name" in anime) return anime.englishName || anime.name || "Unknown";
+   690→  const title = anime.title;
+   691→  if (!title) return "Unknown";
+   692→  return title.english || title.romaji || title.native || "Unknown";
+   693→}
+   694→
+   695→export function getAnimeImage(anime: AnimeItem | MiruroAnimeItem): string {
+   696→  if (!anime) return "";
+   697→  if ("thumbnail" in anime) return anime.thumbnail || "";
+   698→  const cover = (anime as MiruroAnimeItem).coverImage;
+   699→  if (!cover) return "";
+   700→  return cover.extraLarge || cover.large || cover.medium || "";
+   701→}
+   702→
+   703→export function getTMDBTitle(item: TMDBContentItem): string {
+   704→  return item.title || item.name || item.original_title || item.original_name || "Unknown";
+   705→}
+   706→
+   707→export function getTMDBImage(item: TMDBContentItem): string {
+   708→  if (item.poster_path) return `https://image.tmdb.org/t/p/w500${item.poster_path}`;
+   709→  return "";
+   710→}
+   711→
+   712→export function getTMDBBackdrop(item: TMDBContentItem): string {
+   713→  if (item.backdrop_path) return `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`;
+   714→  return "";
+   715→}
+   716→
+   717→export function getTMDBYear(item: TMDBContentItem): string {
+   718→  const date = item.release_date || item.first_air_date;
+   719→  return date ? date.split("-")[0] : "";
+   720→}
+   721→
+   722→export function getTMDBMediaType(item: TMDBContentItem): "movie" | "tv" {
+   723→  if (item.media_type === "movie" || item.media_type === "tv") return item.media_type;
+   724→  if (item.release_date || item.original_title) return "movie";
+   725→  return "tv";
+   726→}
+   727→

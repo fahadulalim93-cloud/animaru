@@ -1169,6 +1169,22 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       })
       .catch(() => { /* best-effort */ });
 
+    // DesiDubAnime Hindi dub — cloud/no-ads + other servers from scraped database.
+    // 494 anime with Hindi dubs, auto-updated by scripts/desidub-updater.py.
+    fetch(`/api/anime/desidub-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data?.servers?.length) return;
+        setServerList(prev => {
+          const newServers = dedupeNew(prev, data.servers);
+          if (newServers.length === 0) return prev;
+          console.log(`[WatchPage] DesiDubAnime Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
+          setHindiAvailable(true);
+          return [...prev, ...newServers];
+        });
+      })
+      .catch(() => { /* best-effort */ });
+
     return () => { cancelled = true; };
   }, [anilistId, episodeNum, animeTitle]);
 
@@ -1331,9 +1347,10 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
 
           let firstMatch: ServerEntry | undefined;
           if (translation === "hindi") {
-            // Prefer AnixTV Hindi 1, then AnimoStream, then any anixtv
+            // Prefer AnixTV Hindi 1, then AnimoStream, then DesiDub cloud, then any anixtv
             firstMatch = data.servers.find((s: ServerEntry) => s.source === "anixtv" && s.provider === "hindi_1")
               || data.servers.find((s: ServerEntry) => s.source === "animostream")
+              || data.servers.find((s: ServerEntry) => s.source === "desidub" && s.provider === "cloud")
               || data.servers.find((s: ServerEntry) => s.source === "anixtv");
           } else if (translation === "dub") {
             firstMatch = data.servers.find((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");

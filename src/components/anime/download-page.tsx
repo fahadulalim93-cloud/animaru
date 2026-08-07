@@ -328,7 +328,7 @@ export default function DownloadPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline"
                     >
-                      Explore downloads on AnimeX
+                      Search on AnimeX
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </a>
                   </div>

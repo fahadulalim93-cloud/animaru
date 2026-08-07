@@ -81,17 +81,40 @@ def get_episode_links(anime_url):
         if l not in seen: seen.add(l); unique.append(l)
     return unique
 
-def get_cloud_stream(episode_url):
-    """Get cloud/no-ads stream URL from episode page"""
+def get_all_servers(episode_url):
+    """Get ALL server embed URLs from episode page via data-embed-id attributes."""
+    import base64
     html = fetch_html(episode_url)
-    if not html: return None
-    # Primary: gdmirrorbot.nl (cloud, no ads)
-    gd = re.search(r'(https?://gdmirrorbot\.nl/embed/[a-z0-9]+)', html)
-    if gd: return gd.group(1)
-    # Fallback: any streaming iframe
-    iframe = re.search(r'<iframe[^>]+src=["\'](https?://[^"\']+(?:embed|stream|player)[^"\']*)["\']', html, re.I)
-    if iframe: return iframe.group(1)
-    return None
+    if not html: return {}, None
+    
+    servers = {}
+    cloud_stream = None
+    
+    # Parse data-embed-id attributes (base64_name:base64_url)
+    for match in re.findall(r'data-embed-id="([^"]+)"', html):
+        try:
+            parts = match.split(':')
+            if len(parts) != 2: continue
+            name_b64, url_b64 = parts
+            name_b64 += '=' * (4 - len(name_b64) % 4)
+            url_b64 += '=' * (4 - len(url_b64) % 4)
+            name = base64.b64decode(name_b64).decode('utf-8')
+            url = base64.b64decode(url_b64).decode('utf-8')
+            servers[name] = url
+            # Mirrordub is the cloud/no-ads server (gdmirrorbot.nl)
+            if name == 'Mirrordub':
+                cloud_stream = url
+        except:
+            continue
+    
+    # Fallback: try regex if no data-embed-id found
+    if not servers:
+        gd = re.search(r'(https?://gdmirrorbot\.nl/embed/[a-z0-9]+)', html)
+        if gd:
+            cloud_stream = gd.group(1)
+            servers['Mirrordub'] = cloud_stream
+    
+    return servers, cloud_stream
 
 def git_commit_push(msg):
     """Auto-commit and push changes"""
@@ -157,18 +180,25 @@ def main():
         
         if not ep_links:
             # Maybe movie/single ep on anime page itself
-            cloud = get_cloud_stream(anime['url'])
-            if cloud:
+            servers, cloud = get_all_servers(anime['url'])
+            if cloud or servers:
                 slug = anime['slug'].replace('-',' ').title()
-                episodes.append({'title': slug, 'url': anime['url'], 'cloud_stream': cloud})
+                ep_data = {'title': slug, 'url': anime['url']}
+                if cloud: ep_data['cloud_stream'] = cloud
+                if servers: ep_data['servers'] = servers
+                episodes.append(ep_data)
         else:
             for ep_url in ep_links:
-                cloud = get_cloud_stream(ep_url)
+                servers, cloud = get_all_servers(ep_url)
                 slug = ep_url.rstrip('/').split('/')[-1].replace('-',' ').title()
-                episodes.append({'title': slug, 'url': ep_url, 'cloud_stream': cloud})
+                ep_data = {'title': slug, 'url': ep_url}
+                if cloud: ep_data['cloud_stream'] = cloud
+                if servers: ep_data['servers'] = servers
+                episodes.append(ep_data)
                 time.sleep(0.15)
         
         cloud_count = sum(1 for e in episodes if e.get('cloud_stream'))
+        server_count = sum(len(e.get('servers', {})) for e in episodes)
         new_cloud_count += cloud_count
         
         # Update or add entry
@@ -182,7 +212,7 @@ def main():
         }
         existing[anime['id']] = entry
         updated_count += 1
-        log(f"    → {len(episodes)} eps, {cloud_count} cloud streams")
+        log(f"    → {len(episodes)} eps, {cloud_count} cloud, {server_count} total servers")
         time.sleep(0.2)
     
     # Step 4: Save updated data
@@ -194,8 +224,9 @@ def main():
     total_anime = len(all_data)
     total_eps = sum(len(a['episodes']) for a in all_data)
     total_cloud = sum(sum(1 for e in a['episodes'] if e.get('cloud_stream')) for a in all_data)
+    total_servers = sum(sum(len(e.get('servers', {})) for e in a['episodes']) for a in all_data)
     
-    commit_msg = f"scraper: desidubanime auto-update — {updated_count} new/updated, {new_cloud_count} new cloud streams ({total_anime} anime, {total_cloud} cloud total)"
+    commit_msg = f"scraper: desidubanime auto-update — {updated_count} new/updated, {total_servers} total servers ({total_anime} anime, {total_cloud} cloud)"
     pushed = git_commit_push(commit_msg)
     
     log(f"═══ Update Complete ═══")
