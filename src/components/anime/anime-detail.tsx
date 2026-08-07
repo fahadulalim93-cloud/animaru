@@ -636,22 +636,19 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
         )}
       </div>
 
-      {/* ═══ DESKTOP HERO — poster + title/pills/description, pulled up over the banner ═══ */}
-      <div className="hidden lg:block relative z-10 px-3 sm:px-4 -mt-[60px] sm:-mt-[90px]">
-        <div className="flex items-start gap-3 sm:gap-4">
-          {image && (
-            <div className="w-[130px] sm:w-[160px] md:w-[185px] aspect-[2/3] rounded-md overflow-hidden shrink-0 bg-white/10 shadow-2xl">
-              <img src={image} alt={displayTitle} className="w-full h-full object-cover" />
-            </div>
-          )}
+      {/* ═══ DESKTOP HERO — title/pills/description only, pulled up over the banner ═══ */}
+      {/* Poster removed from hero — it now sits in the sidebar below alongside metadata.
+          This fixes the back button (topbar) overlapping the poster card. */}
+      <div className="hidden lg:block relative z-10 px-4 sm:px-6 -mt-[60px] sm:-mt-[90px]">
+        <div className="flex items-start">
           <div className="flex flex-col justify-end flex-1 min-w-0 pt-3 sm:pt-6">
             {(anilistTitleNative || allanimeTitle) && (
-              <p className="text-white/50 pb-1 line-clamp-1 w-[60%]" style={{ fontFamily: GROTESK }}>
+              <p className="text-white/50 pb-1 line-clamp-1" style={{ fontFamily: GROTESK }}>
                 {anilistTitleNative || allanimeTitle}
               </p>
             )}
             <h1
-              className="font-karla text-2xl sm:text-3xl font-bold pb-3 bg-clip-text text-transparent"
+              className="font-karla text-3xl sm:text-4xl font-bold pb-3 bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
             >
               {displayTitle}
@@ -736,9 +733,13 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
         {/* ═══ TWO-COLUMN LAYOUT: sidebar + main ═══ */}
         <div className="flex w-full max-lg:flex-col gap-4 xl:gap-6 mt-10 px-4 sm:px-6">
 
-          {/* ═══ LEFT SIDEBAR — only render if image exists (prevents empty box) ═══ */}
+          {/* ═══ LEFT SIDEBAR — poster + metadata, only render if image exists ═══ */}
           {image && (
           <aside className="hidden lg:flex w-50 xl:w-60 2xl:w-64 flex-col gap-4 shrink-0">
+            {/* Poster image — moved here from hero to avoid overlapping topbar back button */}
+            <div className="w-full aspect-[2/3] rounded-md overflow-hidden shrink-0 bg-white/10 shadow-2xl">
+              <img src={image} alt={displayTitle} className="w-full h-full object-cover" />
+            </div>
             {/* Watch trailer button — always visible, film/play icon */}
             <button
               onClick={() => {
