@@ -1220,7 +1220,747 @@
     "servers": 4
   },
   "5140": {
-    "done": false,
+    "done": true,
     "servers": 4
+  },
+  "5125": {
+    "done": true,
+    "servers": 5
+  },
+  "5124": {
+    "done": true,
+    "servers": 5
+  },
+  "5123": {
+    "done": true,
+    "servers": 6
+  },
+  "5122": {
+    "done": true,
+    "servers": 6
+  },
+  "5108": {
+    "done": true,
+    "servers": 5
+  },
+  "5107": {
+    "done": true,
+    "servers": 4
+  },
+  "5082": {
+    "done": true,
+    "servers": 4
+  },
+  "5065": {
+    "done": true,
+    "servers": 5
+  },
+  "4990": {
+    "done": true,
+    "servers": 6
+  },
+  "4876": {
+    "done": true,
+    "servers": 5
+  },
+  "4869": {
+    "done": true,
+    "servers": 5
+  },
+  "4867": {
+    "done": true,
+    "servers": 4
+  },
+  "4812": {
+    "done": true,
+    "servers": 8
+  },
+  "4807": {
+    "done": true,
+    "servers": 4
+  },
+  "4752": {
+    "done": true,
+    "servers": 4
+  },
+  "4753": {
+    "done": true,
+    "servers": 4
+  },
+  "4751": {
+    "done": true,
+    "servers": 4
+  },
+  "4705": {
+    "done": true,
+    "servers": 6
+  },
+  "4647": {
+    "done": true,
+    "servers": 5
+  },
+  "3610": {
+    "done": true,
+    "servers": 5
+  },
+  "3609": {
+    "done": true,
+    "servers": 5
+  },
+  "4549": {
+    "done": true,
+    "servers": 5
+  },
+  "4480": {
+    "done": true,
+    "servers": 5
+  },
+  "4508": {
+    "done": true,
+    "servers": 6
+  },
+  "4479": {
+    "done": true,
+    "servers": 5
+  },
+  "4447": {
+    "done": true,
+    "servers": 6
+  },
+  "4376": {
+    "done": true,
+    "servers": 6
+  },
+  "4331": {
+    "done": true,
+    "servers": 5
+  },
+  "4298": {
+    "done": true,
+    "servers": 5
+  },
+  "4199": {
+    "done": true,
+    "servers": 6
+  },
+  "3608": {
+    "done": true,
+    "servers": 5
+  },
+  "4041": {
+    "done": true,
+    "servers": 6
+  },
+  "4033": {
+    "done": true,
+    "servers": 6
+  },
+  "3938": {
+    "done": true,
+    "servers": 5
+  },
+  "3918": {
+    "done": true,
+    "servers": 5
+  },
+  "3611": {
+    "done": true,
+    "servers": 6
+  },
+  "3843": {
+    "done": true,
+    "servers": 5
+  },
+  "3607": {
+    "done": true,
+    "servers": 5
+  },
+  "3747": {
+    "done": true,
+    "servers": 6
+  },
+  "3606": {
+    "done": true,
+    "servers": 5
+  },
+  "3702": {
+    "done": true,
+    "servers": 6
+  },
+  "3654": {
+    "done": true,
+    "servers": 6
+  },
+  "3605": {
+    "done": true,
+    "servers": 5
+  },
+  "3576": {
+    "done": true,
+    "servers": 5
+  },
+  "3561": {
+    "done": true,
+    "servers": 6
+  },
+  "3529": {
+    "done": true,
+    "servers": 6
+  },
+  "3528": {
+    "done": true,
+    "servers": 6
+  },
+  "3495": {
+    "done": true,
+    "servers": 6
+  },
+  "3412": {
+    "done": true,
+    "servers": 6
+  },
+  "3395": {
+    "done": true,
+    "servers": 5
+  },
+  "3397": {
+    "done": true,
+    "servers": 6
+  },
+  "3396": {
+    "done": true,
+    "servers": 6
+  },
+  "3379": {
+    "done": true,
+    "servers": 6
+  },
+  "3377": {
+    "done": true,
+    "servers": 6
+  },
+  "3362": {
+    "done": true,
+    "servers": 7
+  },
+  "3305": {
+    "done": true,
+    "servers": 5
+  },
+  "3258": {
+    "done": true,
+    "servers": 6
+  },
+  "3259": {
+    "done": true,
+    "servers": 6
+  },
+  "3189": {
+    "done": true,
+    "servers": 4
+  },
+  "3115": {
+    "done": true,
+    "servers": 7
+  },
+  "3074": {
+    "done": true,
+    "servers": 5
+  },
+  "3063": {
+    "done": true,
+    "servers": 6
+  },
+  "2939": {
+    "done": true,
+    "servers": 5
+  },
+  "2899": {
+    "done": true,
+    "servers": 7
+  },
+  "2879": {
+    "done": true,
+    "servers": 5
+  },
+  "2787": {
+    "done": true,
+    "servers": 5
+  },
+  "2786": {
+    "done": true,
+    "servers": 5
+  },
+  "2770": {
+    "done": true,
+    "servers": 6
+  },
+  "2734": {
+    "done": true,
+    "servers": 6
+  },
+  "2701": {
+    "done": true,
+    "servers": 5
+  },
+  "2651": {
+    "done": true,
+    "servers": 6
+  },
+  "2632": {
+    "done": true,
+    "servers": 5
+  },
+  "2255": {
+    "done": true,
+    "servers": 5
+  },
+  "2592": {
+    "done": true,
+    "servers": 5
+  },
+  "2499": {
+    "done": true,
+    "servers": 5
+  },
+  "2498": {
+    "done": true,
+    "servers": 5
+  },
+  "2451": {
+    "done": true,
+    "servers": 5
+  },
+  "2412": {
+    "done": true,
+    "servers": 5
+  },
+  "2369": {
+    "done": true,
+    "servers": 5
+  },
+  "2334": {
+    "done": true,
+    "servers": 5
+  },
+  "2256": {
+    "done": true,
+    "servers": 5
+  },
+  "2254": {
+    "done": true,
+    "servers": 9
+  },
+  "2164": {
+    "done": true,
+    "servers": 5
+  },
+  "2162": {
+    "done": true,
+    "servers": 5
+  },
+  "2161": {
+    "done": true,
+    "servers": 6
+  },
+  "2160": {
+    "done": true,
+    "servers": 6
+  },
+  "2159": {
+    "done": true,
+    "servers": 5
+  },
+  "2158": {
+    "done": true,
+    "servers": 5
+  },
+  "2157": {
+    "done": true,
+    "servers": 5
+  },
+  "2156": {
+    "done": true,
+    "servers": 6
+  },
+  "2155": {
+    "done": true,
+    "servers": 6
+  },
+  "2154": {
+    "done": true,
+    "servers": 5
+  },
+  "2153": {
+    "done": true,
+    "servers": 5
+  },
+  "2105": {
+    "done": true,
+    "servers": 6
+  },
+  "2036": {
+    "done": true,
+    "servers": 5
+  },
+  "2037": {
+    "done": true,
+    "servers": 5
+  },
+  "2006": {
+    "done": true,
+    "servers": 5
+  },
+  "1943": {
+    "done": true,
+    "servers": 5
+  },
+  "1942": {
+    "done": true,
+    "servers": 5
+  },
+  "1877": {
+    "done": true,
+    "servers": 5
+  },
+  "1879": {
+    "done": true,
+    "servers": 5
+  },
+  "1878": {
+    "done": true,
+    "servers": 5
+  },
+  "1880": {
+    "done": true,
+    "servers": 5
+  },
+  "1762": {
+    "done": true,
+    "servers": 5
+  },
+  "1761": {
+    "done": true,
+    "servers": 5
+  },
+  "1797": {
+    "done": true,
+    "servers": 7
+  },
+  "1760": {
+    "done": true,
+    "servers": 5
+  },
+  "1726": {
+    "done": true,
+    "servers": 5
+  },
+  "1656": {
+    "done": true,
+    "servers": 4
+  },
+  "1657": {
+    "done": true,
+    "servers": 5
+  },
+  "1569": {
+    "done": true,
+    "servers": 5
+  },
+  "1568": {
+    "done": true,
+    "servers": 5
+  },
+  "1567": {
+    "done": true,
+    "servers": 5
+  },
+  "1566": {
+    "done": true,
+    "servers": 5
+  },
+  "1524": {
+    "done": true,
+    "servers": 5
+  },
+  "1523": {
+    "done": true,
+    "servers": 5
+  },
+  "1351": {
+    "done": true,
+    "servers": 5
+  },
+  "1494": {
+    "done": true,
+    "servers": 5
+  },
+  "1481": {
+    "done": true,
+    "servers": 5
+  },
+  "1350": {
+    "done": true,
+    "servers": 5
+  },
+  "1407": {
+    "done": true,
+    "servers": 6
+  },
+  "1349": {
+    "done": true,
+    "servers": 5
+  },
+  "1348": {
+    "done": true,
+    "servers": 5
+  },
+  "1347": {
+    "done": true,
+    "servers": 5
+  },
+  "1308": {
+    "done": true,
+    "servers": 5
+  },
+  "1307": {
+    "done": true,
+    "servers": 5
+  },
+  "1268": {
+    "done": true,
+    "servers": 5
+  },
+  "1212": {
+    "done": true,
+    "servers": 5
+  },
+  "1211": {
+    "done": true,
+    "servers": 5
+  },
+  "1152": {
+    "done": true,
+    "servers": 5
+  },
+  "1172": {
+    "done": true,
+    "servers": 5
+  },
+  "1151": {
+    "done": true,
+    "servers": 5
+  },
+  "1072": {
+    "done": true,
+    "servers": 5
+  },
+  "1110": {
+    "done": true,
+    "servers": 5
+  },
+  "1098": {
+    "done": true,
+    "servers": 5
+  },
+  "1071": {
+    "done": true,
+    "servers": 5
+  },
+  "940": {
+    "done": true,
+    "servers": 2
+  },
+  "995": {
+    "done": true,
+    "servers": 5
+  },
+  "960": {
+    "done": true,
+    "servers": 8
+  },
+  "869": {
+    "done": true,
+    "servers": 5
+  },
+  "937": {
+    "done": true,
+    "servers": 5
+  },
+  "868": {
+    "done": true,
+    "servers": 5
+  },
+  "871": {
+    "done": true,
+    "servers": 4
+  },
+  "870": {
+    "done": true,
+    "servers": 5
+  },
+  "867": {
+    "done": true,
+    "servers": 5
+  },
+  "802": {
+    "done": true,
+    "servers": 4
+  },
+  "625": {
+    "done": true,
+    "servers": 5
+  },
+  "564": {
+    "done": true,
+    "servers": 4
+  },
+  "510": {
+    "done": true,
+    "servers": 5
+  },
+  "508": {
+    "done": true,
+    "servers": 5
+  },
+  "515": {
+    "done": true,
+    "servers": 5
+  },
+  "512": {
+    "done": true,
+    "servers": 4
+  },
+  "509": {
+    "done": true,
+    "servers": 4
+  },
+  "514": {
+    "done": true,
+    "servers": 4
+  },
+  "511": {
+    "done": true,
+    "servers": 8
+  },
+  "479": {
+    "done": true,
+    "servers": 5
+  },
+  "428": {
+    "done": true,
+    "servers": 5
+  },
+  "427": {
+    "done": true,
+    "servers": 5
+  },
+  "390": {
+    "done": true,
+    "servers": 5
+  },
+  "346": {
+    "done": true,
+    "servers": 5
+  },
+  "333": {
+    "done": true,
+    "servers": 5
+  },
+  "313": {
+    "done": true,
+    "servers": 5
+  },
+  "278": {
+    "done": true,
+    "servers": 5
+  },
+  "253": {
+    "done": true,
+    "servers": 4
+  },
+  "211": {
+    "done": true,
+    "servers": 5
+  },
+  "173": {
+    "done": true,
+    "servers": 5
+  },
+  "143": {
+    "done": true,
+    "servers": 5
+  },
+  "142": {
+    "done": true,
+    "servers": 4
+  },
+  "141": {
+    "done": true,
+    "servers": 4
+  },
+  "116": {
+    "done": true,
+    "servers": 5
+  },
+  "80": {
+    "done": true,
+    "servers": 4
+  },
+  "59": {
+    "done": true,
+    "servers": 5
+  },
+  "60": {
+    "done": true,
+    "servers": 5
+  },
+  "61": {
+    "done": true,
+    "servers": 5
+  },
+  "62": {
+    "done": true,
+    "servers": 5
+  },
+  "63": {
+    "done": true,
+    "servers": 5
+  },
+  "64": {
+    "done": true,
+    "servers": 5
+  },
+  "51": {
+    "done": true,
+    "servers": 5
+  },
+  "50": {
+    "done": true,
+    "servers": 5
+  },
+  "49": {
+    "done": true,
+    "servers": 4
+  },
+  "48": {
+    "done": true,
+    "servers": 4
+  },
+  "47": {
+    "done": true,
+    "servers": 5
+  },
+  "46": {
+    "done": true,
+    "servers": 5
+  },
+  "45": {
+    "done": true,
+    "servers": 5
+  },
+  "42": {
+    "done": true,
+    "servers": 5
   }
 }

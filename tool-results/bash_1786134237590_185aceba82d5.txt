@@ -1,0 +1,1516 @@
+Loading data from /home/z/my-project/scripts/../src/data/desidub-anime.json...
+Loaded 494 anime
+Loaded progress: 6 anime processed
+
+[6/494] Log Horizon (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[10/494] Hanaori-san wa Tensei shitemo Kenka ga Shitai (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[11/494] Batman: Caped Crusader - Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[12/494] Batman: Caped Crusader (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[13/494] [Oshi no Ko] 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[14/494] Nige Jouzu no Wakagimi 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[15/494] Avatar Aang: The Last Airbender (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[16/494] Kijin Gentoushou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[17/494] Dogulwang (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[18/494] Otome Game Sekai wa Mob ni Kibishii Sekai desu 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[19/494] Koko wa Ore ni Makasete Saki ni Ike to Itte kara 10-nen ga Tattara Densetsu ni Natteita. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[21/494] Tian Guan Ci Fu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[22/494] Yani Neko (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[23/494] Haikyuu!! Riku VS Kuu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[24/494] Kuroko no Basket (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[25/494] Captain Tsubasa - Season 2 Junior Youth Arc (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[26/494] Smoking Behind the Supermarket with You (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[27/494] Thunder 3 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[28/494] Clevatess II: Majuu no Ou to Itsuwari no Yuusha Denshou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[29/494] The Boxtrolls (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[30/494] A Magnificent Life (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[31/494] Nijusseiki Denki Mokuroku: Eureka Evrika (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[32/494] Gantz 2nd Stage (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[33/494] David (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[34/494] Ao no Hako (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[35/494] Mahoutsukai no Yome Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[36/494] Mahoutsukai no Yome (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[37/494] Nige Jouzu no Wakagimi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[38/494] Trigun Stampede (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[39/494] The Legend of Vox Machina - Season 3 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[40/494] Watari-kun no xx ga Houkai Sunzen (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[41/494] Tate no Yuusha no Nariagari Season 4 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[42/494] Tate no Yuusha no Nariagari Season 3 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[43/494] Isekai Nonbiri Nouka (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[44/494] Isekai Nonbiri Nouka 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[45/494] I Am Frankelda (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[46/494] The Legend of Vox Machina (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[47/494] The Legend of Vox Machina - Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[48/494] Boonie Bears: Time Twist (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[49/494] Oshi no Ko (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[50/494] Arifureta Shokugyou de Sekai Saikyou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[51/494] Gaikotsu Kishi-sama, Tadaima Isekai e Odekakechuu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[52/494] Re:Zero kara Hajimeru Isekai Seikatsu - Hyouketsu no Kizuna (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, Vmolydub, CLOUD)
+
+[53/494] Hoppers (2026) (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[54/494] Little Amélie or the Character of Rain (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[55/494] Yowayowa Sensei [Uncensored] (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[56/494] Tamon-kun Ima Docchi!? (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[57/494] Re:Zero kara Hajimeru Isekai Seikatsu - Memory Snow (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[58/494] The Legend of Vox Machina - Season 4 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[59/494] Ginga Tokkyuu Milky☆Subway (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+  [Saved progress]
+
+[60/494] Gantz (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[61/494] Doraemon Movie 41: Nobita no Little Star Wars (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[62/494] Gake no Ue no Ponyo (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, Vmolydub, CLOUD)
+
+[63/494] Mononoke Hime (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[64/494] Majo no Takkyuubin (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[65/494] Howl no Ugoku Shiro (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[66/494] Arifureta Shokugyou de Sekai Saikyou 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[67/494] Mob Psycho 100 II (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[68/494] Tonari no Totoro (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[69/494] The Super Mario Galaxy Movie (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[70/494] Fullmetal Alchemist (2003) (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[71/494] Dorohedoro Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[72/494] Grand Blue Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[73/494] Devil May Cry 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[74/494] Jigokuraku 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[75/494] Renai Boukun (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[76/494] Karna the Guardian (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[77/494] Hataraku Saibou Black (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[78/494] Hataraku Saibou!! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[79/494] Swapped (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[80/494] Mairimashita! Iruma-kun 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[81/494] Tsue to Tsurugi no Wistoria Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[82/494] Himekishi wa Barbaroi no Yome (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[83/494] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[84/494] Hidarikiki no Eren (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[85/494] Marriagetoxin (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[86/494] Liar Game (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[87/494] Stranger Things: Tales from 85 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[88/494] Sen to Chihiro no Kamikakushi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[89/494] Jishou Akuyaku Reijou na Konyakusha no Kansatsu Kiroku. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[90/494] Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[91/494] Tensei shitara Slime Datta Ken 4th Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[92/494] Dorohedoro (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[93/494] Hateshinaki Scarlet (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[94/494] Tongari Boushi no Atelier (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[95/494] High School DxD (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[96/494] Saikyou no Ousama, Nidome no Jinsei wa Nani wo Suru? Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[97/494] Jidou Hanbaiki ni Umarekawatta Ore wa Meikyuu wo Samayou 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[98/494] Shunkashuutou Daikousha: Haru no Mai (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[99/494] Dandelion (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[100/494] Banished From The Heros Party 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[101/494] Banished From The Heros Party (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[102/494] Kenka Dokugaku (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[103/494] Yaneura no Rudger (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[104/494] Natsu e no Tunnel, Sayonara no Deguchi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[105/494] Nippon Sangoku (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[106/494] Yomi no Tsugai (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[107/494] The Bad Guys: The Series Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[108/494] Snowball Earth (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[109/494] Grand Blue (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+  [Saved progress]
+
+[110/494] Koori no Jouheki (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[111/494] Xian Wang de Richang Shenghuo 4 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[112/494] Invincible - Season 4 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[113/494] GOAT (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[114/494] Tate no Yuusha no Nariagari Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[115/494] Fangkai Nage Nuwu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[116/494] Invincible - Season 3 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[117/494] Invincible - Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[118/494] Invincible (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[119/494] Tate no Yuusha no Nariagari (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[120/494] Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[121/494] Steel Ball Run: JoJo no Kimyou na Bouken (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[122/494] Ijiranaide, Nagatoro-san 2nd Attack (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[123/494] Ijiranaide, Nagatoro-san (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[124/494] ONE PIECE Live Action - Season 2 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[125/494] ONE PIECE Live Action (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[126/494] Captain Tsubasa (2018) (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[127/494] Noragami (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[128/494] Noragami Aragoto (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[129/494] Boku no Hero Academia: Final Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[130/494] Zootopia 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[131/494] Zootopia (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[132/494] Fullmetal Alchemist: Brotherhood (1 episodes)
+  Ep 1: 9 servers (Mirror (AT)dub, Streamp2p (AT)dub, Abyss (AT)dub, VMoly (AT)dub, Mirror (CR)dub, Streamp2p (CR)dub, Abyss (CR)dub, VMoly (CR)dub, CLOUD)
+
+[133/494] 5-toubun no Hanayome Movie (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[134/494] 5-toubun no Hanayome ∬ (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[135/494] 5-toubun no Hanayome (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[136/494] Kaoru Hana wa Rin to Saku (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[137/494] Yuusha no Kuzu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[138/494] 86 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[139/494] Gintama (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[140/494] Tonikaku Kawaii: Joshikou-hen (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[141/494] Tonikaku Kawaii 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[142/494] Tonikaku Kawaii (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[143/494] Hazurewaku no &#8220;Joutai Ijou Skill&#8221; de Saikyou ni Natta Ore ga Subete wo Juurin suru made (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[144/494] Tantei wa Mou, Shindeiru. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[145/494] Tsue to Tsurugi no Wistoria (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[146/494] Itai no wa Iya nanode Bougyoryoku ni Kyokufuri Shitai to Omoimasu. 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[147/494] Jigokuraku (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[148/494] Magi: The Kingdom of Magic (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[149/494] Magi: The Labyrinth of Magic (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[150/494] Tu Bian Yingxiong X (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[151/494] Kage no Jitsuryokusha ni Naritakute! 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[152/494] Kage no Jitsuryokusha ni Naritakute! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[153/494] Code Geass: Hangyaku no Lelouch R2 Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[154/494] Okiraku Ryoushu no Tanoshii Ryouchi Bouei: Seisankei Majutsu de Na mo Naki Mura wo Saikyou no Jousai Toshi ni (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[155/494] Komi-san wa, Comyushou desu. 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[156/494] Komi-san wa, Comyushou desu. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[157/494] Yuusha Party wo Oidasareta Kiyoubinbou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[158/494] Akame ga Kill! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[159/494] Cyberpunk: Edgerunners (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+  [Saved progress]
+
+[160/494] Tsuki ga Kirei (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[161/494] Baki-dou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[162/494] Hoshi wo Ou Kodomo (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[163/494] Kumo no Mukou, Yakusoku no Basho (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[164/494] Byousoku 5 Centimeter (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[165/494] Kotonoha no Niwa (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[166/494] Hoshi no Koe (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[167/494] Boku no Kokoro no Yabai Yatsu 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[168/494] Boku no Kokoro no Yabai Yatsu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[169/494] Kowloon Generic Romance (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[170/494] Zankyou no Terror (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[171/494] Tokyo Ghoul:re 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[172/494] Tensei shitara Slime Datta Ken 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[173/494] Tensei shitara Slime Datta Ken 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[174/494] Tensei shitara Slime Datta Ken (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[175/494] 100-man no Inochi no Ue ni Ore wa Tatteiru (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[176/494] 100-man no Inochi no Ue ni Ore wa Tatteiru 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[177/494] Isekai Shikkaku (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[178/494] Maougun Saikyou no Majutsushi wa Ningen datta (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[179/494] Kaijin Kaihatsu-bu no Kuroitsu-san (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[180/494] Yuri!!! on Ice (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[181/494] Tokyo Ghoul √A Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[182/494] Dr. Stone: Science Future (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[183/494] Jingai Kyoushitsu no Ningengirai Kyoushi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[184/494] Trigun Stargaze (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[185/494] Majutsushi Kunon wa Mieteiru (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[186/494] Vigilante: Boku no Hero Academia Illegals 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[187/494] Yuusha Party ni Kawaii Ko ga Ita node, Kokuhaku shitemita. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[188/494] 29-sai Dokushin Chuuken Boukensha no Nichijou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[189/494] Jujutsu Kaisen: Shimetsu Kaiyuu - Zenpen 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[190/494] &#8220;Omae Gotoki ga Maou ni Kateru to Omouna&#8221; to Yuusha Party wo Tsuihou sareta node, Outo de Kimama ni Kurashitai (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[191/494] Sousou no Frieren 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[192/494] MF Ghost (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[193/494] Bleach (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[194/494] Xian Wang de Richang Shenghuo 5 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[195/494] Dark Moon: Tsuki no Saidan (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[196/494] Seihantai na Kimi to Boku (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[197/494] Hanazakari no Kimitachi e (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[198/494] Yuusha-kei ni Shosu: Choubatsu Yuusha 9004-tai Keimu Kiroku (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[199/494] Kami no Tou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[200/494] Tokyo Ghoul (1 episodes)
+  Ep 1: 9 servers (Mirror (Cr Dub)dub, Streamp2p (Cr Dub)dub, Abyss (Cr Dub)dub, VMoly (Cr Dub)dub, Mirror (AT Dub)dub, Streamp2p (AT Dub)dub, Abyss (AT Dub)dub, VMoly (AT Dub)dub, CLOUD)
+
+[201/494] Doraemon Movie 40: Nobita no Shin Kyouryuu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[202/494] Crayon Shin-chan Movie 33: Chou Karei! Shakunetsu no Kasukabe Dancers (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[203/494] Buddy Daddies (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[204/494] Oshi ga Budoukan Ittekuretara Shinu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[205/494] Kimi no Na wa. (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[206/494] Tenki no Ko (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[207/494] Hataraku Saibou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[208/494] Itai no wa Iya nanode Bougyoryoku ni Kyokufuri Shitai to Omoimasu. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[209/494] Jijou wo Shiranai Tenkousei ga Guigui Kuru. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+  [Saved progress]
+
+[210/494] One Punch Man Season 3 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[211/494] Radiant 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[212/494] Chainsaw Man Movie: Reze-hen (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[213/494] Saijaku Tamer wa Gomi Hiroi no Tabi wo Hajimemashita. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[214/494] Radiant (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[215/494] Isekai Suicide Squad (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[216/494] Sozai Saishuka no Isekai Ryokouki (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[217/494] One Punch Man 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[218/494] Suzume no Tojimari (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[219/494] Shigatsu wa Kimi no Uso (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[220/494] Shokugeki no Souma: Gou no Sara (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[221/494] The Mighty Nein (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[222/494] The Bad Guys (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[223/494] In Your Dreams (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[224/494] Doraemon Movie 43: Nobita no Chikyuu Symphony (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, UpnSharedub, Abyssdub, CLOUD)
+
+[225/494] Shokugeki no Souma: Shin no Sara (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[226/494] The Bad Guys 2 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[227/494] The Bad Guys: Breaking In (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[228/494] Vigilante: Boku no Hero Academia Illegals (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[229/494] BAT-FAM (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[230/494] Tondemo Skill de Isekai Hourou Meshi 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[231/494] ReLIFE (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[232/494] Saikyou Onmyouji no Isekai Tenseiki (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[233/494] Hyouken no Majutsushi ga Sekai wo Suberu (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[234/494] Ragna Crimson (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[235/494] Fujimoto Tatsuki 17-26 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[236/494] Haikyuu!! To the Top (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[237/494] Jujutsu Kaisen 0 Movie (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[238/494] Kimi to Koete Koi ni Naru (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[239/494] Masamune-kun no Revenge R (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[240/494] Masamune-kun no Revenge (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[241/494] Re:Monster (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[242/494] Hikaru ga Shinda Natsu (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[243/494] Code Geass: Hangyaku no Lelouch (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[244/494] Hazbin Hotel 2nd Season (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[245/494] Hazbin Hotel (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[246/494] Shokugeki no Souma: San no Sara (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[247/494] Detective Conan (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[248/494] Kidou Senshi Gundam: Suisei no Majo (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[249/494] Senjou no Valkyria (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[250/494] Blue Lock vs. U-20 Japan (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[251/494] Blue Lock (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[252/494] Nezha Zhi Mo Tong Nao Hai (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[253/494] Nezha Zhi Mo Tong Jiang Shi (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[254/494] Kikaijikake no Marie (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[255/494] Toujima Tanzaburou wa Kamen Rider ni Naritai (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[256/494] Spy x Family Season 3 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[257/494] Shokugeki no Souma: Ni no Sara (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[258/494] Let's Play: Quest-darake no My Life (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[259/494] Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e 2nd Season (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+  [Saved progress]
+
+[260/494] Yasei no Last Boss ga Arawareta! (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[261/494] Heroine Tarumono! Kiraware Heroine to Naisho no Oshigoto (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[262/494] Splinter Cell: Deathwatch (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[263/494] Benriya Saitou-san, Isekai ni Iku (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[264/494] Black★★Rock Shooter: Dawn Fall (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[265/494] Dolls' Frontline (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[266/494] Crayon Shin-chan Gaiden: Omocha Wars (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[267/494] Crayon Shin-chan Gaiden: Alien vs. Shinnosuke (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[268/494] Ansatsusha de Aru Ore no Status ga Yuusha yori mo Akiraka ni Tsuyoi no da ga (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[269/494] Nageki no Bourei wa Intai shitai Season 2 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[270/494] Ranma ½ (2024) 2nd Season (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[271/494] Saigo ni Hitotsu dake Onegai shitemo Yoroshii deshou ka (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[272/494] Shokugeki no Souma (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[273/494] Takopii no Genzai (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[274/494] Shoot! Goal to the Future (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[275/494] Houkago Saikoro Club (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[276/494] Koukaku Kidoutai: Shin Movie (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[277/494] Robotics;Notes (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[278/494] Eiyuuou, Bu wo Kiwameru Tame Tenseisu: Soshite, Sekai Saikyou no Minarai Kishi♀ (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[279/494] Maou-sama, Retry! (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[280/494] Seija Musou: Salaryman, Isekai de Ikinokoru Tame ni Ayumu Michi (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[281/494] Ghost in the Shell: Arise - Border 5: Pyrophoric Cult Day 2 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[282/494] Ghost in the Shell: Arise - Border 5: Pyrophoric Cult Day 1 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[283/494] Kimetsu no Yaiba Movie: Mugen Jou-hen (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[284/494] Koukaku Kidoutai Arise: Ghost in the Shell - Border:4 Ghost Stands Alone (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[285/494] Koukaku Kidoutai Arise: Ghost in the Shell - Border:3 Ghost Tears (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[286/494] Koukaku Kidoutai Arise: Ghost in the Shell - Border:2 Ghost Whispers (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[287/494] Koukaku Kidoutai Arise: Ghost in the Shell - Border:1 Ghost Pain (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[288/494] Wolf King 2nd Season (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[289/494] Wolf King (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[290/494] Haikyuu!! Movie: Gomisuteba no Kessen (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[291/494] Kaminaki Sekai no Kamisama Katsudou (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[292/494] Nanatsu no Maken ga Shihai suru (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[293/494] Vinland Saga Season 2 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[294/494] Vinland Saga (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[295/494] Death Note (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[296/494] Akudama Drive (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[297/494] Isekai One Turn Kill Neesan: Ane Douhan no Isekai Seikatsu Hajimemashita (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[298/494] Tensei shitara Dainana Ouji Datta node, Kimama ni Majutsu wo Kiwamemasu 2nd Season (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[299/494] Baki: Dai Raitaisai-hen (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[300/494] Baki (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[301/494] Mononoke Movie: Dai-2 Shou - Hinezumi (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[302/494] Mononoke Movie: Karakasa (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[303/494] Summertime Render (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[304/494] Boku no Hero Academia the Movie 4: You're Next (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[305/494] Xian Wang de Richang Shenghuo 3 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[306/494] Tensei shitara Dainana Ouji Datta node, Kimama ni Majutsu wo Kiwamemasu (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[307/494] Dekin no Mogura (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[308/494] Xian Wang de Richang Shenghuo 2 (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[309/494] Xian Wang de Richang Shenghuo (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+  [Saved progress]
+
+[310/494] Tsuyokute New Saga (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, VidMolydub, Abyssdub, CLOUD)
+
+[311/494] Sono Bisque Doll wa Koi wo Suru Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, VidMolydub, Abyssdub, CLOUD)
+
+[312/494] Kakkou no Iinazuke Season 2 (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, VidMolydub, Abyssdub, CLOUD)
+
+[313/494] Kanojo, Okarishimasu 4th Season (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, VidMolydub, Abyssdub, CLOUD)
+
+[314/494] Jidou Hanbaiki ni Umarekawatta Ore wa Meikyuu wo Samayou 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, VidMolydub, Abyssdub, CLOUD)
+
+[315/494] Jidou Hanbaiki ni Umarekawatta Ore wa Meikyuu wo Samayou (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[316/494] Kaijuu 8-gou 2nd Season (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[317/494] Guimi Zhi Zhu: Xiaochou Pian (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, DropLoaddub, Abyssdub, CLOUD)
+
+[318/494] Gachiakuta (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, DropLoaddub, Abyssdub, CLOUD)
+
+[319/494] Dandadan 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, VidMolydub, Abyssdub, CLOUD)
+
+[320/494] Tsuihousha Shokudou e Youkoso! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, DropLoaddub, Abyssdub, CLOUD)
+
+[321/494] Blue Lock: Episode Nagi (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[322/494] Overlord IV (1 episodes)
+  Ep 1: 8 servers (Mirrordub, Streamp2pdub, Abyssdub, Mirror [2nd Dub]dub, Streamp2p [2nd Dub]dub, Abyss [2nd Dub]dub, VMoly [2nd Dub]dub, CLOUD)
+
+[323/494] Clevatess: Majuu no Ou to Akago to Shikabane no Yuusha (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[324/494] Mashle: Shinkakusha Kouho Senbatsu Shiken-hen (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Rubydub, CLOUD)
+
+[325/494] Mashle (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[326/494] Lookism (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[327/494] Fuguushoku &#8220;Kanteishi&#8221; ga Jitsu wa Saikyou Datta (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, DropLoaddub, Abyssdub, CLOUD)
+
+[328/494] Naruto Movie: Dai Katsugeki!! Yuki Hime Ninpouchou Dattebayo! (1 episodes)
+  Ep 1: 5 servers (VMolysub, Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[329/494] Boku no Hero Academia 6th Season (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[330/494] Boku no Hero Academia 5th Season (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[331/494] KPop Demon Hunters (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[332/494] Slime Taoshite 300-nen, Shiranai Uchi ni Level Max ni Nattemashita (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[333/494] Tsuki ga Michibiku Isekai Douchuu 2nd Season (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[334/494] Haikyuu!! Karasuno Koukou vs. Shiratorizawa Gakuen Koukou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[335/494] Dr. Stone: New World (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[336/494] Koukaku Kidoutai: Stand Alone Complex - Solid State Society (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[337/494] Koukaku Kidoutai: Stand Alone Complex 2nd GIG (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[338/494] SK∞ (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[339/494] Dr. Stone: Ryuusui (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[340/494] Boku no Hero Academia 4th Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[341/494] Shin Samurai-den Yaiba (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[342/494] Lost in Starlight (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[343/494] Koukaku Kidoutai: Stand Alone Complex (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[344/494] Slime Taoshite 300-nen, Shiranai Uchi ni Level Max ni Nattemashita: Sono Ni (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[345/494] Boku no Hero Academia 7th Season (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[346/494] Saikin Yatotta Maid ga Ayashii (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[347/494] Boku no Hero Academia 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[348/494] Paradox Live the Animation (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[349/494] Boku no Hero Academia 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[350/494] Crayon Shin-chan Movie 17: Otakebe! Kasukabe Yasei Oukoku (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[351/494] Crayon Shin-chan Movie 10: Arashi wo Yobu Appare! Sengoku Daikassen (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[352/494] Boku no Hero Academia (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[353/494] Level 1 dakedo Unique Skill de Saikyou desu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[354/494] Goblin Slayer (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[355/494] Crayon Shin-chan the Movie: Our Dinosaur Diary (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[356/494] Crayon Shin-chan Movie 09: Arashi wo Yobu Mouretsu! Otona Teikoku no Gyakushuu (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[357/494] Crayon Shin-chan: Explosion! The Hot Spring's Feel Good Final Battle (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[358/494] JoJo no Kimyou na Bouken: Stardust Crusaders (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[359/494] Kaguya-sama wa Kokurasetai: Tensai-tachi no Renai Zunousen (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+  [Saved progress]
+
+[360/494] Youkoso Jitsuryoku Shijou Shugi no Kyoushitsu e (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[361/494] Mob Psycho 100 (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[362/494] Doraemon Movie 42: Nobita to Sora no Utopia (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[363/494] Mars Express (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[364/494] Overlord III (1 episodes)
+  Ep 1: 7 servers (Mirrordub, Streamp2pdub, Abyssdub, Mirror [2nd Dub]dub, Streamp2p [2nd Dub]dub, Abyss [2nd Dub]dub, CLOUD)
+
+[365/494] Teogonia (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[366/494] Re:Zero kara Hajimeru Isekai Seikatsu (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[367/494] One Punch Man (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[368/494] A-Rank Party wo Ridatsu shita Ore wa, Moto Oshiego-tachi to Meikyuu Shinbu wo Mezasu. (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[369/494] Overlord II (1 episodes)
+  Ep 1: 7 servers (Mirrordub, Streamp2pdub, Abyssdub, Mirror [2nd Dub]dub, Streamp2p [2nd Dub]dub, Abyss [2nd Dub]dub, CLOUD)
+
+[370/494] Ballpark de Tsukamaete! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[371/494] Shingeki no Kyojin OVA (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[372/494] Nageki no Bourei wa Intai shitai (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[373/494] Overlord (1 episodes)
+  Ep 1: 7 servers (Mirrordub, Streamp2pdub, Abyssdub, Mirror [2nd Dub]dub, Streamp2p [2nd Dub]dub, Abyss [2nd Dub]dub, CLOUD)
+
+[374/494] Itou Junji: Collection (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[375/494] Tomo-chan wa Onnanoko! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[376/494] Yamada-kun to Lv999 no Koi wo Suru (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[377/494] Tensei Kizoku, Kantei Skill de Nariagaru 2nd Season (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[378/494] JoJo no Kimyou na Bouken (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[379/494] Kidou Senshi Gundam: GQuuuuuuX (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[380/494] Ore wa Subete wo &#8220;Parry&#8221; suru: Gyaku Kanchigai no Sekai Saikyou wa Boukensha ni Naritai (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[381/494] Kimi wa Meido-sama. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[382/494] Sousou no Frieren (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[383/494] Devil May Cry (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[384/494] Dr. Stone: Stone Wars (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[385/494] Dr. Stone (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[386/494] Rurouni Kenshin: Meiji Kenkaku Romantan (2023) (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[387/494] Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[388/494] Fairy Tail: 100-nen Quest (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[389/494] Katsute Mahou Shoujo to Aku wa Tekitai shiteita. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[390/494] Isekai de Cheat Skill wo Te ni Shita Ore wa, Genjitsu Sekai wo mo Musou Suru: Level Up wa Jinsei wo Kaeta (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[391/494] Zom 100: Zombie ni Naru made ni Shitai 100 no Koto (1 episodes)
+  Ep 1: 9 servers (Mirrordub, Streamp2pdub, Rubydub, Abyssdub, Mirror [2nd Dub]dub, Streamp2p [2nd Dub]dub, Abyss [2nd Dub]dub, VMoly [2nd Dub]dub, CLOUD)
+
+[392/494] Shiunji-ke no Kodomotachi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[393/494] Aru Majo ga Shinu Made (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[394/494] Kanchigai no Atelier Meister: Eiyuu Party no Moto Zatsuyougakari ga, Jitsu wa Sentou Igai ga SSS Rank Datta to Iu Yoku Aru Hanashi (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[395/494] Gorilla no Kami kara Kago sareta Reijou wa Ouritsu Kishidan de Kawaigarareru (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[396/494] Bye Bye, Earth 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[397/494] Bye Bye, Earth (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[398/494] Kuroshitsuji: Midori no Majo-hen (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[399/494] Wind Breaker Season 2 (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Streamp2pdub, Abyssdub, CLOUD)
+
+[400/494] Enen no Shouboutai: San no Shou (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, Streamp2pdub, PlayerXdub, Abyssdub, CLOUD)
+
+[401/494] Dead Mount Death Play (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[402/494] Ranma ½ (2024) (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[403/494] Shingeki no Kyojin: The Final Season (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Abyssdub, VidMolydub, CLOUD)
+
+[404/494] Enen no Shouboutai (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[405/494] Enen no Shouboutai: Ni no Shou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[406/494] Gimai Seikatsu (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Rubydub, Abyssdub, CLOUD)
+
+[407/494] Sword Art Online II (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[408/494] Sword Art Online (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[409/494] Wind Breaker (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+  [Saved progress]
+
+[410/494] Uchi no Kaisha no Chiisai Senpai no Hanashi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[411/494] Maou no Ore ga Dorei Elf wo Yome ni Shitanda ga, Dou Medereba Ii? (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[412/494] Hananoi-kun to Koi no Yamai (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[413/494] Haikyuu!! Second Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[414/494] Haikyuu!! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VidMolydub, CLOUD)
+
+[415/494] The God of High School (1 episodes)
+  Ep 1: 7 servers (Mirrordub, Rubydub, Abyssdub, Mirror [2nd Dub]dub, Streamp2p [2nd Dub]dub, Abyss [2nd Dub]dub, CLOUD)
+
+[416/494] Darling in the FranXX (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[417/494] One Piece Movie 02: Nejimaki-jima no Daibouken (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[418/494] Mairimashita! Iruma-kun (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Abyssdub, CLOUD)
+
+[419/494] Tondemo Skill de Isekai Hourou Meshi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[420/494] Kimetsu no Yaiba: Hashira Geiko-hen Season 4 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[421/494] Kimetsu no Yaiba: Katanakaji no Sato-hen Season 3 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Rubydub, Abyssdub, CLOUD)
+
+[422/494] Kimetsu no Yaiba: Yuukaku-hen Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[423/494] Kimetsu no Yaiba (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[424/494] Spy x Family Season 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[425/494] Spy x Family (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[426/494] Fuufu Ijou, Koibito Miman. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[427/494] Tsuki ga Michibiku Isekai Douchuu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[428/494] Tensei Kizoku, Kantei Skill de Nariagaru (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[429/494] Kakkou no Iinazuke (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[430/494] Shingeki no Kyojin Season 3 (1 episodes)
+  Ep 1: 6 servers (FileMoondub, Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[431/494] Kanojo, Okarishimasu 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[432/494] Kanojo, Okarishimasu 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[433/494] Kanojo, Okarishimasu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[434/494] Horimiya: Piece (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Rubydub, Abyssdub, CLOUD)
+
+[435/494] Horimiya (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Rubydub, Abyssdub, CLOUD)
+
+[436/494] Naruto: Shippuden (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Rubydub, Abyssdub, CLOUD)
+
+[437/494] Mushoku Tensei II: Isekai Ittara Honki Dasu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[438/494] Mushoku Tensei: Isekai Ittara Honki Dasu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[439/494] Otome Game Sekai wa Mob ni Kibishii Sekai desu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[440/494] Make Heroine ga Oosugiru! (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[441/494] Kanojo ga Koushaku-tei ni Itta Riyuu (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[442/494] Jujutsu Kaisen 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Rubydub, Abyssdub, CLOUD)
+
+[443/494] Sekai Saikou no Ansatsusha, Isekai Kizoku ni Tensei suru (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[444/494] The Glassworker (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[445/494] Jujutsu Kaisen (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[446/494] Castlevania: Nocturne (1 episodes)
+  Ep 1: 2 servers (PlayerXdub, Abyssdub)
+
+[447/494] Ao Ashi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[448/494] Shingeki no Kyojin Season 2 (1 episodes)
+  Ep 1: 8 servers (Mirror (Muse)dub, Streamp2p (Muse)dub, Abyss (Muse)dub, VMoly (Muse)dub, Mirrordub, Rubydub, Abyssdub, CLOUD)
+
+[449/494] Chainsaw Man (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Rubydub, Abyssdub, CLOUD)
+
+[450/494] Hunter x Hunter (2011) (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[451/494] Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[452/494] Sono Bisque Doll wa Koi wo Suru (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[453/494] Tokyo Revengers (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[454/494] Dosanko Gal wa Namara Menkoi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[455/494] The Witcher: Sirens of the Deep (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Abyssdub, CLOUD)
+
+[456/494] Re:Zero kara Hajimeru Isekai Seikatsu 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[457/494] Naruto (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Abyssdub, CLOUD)
+
+[458/494] Kaijuu 8-gou (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[459/494] Spy x Family Movie: Code: White (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+  [Saved progress]
+
+[460/494] Koe no Katachi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[461/494] Suki demo Kirai na Amanojaku (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Abyssdub, CLOUD)
+
+[462/494] Look Back (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Abyssdub, CLOUD)
+
+[463/494] Kimi no Suizou wo Tabetai (1 episodes)
+  Ep 1: 4 servers (Abyssdub, Streamp2pdub, Mirrordub, CLOUD)
+
+[464/494] Shingeki no Kyojin (1 episodes)
+  Ep 1: 8 servers (Mirror (Muse)dub, Streamp2p (Muse)dub, Abyss (Muse)dub, VMoly (Muse)dub, Mirrordub, Rubydub, Abyssdub, CLOUD)
+
+[465/494] Sentai Red Isekai de Boukensha ni Naru (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[466/494] Boushoku no Berserk (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[467/494] Tokidoki Bosotto Russia-go de Dereru Tonari no Alya-san (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[468/494] Jibaku Shounen Hanako-kun (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[469/494] Black Clover (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[470/494] Dandadan (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[471/494] Watashi no Shiawase na Kekkon (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[472/494] Ore dake Level Up na Ken (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Streamp2pdub, Abyssdub, VMolydub, CLOUD)
+
+[473/494] Kusuriya no Hitorigoto (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Rubydub, Abyssdub, CLOUD)
+
+[474/494] One Piece (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[475/494] Fairy Tail (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[476/494] Bleach: Sennen Kessen-hen - Soukoku-tan (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[477/494] Bleach: Sennen Kessen-hen - Ketsubetsu-tan (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Abyssdub, CLOUD)
+
+[478/494] Bleach: Sennen Kessen-hen (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Abyssdub, CLOUD)
+
+[479/494] Magic Maker: Isekai Mahou no Tsukurikata (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[480/494] Black Clover: Sword of the Wizard King (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Rubydub, CLOUD)
+
+[481/494] Ore dake Level Up na Ken Season 2: Arise from the Shadow (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Rubydub, PlayerXdub, Abyssdub, CLOUD)
+
+[482/494] Sakamoto Days (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Rubydub, PlayerXdub, Abyssdub, CLOUD)
+
+[483/494] Kusuriya no Hitorigoto 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[484/494] Watashi no Shiawase na Kekkon 2nd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[485/494] Class no Daikirai na Joshi to Kekkon suru Koto ni Natta. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, Rubydub, PlayerXdub, Abyssdub, CLOUD)
+
+[486/494] Izure Saikyou no Renkinjutsushi? (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[487/494] Rurouni Kenshin: Meiji Kenkaku Romantan - Kyoto Douran (1 episodes)
+  Ep 1: 5 servers (FileMoondub, Mirrordub, Rubydub, PlayerXdub, CLOUD)
+
+[488/494] Amagami-san Chi no Enmusubi (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[489/494] Dragon Ball Daima (1 episodes)
+  Ep 1: 4 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub)
+
+[490/494] Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season (1 episodes)
+  Ep 1: 4 servers (Mirrordub, Streamp2pdub, Abyssdub, CLOUD)
+
+[491/494] Re:Zero kara Hajimeru Isekai Seikatsu 3rd Season (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[492/494] Ameku Takao no Suiri Karte (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[493/494] Jibaku Shounen Hanako-kun 2 (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+[494/494] Zenshuu. (1 episodes)
+  Ep 1: 5 servers (Mirrordub, PlayerXdub, Rubydub, Abyssdub, CLOUD)
+
+Saving final data...
+
+============================================================
+COMPLETE!
+  Episodes scraped: 485
+  Total servers found: 2379
+  New servers added: 2379
+  Episodes with servers: 491/491
+  Data saved to: /home/z/my-project/scripts/../src/data/desidub-anime.json
+
+  Server distribution:
+    CLOUD: 489
+    Mirrordub: 488
+    Abyssdub: 486
+    Streamp2pdub: 417
+    VMolydub: 235
+    PlayerXdub: 120
+    Rubydub: 71
+    FileMoondub: 43
+    VidMolydub: 8
+    Mirror [2nd Dub]dub: 6
+    Streamp2p [2nd Dub]dub: 6
+    Abyss [2nd Dub]dub: 6
+    DropLoaddub: 4
+    Vmolydub: 2
+    VMoly [2nd Dub]dub: 2
+    Mirror (Muse)dub: 2
+    Streamp2p (Muse)dub: 2
+    Abyss (Muse)dub: 2
+    VMoly (Muse)dub: 2
+    Mirror (AT)dub: 1
+    Streamp2p (AT)dub: 1
+    Abyss (AT)dub: 1
+    VMoly (AT)dub: 1
+    Mirror (CR)dub: 1
+    Streamp2p (CR)dub: 1
+    Abyss (CR)dub: 1
+    VMoly (CR)dub: 1
+    Mirror (Cr Dub)dub: 1
+    Streamp2p (Cr Dub)dub: 1
+    Abyss (Cr Dub)dub: 1
+    VMoly (Cr Dub)dub: 1
+    Mirror (AT Dub)dub: 1
+    Streamp2p (AT Dub)dub: 1
+    Abyss (AT Dub)dub: 1
+    VMoly (AT Dub)dub: 1
+    UpnSharedub: 1
+    VMolysub: 1
