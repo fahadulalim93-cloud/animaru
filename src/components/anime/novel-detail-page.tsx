@@ -180,7 +180,7 @@ export default function NovelDetailPage({ novelId, novelTitle, novelCover }: Nov
       </div>
 
       {/* ═══ DESCRIPTION + CHAPTERS ═══ */}
-      <div className="max-w-4xl mx-auto px-4 mt-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 mt-6 space-y-6">
         {/* Synopsis */}
         {novel.description && (
           <section className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
