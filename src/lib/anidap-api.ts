@@ -100,14 +100,14 @@ export const ANIDAP_DUB_PROVIDERS: AniDapProvider[] = [
 export const ANIDAP_PROVIDER_META: Record<AniDapProvider, {
   name: string; hardsub: boolean; dub: boolean; sub: boolean; tip: string;
 }> = {
-  beep: { name: "B1",  hardsub: false, sub: true,  dub: false, tip: "Soft sub, Fast" },
-  mimi: { name: "B2",  hardsub: false, sub: true,  dub: true,  tip: "Soft sub, Fastest, High quality" },
-  yuki: { name: "B3",  hardsub: false, sub: true,  dub: true,  tip: "Soft sub, Good, Multi quality" },
-  loli: { name: "B4",  hardsub: true,  sub: true,  dub: false, tip: "Hard sub, Fast" },
-  vee:  { name: "B5",   hardsub: false, sub: true,  dub: false, tip: "Soft sub, Fast" },
-  uwu:  { name: "B6",   hardsub: true,  sub: true,  dub: true,  tip: "Hard sub, Fast, High quality (disabled — CF block)" },
-  kiwi: { name: "B7",  hardsub: true,  sub: true,  dub: true,  tip: "Hard sub, Fast, High quality" },
-  sora: { name: "B8",  hardsub: false, sub: true,  dub: true,  tip: "Soft sub, Fast, High quality" },
+  beep: { name: "Smoker",  hardsub: false, sub: true,  dub: false, tip: "Soft sub, Fast" },
+  mimi: { name: "Tashigi", hardsub: false, sub: true,  dub: true,  tip: "Soft sub, Fastest, High quality" },
+  yuki: { name: "Coby",    hardsub: false, sub: true,  dub: true,  tip: "Soft sub, Good, Multi quality" },
+  loli: { name: "Aokiji",  hardsub: true,  sub: true,  dub: false, tip: "Hard sub, Fast" },
+  vee:  { name: "Kizaru",  hardsub: false, sub: true,  dub: false, tip: "Soft sub, Fast" },
+  uwu:  { name: "Akainu",  hardsub: true,  sub: true,  dub: true,  tip: "Hard sub, Fast, High quality (disabled — CF block)" },
+  kiwi: { name: "Fujitora",hardsub: true,  sub: true,  dub: true,  tip: "Hard sub, Fast, High quality" },
+  sora: { name: "Sengoku", hardsub: false, sub: true,  dub: true,  tip: "Soft sub, Fast, High quality" },
 };
 
 // ─── Types ──────────────────────────────────────────────────────────────────

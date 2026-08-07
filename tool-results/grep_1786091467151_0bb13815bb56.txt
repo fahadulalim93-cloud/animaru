@@ -1,0 +1,210 @@
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:81: * (fetchRawEpisodes, the animex slug->servers chain, the AniVault fetches,
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:122:   * to filter servers when the user picks "Hard Sub" vs "Soft Sub".
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:178:  // AnixTV can't find the anime and returns no iframe → no hindi servers.
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:321:    wantSlow ? withTimeout<any>(fetch(`${ANIVAULT_API}/${id}/${epNum}/sub?server=AnimeHeaven`).then(r => r.ok ? r.json() : null).catch(() => null), SLOW_CAP, null) : Promise.resolve(null),
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:322:    wantSlow ? withTimeout<any>(fetch(`${ANIVAULT_API}/${id}/${epNum}/dub?server=AnimeHeaven`).then(r => r.ok ? r.json() : null).catch(() => null), SLOW_CAP, null) : Promise.resolve(null),
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:389:  // Only add 1 server (sub) to keep verification fast — dub is rarely used
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:417:        // Mark hardsub servers — from AniDap's metadata
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:584:        name: `NF-1 ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:609:  // Each anime has 2 servers (Abyss + StreamTape) per episode, all Hindi dub.
+/home/z/my-project/src/app/api/anime/servers/[anilistId]/[episode]/route.ts:635:        name: `NB-1 ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
+/home/z/my-project/src/app/api/anime/anichi-servers/[anilistId]/[episode]/route.ts:73:        id: `anichi:${urlKey}:${r.serverName.toLowerCase().replace(/\s/g, "")}:${r.type}${r.hardsub ? ":hsub" : ""}`,
+/home/z/my-project/src/app/api/anime/anichi-servers/[anilistId]/[episode]/route.ts:74:        name: `AniKoto ${r.serverName}${r.type === "dub" ? " (Dub)" : r.hardsub ? " (HS)" : ""}`,
+/home/z/my-project/src/app/api/anime/animostream-hindi/[anilistId]/[episode]/route.ts:12: * The Hindi fallback used to live inside /api/anime/servers alongside 16 other
+/home/z/my-project/src/app/api/anime/animostream-hindi/[anilistId]/[episode]/route.ts:138:          name: `AnimoStream ${r.serverName} (Hindi Dub)`,
+/home/z/my-project/src/app/api/animex/servers/route.ts:39:    const subIds = servers.subProviders.map((p) => p.id);
+/home/z/my-project/src/app/api/animex/servers/route.ts:40:    const dubIds = servers.dubProviders.map((p) => p.id);
+/home/z/my-project/src/app/api/animex/servers/route.ts:46:      subProviders: servers.subProviders,
+/home/z/my-project/src/app/api/animex/servers/route.ts:47:      dubProviders: servers.dubProviders,
+/home/z/my-project/src/app/api/anime/anivexa-direct/[anilistId]/[episode]/route.ts:135:      // Response: { ssub: { streams: [{ url, type, referer, server, default }] } }
+/home/z/my-project/src/app/api/anime/animex-servers/[anilistId]/[episode]/route.ts:11: * Dynamically fetches the actual sub/dub provider list from /servers endpoint
+/home/z/my-project/src/app/api/anime/animex-servers/[anilistId]/[episode]/route.ts:105:    const subProviderIds: string[] = (serversList.subProviders || []).map((p: any) => p.id);
+/home/z/my-project/src/app/api/anime/animex-servers/[anilistId]/[episode]/route.ts:106:    const dubProviderIds: string[] = (serversList.dubProviders || []).map((p: any) => p.id);
+/home/z/my-project/src/app/api/anime/animex-servers/[anilistId]/[episode]/route.ts:212:    console.log(`[Animex-Servers] ${filteredServers.length}/${jobs.length} servers for anilistId=${id} ep${epNum} (sub:${subProviders.length} dub:${dubProviders.length})`);
+/home/z/my-project/src/app/api/anime/animex-debug/route.ts:31:      subCount: servers.subProviders?.length,
+/home/z/my-project/src/app/api/anime/animex-debug/route.ts:32:      dubCount: servers.dubProviders?.length,
+/home/z/my-project/src/app/api/anime/animex-debug/route.ts:33:      subProviders: servers.subProviders?.map(p => p.id),
+/home/z/my-project/src/app/api/anime/animex-debug/route.ts:34:      dubProviders: servers.dubProviders?.map(p => p.id),
+/home/z/my-project/src/app/api/anime/hindi-streams/[id]/[episode]/route.ts:55:          name: `AnimoStream ${r.serverName} (Hindi Dub)`,
+/home/z/my-project/src/app/api/anime/animegg-servers/[slug]/[episode]/route.ts:9: * GET /api/anime/animegg-servers/[slug]/[episode]?type=sub|dub
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:238:          if (m.sub?.m3u8Url) servers.push({ id: "animex:mimi:sub", name: "NX-2", source: "animex", provider: "mimi", type: "sub", quality: m.sub.quality || "1080p", streamUrl: wrapM3u8Url(m.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0, subtitleTracks: wrapSubs(m.sub.tracks), intro: m.sub.intro || null, outro: m.sub.outro || null });
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:239:          if (m.dub?.m3u8Url) servers.push({ id: "animex:mimi:dub", name: "NX-2 Dub", source: "animex", provider: "mimi", type: "dub", quality: m.dub.quality || "1080p", streamUrl: wrapM3u8Url(m.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0.5, subtitleTracks: wrapSubs(m.dub.tracks), intro: m.dub.intro || null, outro: m.dub.outro || null });
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:247:          if (r.sub?.m3u8Url) servers.push({ id: "anidb:sub", name: "L4", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: wrapM3u8Url(r.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2 });
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:248:          else if (r.sub?.embedUrl) servers.push({ id: "anidb:sub", name: "L4", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: r.sub.embedUrl, isM3U8: false, isMP4: false, isEmbed: true, hardsub: false, priority: 2 });
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:249:          if (r.dub?.m3u8Url) servers.push({ id: "anidb:dub", name: "L4 Dub", source: "anidb", provider: "anidb", type: "dub", quality: "1080p", streamUrl: wrapM3u8Url(r.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2.5 });
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:250:          else if (r.dub?.embedUrl) servers.push({ id: "anidb:dub", name: "L4 Dub", source: "anidb", provider: "anidb", type: "dub", quality: "1080p", streamUrl: r.dub.embedUrl, isM3U8: false, isMP4: false, isEmbed: true, hardsub: false, priority: 2.5 });
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:258:          if (kr?.length) { let p = 3; let krIdx = 0; for (const r of kr) servers.push({ id: `kyren:${r.server}:${r.type}`, name: `NK-${krIdx+1}${r.type === "dub" ? " (Dub)" : ""}`, source: "kyren", provider: r.server, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://kyren.moe/") }); krIdx++; }
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:303:          if (pm?.length) { let p = 5; let pmIdx = 0; for (const r of pm) { if (!r.streamUrl) continue; servers.push({ id: `anipm:${r.provider}:${r.type}`, name: `NP-${pmIdx+1}${r.type === "dub" ? " (Dub)" : ""}`, source: "anipm" as any, provider: r.provider, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: r.isEmbed, hardsub: r.hardsub, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://ani.pm/") }); pmIdx++; } }
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:311:          if (s?.m3u8Url) servers.push({ id: "senshi:sub", name: "NS-1", source: "senshi", provider: "senshi", type: "sub", quality: "1080p", streamUrl: wrapM3u8UrlWithReferer(s.m3u8Url, "https://senshi.live/"), isM3U8: true, isMP4: false, isEmbed: false, hardsub: s.status === "HardSub", priority: 6, intro: s.intro, outro: s.outro });
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:319:          al.filter((r: any) => r.type === "sub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:sub:${i}`, name: `NL-${i+1}`.trim(), source: "anilight", provider: "anilight", type: "sub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:320:          al.filter((r: any) => r.type === "dub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:dub:${i}`, name: `NL-${i+4} Dub`.trim(), source: "anilight", provider: "anilight", type: "dub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9.5 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:335:          const akServers = [...(ak.sub?.servers || []), ...(ak.dub?.servers || [])];
+/home/z/my-project/src/app/api/anime/instant-servers/[anilistId]/[episode]/route.ts:339:            servers.push({ id: `anikage:${srv.provider}:${p}`, name: `NK-${p-14+5}`, source: "anikage", provider: srv.provider, type: srv.type, quality: srv.quality, streamUrl: isNin ? wrapM3u8UrlWithReferer(srv.m3u8Url, "https://senshi.live/") : wrapM3u8Url(srv.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: p++, intro: ak.intro, outro: ak.outro });
+/home/z/my-project/src/app/api/anime/animostream-servers/[postId]/[episode]/route.ts:42:        name: `AnimoStream ${r.serverName} (Hindi Dub)`,
+/home/z/my-project/src/app/api/anime/animo4-servers/[anilistId]/[episode]/route.ts:9: * GET /api/anime/animo4-servers/[anilistId]/[episode]?slug=...&type=sub|dub
+/home/z/my-project/src/app/api/anime/animo4-servers/[anilistId]/[episode]/route.ts:57:        name: `4animo ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
+/home/z/my-project/src/app/api/anime/anineko-to-servers/[anilistId]/[episode]/route.ts:71:        name: `AniNeko ${r.serverName}${r.type === "dub" ? " (Dub)" : r.hardsub ? " (HS)" : ""}`,
+/home/z/my-project/src/app/api/anime/miruro-v3/servers/[anilistId]/[episode]/route.ts:9: * GET /api/anime/miruro-v3/servers/[anilistId]/[episode]?sub=1&dub=1
+/home/z/my-project/src/app/api/anime/miruro-v3/servers/[anilistId]/[episode]/route.ts:20: *   - Dub servers are tagged with "(Dub)" in the name
+/home/z/my-project/src/app/api/anime/miruro-v3/servers/[anilistId]/[episode]/route.ts:66:      `(sub=${servers.filter(s => s.type === "sub").length} ` +
+/home/z/my-project/src/app/api/anime/miruro-v3/servers/[anilistId]/[episode]/route.ts:67:      `dub=${servers.filter(s => s.type === "dub").length})`,
+/home/z/my-project/src/app/[[...slug]]/page.tsx:185:    description: "Watch anime episodes free in HD on LuffyTV. Multiple servers, Tamil/Hindi/Telugu/Bengali dub & English sub. No signup required.",
+/home/z/my-project/src/app/[[...slug]]/page.tsx:438:        description = `Watch ${animeTitle}${episode ? ` Episode ${episode}` : ""} free in HD on LuffyTV. Tamil, Hindi, Telugu, Bengali dub & English sub. Multiple servers, no signup required.`;
+/home/z/my-project/src/app/[[...slug]]/page.tsx:454:        description = `Watch anime free in HD on LuffyTV. Multiple servers, Tamil/Hindi/Telugu/Bengali dub & English sub. No signup required.`;
+/home/z/my-project/src/app/api/tatakai/route.ts:140:        const sources = await tatakaiHindiDubbedStream(url, server);
+/home/z/my-project/src/components/anime/anime-detail.tsx:208:            // for all subsequent API calls (episodes, servers, franchise, etc.)
+/home/z/my-project/src/components/anime/watch-page-shell.tsx:209:      // Hindi tab: ALL AnixTV servers + AnimoStream + WatchAnimeWorld
+/home/z/my-project/src/components/anime/watch-page-shell.tsx:217:      // Hardsub tab: true hardsub servers + 4animo (user wants 4animo here too)
+/home/z/my-project/src/components/anime/watch-page-shell.tsx:220:    // Sub tab: soft sub servers — exclude Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld)
+/home/z/my-project/src/components/anime/dub-watch-page.tsx:32:interface DubStreamServer {
+/home/z/my-project/src/components/anime/dub-watch-page.tsx:66:  const [servers, setServers] = useState<DubStreamServer[]>([]);
+/home/z/my-project/src/components/anime/dub-watch-page.tsx:258:        // Convert TatakaiAPI sources to DubStreamServer format
+/home/z/my-project/src/components/anime/dub-watch-page.tsx:259:        const tatakaiSources: DubStreamServer[] = data.data.map((src: any, idx: number) => {
+/home/z/my-project/src/components/anime/watch-page.tsx:390:   * "sub" and "hardsub" both map to type="sub" servers (just filtered by
+/home/z/my-project/src/components/anime/watch-page.tsx:391:   * the `hardsub` flag on each server).
+/home/z/my-project/src/components/anime/watch-page.tsx:631:        // then any anixtv server (TryEmbed etc. with hindi dub via audio track)
+/home/z/my-project/src/components/anime/watch-page.tsx:632:        best = serverList.find(s => s.source === "anixtv" && s.provider === "hindi_1")
+/home/z/my-project/src/components/anime/watch-page.tsx:636:        // Dub: find dub server (not anixtv hindi_1, not animostream which is Hindi-only)
+/home/z/my-project/src/components/anime/watch-page.tsx:637:        best = serverList.find(s => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:638:            || serverList.find(s => s.type === "dub");
+/home/z/my-project/src/components/anime/watch-page.tsx:640:        // Hardsub: prefer 4animo, then true hardsub servers
+/home/z/my-project/src/components/anime/watch-page.tsx:641:        best = serverList.find(s => s.source === "animo4" && s.type === "sub")
+/home/z/my-project/src/components/anime/watch-page.tsx:642:            || serverList.find(s => s.type === "sub" && s.hardsub === true)
+/home/z/my-project/src/components/anime/watch-page.tsx:643:            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:644:            || serverList.find(s => s.type === "sub");
+/home/z/my-project/src/components/anime/watch-page.tsx:646:        // Sub (default): find softsub server, prefer mimi.
+/home/z/my-project/src/components/anime/watch-page.tsx:648:        best = serverList.find(s => s.id === "animex:mimi:sub")
+/home/z/my-project/src/components/anime/watch-page.tsx:649:            || serverList.find(s => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:650:            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:651:            || serverList.find(s => s.type === "sub");
+/home/z/my-project/src/components/anime/watch-page.tsx:1075:    // Fetch AniKoto servers (direct m3u8 + subtitles + skip times)
+/home/z/my-project/src/components/anime/watch-page.tsx:1089:    // Fetch AniNeko.to servers (direct m3u8 + soft sub subtitles)
+/home/z/my-project/src/components/anime/watch-page.tsx:1104:          const subServer = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
+/home/z/my-project/src/components/anime/watch-page.tsx:1105:          if (subServer) {
+/home/z/my-project/src/components/anime/watch-page.tsx:1107:            console.log(`[WatchPage] AniNeko auto-selected (PRIMARY): ${subServer.id}`);
+/home/z/my-project/src/components/anime/watch-page.tsx:1108:            return subServer.id;
+/home/z/my-project/src/components/anime/watch-page.tsx:1133:          console.log(`[WatchPage] AnixTV Hindi: added ${newServers.length} server(s), season ${data.season}`);
+/home/z/my-project/src/components/anime/watch-page.tsx:1149:          console.log(`[WatchPage] AnimoStream Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
+/home/z/my-project/src/components/anime/watch-page.tsx:1165:          console.log(`[WatchPage] WatchAnimeWorld Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
+/home/z/my-project/src/components/anime/watch-page.tsx:1242:            // 2. Fallback: any non-embed sub server
+/home/z/my-project/src/components/anime/watch-page.tsx:1243:            const firstSub = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
+/home/z/my-project/src/components/anime/watch-page.tsx:1244:            const pick = anineko || firstSub || data.servers[0];
+/home/z/my-project/src/components/anime/watch-page.tsx:1256:    fetchServers(`/api/anime/miruro-v3/servers/${anilistId}/${episodeNum}?sub=1&dub=1`, 10000)
+/home/z/my-project/src/components/anime/watch-page.tsx:1264:          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+/home/z/my-project/src/components/anime/watch-page.tsx:1265:          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+/home/z/my-project/src/components/anime/watch-page.tsx:1283:          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+/home/z/my-project/src/components/anime/watch-page.tsx:1284:          setHardsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4")));
+/home/z/my-project/src/components/anime/watch-page.tsx:1285:          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+/home/z/my-project/src/components/anime/watch-page.tsx:1313:          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1314:          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
+/home/z/my-project/src/components/anime/watch-page.tsx:1315:          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1316:          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1335:            firstMatch = data.servers.find((s: ServerEntry) => s.source === "anixtv" && s.provider === "hindi_1")
+/home/z/my-project/src/components/anime/watch-page.tsx:1339:            firstMatch = data.servers.find((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1341:            // Hardsub: prefer 4animo, then true hardsub servers
+/home/z/my-project/src/components/anime/watch-page.tsx:1342:            firstMatch = data.servers.find((s: ServerEntry) => s.source === "animo4" && s.type === "sub")
+/home/z/my-project/src/components/anime/watch-page.tsx:1343:              || data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub === true);
+/home/z/my-project/src/components/anime/watch-page.tsx:1347:            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:1348:                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:1349:                      || data.servers.find((s: ServerEntry) => s.type === "sub");
+/home/z/my-project/src/components/anime/watch-page.tsx:1356:            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:1357:                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+/home/z/my-project/src/components/anime/watch-page.tsx:1358:                      || data.servers.find((s: ServerEntry) => s.type === "sub")
+/home/z/my-project/src/components/anime/watch-page.tsx:1359:                      || data.servers.find((s: ServerEntry) => s.type === "dub")
+/home/z/my-project/src/components/anime/watch-page.tsx:1396:          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1397:          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
+/home/z/my-project/src/components/anime/watch-page.tsx:1398:          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1399:          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1420:          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1421:          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
+/home/z/my-project/src/components/anime/watch-page.tsx:1422:          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1439:          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+/home/z/my-project/src/components/anime/watch-page.tsx:1543:    // Hindi embed servers (AnixTV, AnimoStream) use /api/embed/proxy which:
+/home/z/my-project/src/components/anime/watch-page.tsx:1556:    const isHindiEmbedSource = (server as any).source === "anixtv" || (server as any).source === "animostream" || (server as any).source === "watchanimeworld";
+/home/z/my-project/src/components/anime/watch-page.tsx:1590:    const subtitleTracks = (server as ServerEntry).subtitleTracks || [];
+/home/z/my-project/src/components/anime/watch-page.tsx:1617:    console.log(`[WatchPage] Playing via ${server.source}:${server.provider} (${quality}) — subs=${subtitleTracks.length} intro=${intro ? `${intro.start}-${intro.end}` : "no"} outro=${outro ? `${outro.start}-${outro.end}` : "no"}`);
+/home/z/my-project/src/lib/anikage-api.ts:18: *      → { data: { sources: [{ streamUrl, quality, isM3U8 }], embeds: [{ url, type, server }], subtitles: [...] } }
+/home/z/my-project/src/lib/anikage-api.ts:129:  // Fetch streams for each server in parallel (both sub + dub)
+/home/z/my-project/src/lib/anikage-api.ts:130:  const jobs: Array<{ server: string; lang: "sub" | "dub" }> = [];
+/home/z/my-project/src/lib/anikage-api.ts:132:    jobs.push({ server: s, lang: "sub" });
+/home/z/my-project/src/lib/anikage-api.ts:133:    jobs.push({ server: s, lang: "dub" });
+/home/z/my-project/src/lib/anilight-api.ts:405:  /** WebVTT subtitle tracks (only for soft sub servers like misa/rem) */
+/home/z/my-project/src/lib/anilight-api.ts:509:    const jobs: Array<{ server: string; type: "sub" | "dub" }> = [];
+/home/z/my-project/src/lib/anilight-api.ts:511:      for (const p of (watchData.servers?.subProviders || [])) {
+/home/z/my-project/src/lib/anilight-api.ts:512:        jobs.push({ server: p.id, type: "sub" });
+/home/z/my-project/src/lib/anilight-api.ts:516:      for (const p of (watchData.servers?.dubProviders || [])) {
+/home/z/my-project/src/lib/anilight-api.ts:517:        jobs.push({ server: p.id, type: "dub" });
+/home/z/my-project/src/lib/anilight-api.ts:535:        // Determine hardsub: servers with VTT tracks are soft sub
+/home/z/my-project/src/lib/anichi-direct.ts:8: *       Each episode <a> has: data-id, data-num, data-slug, data-mal, data-timestamp, data-sub, data-dub, data-ids (base64 server list)
+/home/z/my-project/src/lib/anichi-direct.ts:11: *       Servers are grouped by type: sub / hsub / dub
+/home/z/my-project/src/lib/anichi-direct.ts:16: *   - "sub" servers → soft sub embed (vidtube.site)
+/home/z/my-project/src/lib/anichi-direct.ts:17: *   - "hsub" servers → hard sub embed (same CDNs)
+/home/z/my-project/src/lib/anichi-direct.ts:18: *   - "dub" servers → English dub embed
+/home/z/my-project/src/lib/anichi-direct.ts:240:    // Servers are in <div class="type" data-type="sub|hsub|dub"><ul><li data-ep-id data-sv-id data-link-id>Name</li></ul></div>
+/home/z/my-project/src/lib/anichi-direct.ts:417: * Returns one result per server (sub/hsub/dub).
+/home/z/my-project/src/lib/anichi-direct.ts:448:    const serversToFetch = servers.slice(0, 6); // VidPlay-1, HD-1, Vidstream-2, VidCloud-1 + hsub + dub
+/home/z/my-project/src/lib/anichi-direct.ts:452:      const type: "sub" | "dub" = server.type === "dub" ? "dub" : "sub";
+/home/z/my-project/src/lib/anichi-direct.ts:453:      const hardsub = server.type === "hsub";
+/home/z/my-project/src/lib/kyren-api.ts:22: *      GET https://kyren.moe/api/stream/{anilistId}/{epNum}?lang={sub|dub}&title={slug}&server={server}
+/home/z/my-project/src/lib/kyren-api.ts:276:  //   /api/stream/{anilistId}/{epNum}?lang={sub|dub}&title={slug-without-id-prefix}&server={server}
+/home/z/my-project/src/lib/kyren-api.ts:338:  const jobs: Array<{ server: KyrenServer; type: "sub" | "dub" }> = [];
+/home/z/my-project/src/lib/kyren-api.ts:340:    for (const server of KYREN_HLS_SERVERS) jobs.push({ server, type: "sub" });
+/home/z/my-project/src/lib/kyren-api.ts:343:    for (const server of KYREN_HLS_SERVERS) jobs.push({ server, type: "dub" });
+/home/z/my-project/src/lib/unified-scraper.ts:321:    const subProviders = servers.subProviders.map((p) => p.id);
+/home/z/my-project/src/lib/unified-scraper.ts:322:    const dubProviders = servers.dubProviders.map((p) => p.id);
+/home/z/my-project/src/lib/aniwaves-api.ts:35:function serverType(raw: string): "sub" | "dub" {
+/home/z/my-project/src/lib/aniwaves-api.ts:164:    const type = serverType(rawType);
+/home/z/my-project/src/lib/aniwaves-api.ts:245:      if (!wantSub && server.type === "sub") return null;
+/home/z/my-project/src/lib/aniwaves-api.ts:246:      if (!wantDub && server.type === "dub") return null;
+/home/z/my-project/src/lib/tatakai-api.ts:349:      `${TATAKAI_API}/api/v2/anime/hindidubbed/episode/hls?url=${encodeURIComponent(url)}${serverParam}`
+/home/z/my-project/src/lib/anibd-direct.ts:150:    // Determine sub/dub from server name
+/home/z/my-project/src/lib/anistream-api.ts:235:    for (const p of (serversList.subProviders || [])) {
+/home/z/my-project/src/lib/anistream-api.ts:240:    for (const p of (serversList.dubProviders || [])) {
+/home/z/my-project/src/lib/miruro-v3-api.ts:253: *   - We add SEPARATE server entries for sub and dub
+/home/z/my-project/src/lib/dub-api.ts:53:export interface DubStreamServer {
+/home/z/my-project/src/lib/dub-api.ts:277:): Promise<DubStreamServer[]> {
+/home/z/my-project/src/lib/dub-api.ts:283:    const servers: DubStreamServer[] = [];
+/home/z/my-project/src/lib/uniquestream-direct.ts:190:          serverName: "UniqueStream EN Hardsub",
+/home/z/my-project/src/lib/uniquestream-direct.ts:224:          serverName: "UniqueStream JP+EN Sub",
+/home/z/my-project/src/lib/animex-api.ts:9://   3. Slug → REST API (pp.animex.one/rest/api/servers) → sub/dub providers
+/home/z/my-project/src/lib/animex-api.ts:433:      ? servers.dubProviders
+/home/z/my-project/src/lib/animex-api.ts:434:      : servers.subProviders;
+/home/z/my-project/src/lib/embed-servers.ts:5:// Anime Servers (SUB/DUB) in priority order:
+/home/z/my-project/src/lib/embed-servers.ts:27:// Hindi Servers:
+/home/z/my-project/src/lib/embed-servers.ts:342:// HINDI SERVERS — Pokemon-named
+/home/z/my-project/src/lib/embed-servers.ts:345:const anixtvHindi: EmbedServer = {
+/home/z/my-project/src/lib/embed-servers.ts:364:const vidnestHindi: EmbedServer = {
+/home/z/my-project/src/lib/embed-servers.ts:408:const HINDI_SERVERS: EmbedServer[] = [
+/home/z/my-project/src/lib/embed-servers.ts:415:  ...HINDI_SERVERS,
+/home/z/my-project/src/lib/embed-servers.ts:420: * Get servers available for Anime content (SUB/DUB)
+/home/z/my-project/src/lib/embed-servers.ts:427: * Get servers available for Hindi Dub
+/home/z/my-project/src/lib/embed-servers.ts:429:export function getHindiServers(): EmbedServer[] {
+/home/z/my-project/src/lib/embed-servers.ts:430:  return HINDI_SERVERS;
+/home/z/my-project/src/lib/embed-servers.ts:459: * Check if any Hindi Dub server is available
+/home/z/my-project/src/lib/embed-servers.ts:463:  return HINDI_SERVERS.length > 0;
+/home/z/my-project/src/lib/miruro_scraper/sources.py:63:      - kiwi / animex / ax-* / AnimeX sub-servers -> kiwi worker (/p/)
+/home/z/my-project/src/lib/miruro_scraper/miruro.py:101:    async def video(self, ep_id: Union[str, int], language: str = "sub", server: Optional[str] = None) -> Dict[str, Any]:
+/home/z/my-project/src/lib/animeonsen-api.ts:383:    // Return RAW subtitle URLs — the instant-servers route will wrap them
+/home/z/my-project/src/lib/animetsu-api.ts:12: *      GET /api/scrape/sources?id={animetsuId}&ep={epNum}&server={kite|dio|sage|meg}&type={sub|dub}
+/home/z/my-project/src/lib/animetsu-api.ts:140:  const jobs: Array<{ server: string; type: "sub" | "dub" }> = [];
+/home/z/my-project/src/lib/animetsu-api.ts:141:  if (wantSub) for (const s of ANIMETSU_PROVIDERS) jobs.push({ server: s, type: "sub" });
+/home/z/my-project/src/lib/animetsu-api.ts:142:  if (wantDub) for (const s of ANIMETSU_PROVIDERS) jobs.push({ server: s, type: "dub" });
+/home/z/my-project/src/lib/anineko-to-direct.ts:14: *   The data-video URL is an embed URL. For soft sub servers, the subtitle URL
+/home/z/my-project/src/lib/anineko-to-direct.ts:196:      // Extract server name — the button content is like "HD-1<span>Hard Sub</span>"
+/home/z/my-project/src/lib/anineko-to-direct.ts:205:      // Extract subtitle URL from the embed URL's query params (soft sub servers)
+/home/z/my-project/src/lib/animegg-direct.ts:264:      serverName: type === "dub" ? "Animegg Dub" : "Animegg Sub",
+/home/z/my-project/src/lib/reanime-api.ts:544:      if (server.dataType === "sub" && !wantSub) continue;
+/home/z/my-project/src/lib/reanime-api.ts:545:      if (server.dataType === "dub" && !wantDub) continue;
+/home/z/my-project/src/lib/anipm-api.ts:51:  sub: AniPmServer[];
+/home/z/my-project/src/lib/anipm-api.ts:52:  dub: AniPmServer[];
+/home/z/my-project/src/lib/anipm-api.ts:187:  const processServers = (servers: AniPmServer[], type: "sub" | "dub") => {
+/home/z/my-project/src/lib/anipm-api.ts:239:  if (wantSub && data.sub) processServers(data.sub, "sub");
+/home/z/my-project/src/lib/anipm-api.ts:240:  if (wantDub && data.dub) processServers(data.dub, "dub");
+/home/z/my-project/src/lib/anixtv-api.ts:129:    // (server uses this cookie to validate the subsequent getVideo POST)
+/home/z/my-project/src/lib/anixtv-api.ts:228:  const serverName = providerNum === 1 ? "AnixTV Hindi" : `AnixTV Hindi ${providerNum}`;
+/home/z/my-project/src/lib/anidap-api.ts:228:  subProviders: AniDapServerEntry[];
+/home/z/my-project/src/lib/anidap-api.ts:229:  dubProviders: AniDapServerEntry[];
+/home/z/my-project/src/lib/aniwaves-direct.ts:148:      servers.push({ svId, linkId, type: type === "softsub" ? "sub" : type });
+/home/z/my-project/src/lib/hindi-anime-db.ts:561: * Prefers Hindi dub over sub, and the first available server.
+/home/z/my-project/src/components/anime/manga-reader.tsx:149:  const isDesktop = useSyncExternalStore(subscribeDesktop, getDesktopSnapshot, getDesktopServerSnapshot);
+/home/z/my-project/src/lib/luna-api.ts:295:          // The instant-servers route will wrap it through the dedicated subtitle

@@ -67,7 +67,7 @@ export interface EmbedUrlParams {
 
 const yumezoneMiku: EmbedServer = {
   id: "yz-miku",
-  name: "Sigma",
+  name: "Luffy",
   priority: 0,
   supportsSub: true,
   supportsDub: true,
@@ -86,7 +86,7 @@ const yumezoneMiku: EmbedServer = {
 
 const yumezoneZoro: EmbedServer = {
   id: "yz-zoro",
-  name: "Theta",
+  name: "Usopp",
   priority: 4,
   supportsSub: true,
   supportsDub: true,
@@ -105,7 +105,7 @@ const yumezoneZoro: EmbedServer = {
 
 const yumezoneKiwi: EmbedServer = {
   id: "yz-kiwi",
-  name: "Lambda",
+  name: "Brook",
   priority: 5,
   supportsSub: true,
   supportsDub: true,
@@ -124,7 +124,7 @@ const yumezoneKiwi: EmbedServer = {
 
 const yumezoneArc: EmbedServer = {
   id: "yz-arc",
-  name: "Kappa",
+  name: "Jinbe",
   priority: 6,
   supportsSub: true,
   supportsDub: true,
@@ -143,7 +143,7 @@ const yumezoneArc: EmbedServer = {
 
 const yumezoneBee: EmbedServer = {
   id: "yz-bee",
-  name: "Epsilon",
+  name: "Law",
   priority: 7,
   supportsSub: true,
   supportsDub: false,
@@ -161,12 +161,12 @@ const yumezoneBee: EmbedServer = {
 };
 
 // =====================================================
-// ANIME SERVERS — Pokemon-named, priority order
+// ANIME SERVERS — One Piece-named, priority order
 // =====================================================
 
 const vidnestAnime: EmbedServer = {
   id: "vidnest-anime",
-  name: "Delta",
+  name: "Zoro",
   priority: 0,
   supportsSub: true,
   supportsDub: true,
@@ -184,7 +184,7 @@ const vidnestAnime: EmbedServer = {
 
 const vidnestAnimepahe: EmbedServer = {
   id: "vidnest-animepahe",
-  name: "Gamma",
+  name: "Nami",
   priority: 1,
   supportsSub: true,
   supportsDub: true,
@@ -202,7 +202,7 @@ const vidnestAnimepahe: EmbedServer = {
 
 const videasyAnime: EmbedServer = {
   id: "videasy-anime",
-  name: "Omega",
+  name: "Sanji",
   priority: 2,
   supportsSub: true,
   supportsDub: true,
@@ -223,8 +223,8 @@ const videasyAnime: EmbedServer = {
 // =====================================================
 
 const ANIVEXA_PROVIDER_CONFIG: Array<{ id: string; name: string; color: string; priority: number; tip: string }> = [
-  { id: "anineko", name: "Zeta",  color: "#1E293B", priority: 4, tip: "HLS Embeds, Reliable" },
-  { id: "allmanga", name: "Iota",  color: "#6366F1", priority: 5, tip: "6+ Sources, MP4+Iframe" },
+  { id: "anineko", name: "Chopper",  color: "#1E293B", priority: 4, tip: "HLS Embeds, Reliable" },
+  { id: "allmanga", name: "Robin",  color: "#6366F1", priority: 5, tip: "6+ Sources, MP4+Iframe" },
 ];
 
 const anivexaServers: EmbedServer[] = ANIVEXA_PROVIDER_CONFIG.map((prov) => ({
@@ -269,7 +269,7 @@ const anivexaServers: EmbedServer[] = ANIVEXA_PROVIDER_CONFIG.map((prov) => ({
 
 const animexServer: EmbedServer = {
   id: "animex-auto",
-  name: "Phi",
+  name: "Franky",
   priority: 6,
   supportsSub: true,
   supportsDub: true,
@@ -309,12 +309,12 @@ const MIRURO_V3_PROVIDERS: Array<{
   priority: number;
   supportsDub: boolean;  // Some providers only have sub
 }> = [
-  { id: "kiwi",  name: "Alpha-1",  color: "#A3E635", priority: 8,  supportsDub: true },
-  { id: "pewe",  name: "Alpha-2",  color: "#34D399", priority: 8.1, supportsDub: true },
-  { id: "bee",   name: "Alpha-3",   color: "#FBBF24", priority: 8.2, supportsDub: false },
-  { id: "bonk",  name: "Alpha-4",  color: "#F472B6", priority: 8.3, supportsDub: true },
-  { id: "ally",  name: "Alpha-5",  color: "#60A5FA", priority: 8.4, supportsDub: true },
-  { id: "moo",   name: "Alpha-6",   color: "#C084FC", priority: 8.5, supportsDub: true },
+  { id: "kiwi",  name: "Kidd",    color: "#A3E635", priority: 8,  supportsDub: true },
+  { id: "pewe",  name: "Bonney",   color: "#34D399", priority: 8.1, supportsDub: true },
+  { id: "bee",   name: "Bege",     color: "#FBBF24", priority: 8.2, supportsDub: false },
+  { id: "bonk",  name: "Urouge",   color: "#F472B6", priority: 8.3, supportsDub: true },
+  { id: "ally",  name: "Apoo",     color: "#60A5FA", priority: 8.4, supportsDub: true },
+  { id: "moo",   name: "Drake",    color: "#C084FC", priority: 8.5, supportsDub: true },
 ];
 
 const miruroV3Servers: EmbedServer[] = MIRURO_V3_PROVIDERS.map((prov) => ({
@@ -339,12 +339,12 @@ const miruroV3Servers: EmbedServer[] = MIRURO_V3_PROVIDERS.map((prov) => ({
 }));
 
 // =====================================================
-// HINDI SERVERS — Pokemon-named
+// HINDI SERVERS — One Piece-named
 // =====================================================
 
 const anixtvHindi: EmbedServer = {
   id: "anixtv-hindi",
-  name: "Rho",
+  name: "Shanks",
   priority: 0,
   supportsSub: false,
   supportsDub: false,
@@ -363,7 +363,7 @@ const anixtvHindi: EmbedServer = {
 
 const vidnestHindi: EmbedServer = {
   id: "vidnest-hindi",
-  name: "Tau",
+  name: "Rayleigh",
   priority: 1,
   supportsSub: false,
   supportsDub: false,

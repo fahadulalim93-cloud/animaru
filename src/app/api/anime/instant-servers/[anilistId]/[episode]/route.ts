@@ -7,7 +7,7 @@ import { resolveAniKageBoth } from "@/lib/anikage-fast";
 import { resolveUniqueStreamStreams } from "@/lib/uniquestream-direct";
 import { resolveSenshi } from "@/lib/senshi-direct";
 import { fetchAniLightSources } from "@/lib/anilight-api";
-import { fetchAllKyrenSources } from "@/lib/kyren-api";
+import { fetchAllKyrenSources, KYREN_SERVER_NAMES } from "@/lib/kyren-api";
 import { fetchAllLunaSources, LUNA_PROVIDER_META } from "@/lib/luna-api";
 import { fetchAniPmSources } from "@/lib/anipm-api";
 import { wrapM3u8Url, wrapM3u8UrlWithReferer } from "@/lib/proxy";
@@ -210,7 +210,7 @@ export async function GET(
               const typeTag = r.type === "dub" ? " Dub" : r.hardsub ? " (HS)" : "";
               servers.push({
                 id: `anineko-to:${urlKey}:${r.type}${r.hardsub ? ":hsub" : ""}`,
-                name: `AniNeko ${r.serverName}${typeTag}`,
+                name: `Chopper ${r.serverName}${typeTag}`,
                 source: "anineko-to",
                 provider: r.serverName.toLowerCase().replace(/\s/g, ""),
                 type: r.type,
@@ -235,8 +235,8 @@ export async function GET(
       (async () => {
         try {
           const m = await withTimeout(resolveAnimexMimiBoth(id, epNum), 10000, { sub: null, dub: null });
-          if (m.sub?.m3u8Url) servers.push({ id: "animex:mimi:sub", name: "NX-2", source: "animex", provider: "mimi", type: "sub", quality: m.sub.quality || "1080p", streamUrl: wrapM3u8Url(m.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0, subtitleTracks: wrapSubs(m.sub.tracks), intro: m.sub.intro || null, outro: m.sub.outro || null });
-          if (m.dub?.m3u8Url) servers.push({ id: "animex:mimi:dub", name: "NX-2 Dub", source: "animex", provider: "mimi", type: "dub", quality: m.dub.quality || "1080p", streamUrl: wrapM3u8Url(m.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0.5, subtitleTracks: wrapSubs(m.dub.tracks), intro: m.dub.intro || null, outro: m.dub.outro || null });
+          if (m.sub?.m3u8Url) servers.push({ id: "animex:mimi:sub", name: "Dragon", source: "animex", provider: "mimi", type: "sub", quality: m.sub.quality || "1080p", streamUrl: wrapM3u8Url(m.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0, subtitleTracks: wrapSubs(m.sub.tracks), intro: m.sub.intro || null, outro: m.sub.outro || null });
+          if (m.dub?.m3u8Url) servers.push({ id: "animex:mimi:dub", name: "Dragon Dub", source: "animex", provider: "mimi", type: "dub", quality: m.dub.quality || "1080p", streamUrl: wrapM3u8Url(m.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 0.5, subtitleTracks: wrapSubs(m.dub.tracks), intro: m.dub.intro || null, outro: m.dub.outro || null });
         } catch {}
       })(),
 
@@ -244,10 +244,10 @@ export async function GET(
       (async () => {
         try {
           const r = await withTimeout(resolveAniDbEmbeds(id, epNum, title), 10000, { sub: null, dub: null });
-          if (r.sub?.m3u8Url) servers.push({ id: "anidb:sub", name: "L4", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: wrapM3u8Url(r.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2 });
-          else if (r.sub?.embedUrl) servers.push({ id: "anidb:sub", name: "L4", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: r.sub.embedUrl, isM3U8: false, isMP4: false, isEmbed: true, hardsub: false, priority: 2 });
-          if (r.dub?.m3u8Url) servers.push({ id: "anidb:dub", name: "L4 Dub", source: "anidb", provider: "anidb", type: "dub", quality: "1080p", streamUrl: wrapM3u8Url(r.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2.5 });
-          else if (r.dub?.embedUrl) servers.push({ id: "anidb:dub", name: "L4 Dub", source: "anidb", provider: "anidb", type: "dub", quality: "1080p", streamUrl: r.dub.embedUrl, isM3U8: false, isMP4: false, isEmbed: true, hardsub: false, priority: 2.5 });
+          if (r.sub?.m3u8Url) servers.push({ id: "anidb:sub", name: "Pedro", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: wrapM3u8Url(r.sub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2 });
+          else if (r.sub?.embedUrl) servers.push({ id: "anidb:sub", name: "Pedro", source: "anidb", provider: "anidb", type: "sub", quality: "1080p", streamUrl: r.sub.embedUrl, isM3U8: false, isMP4: false, isEmbed: true, hardsub: false, priority: 2 });
+          if (r.dub?.m3u8Url) servers.push({ id: "anidb:dub", name: "Pedro Dub", source: "anidb", provider: "anidb", type: "dub", quality: "1080p", streamUrl: wrapM3u8Url(r.dub.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: 2.5 });
+          else if (r.dub?.embedUrl) servers.push({ id: "anidb:dub", name: "Pedro Dub", source: "anidb", provider: "anidb", type: "dub", quality: "1080p", streamUrl: r.dub.embedUrl, isM3U8: false, isMP4: false, isEmbed: true, hardsub: false, priority: 2.5 });
         } catch {}
       })(),
 
@@ -255,7 +255,7 @@ export async function GET(
       (async () => {
         try {
           const kr = await withTimeout(fetchAllKyrenSources(id, epNum, { sub: true, dub: true, timeoutMs: 10000 }).catch(() => []), 10000, []);
-          if (kr?.length) { let p = 3; let krIdx = 0; for (const r of kr) servers.push({ id: `kyren:${r.server}:${r.type}`, name: `NK-${krIdx+1}${r.type === "dub" ? " (Dub)" : ""}`, source: "kyren", provider: r.server, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://kyren.moe/") }); krIdx++; }
+          if (kr?.length) { let p = 3; let krIdx = 0; for (const r of kr) { const krName = KYREN_SERVER_NAMES[r.server as keyof typeof KYREN_SERVER_NAMES] || r.server; servers.push({ id: `kyren:${r.server}:${r.type}`, name: `${krName}${r.type === "dub" ? " (Dub)" : ""}`, source: "kyren", provider: r.server, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://kyren.moe/") }); krIdx++; } }
         } catch {}
       })(),
 
@@ -275,7 +275,7 @@ export async function GET(
               const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
               servers.push({
                 id: `anidap:${r.provider}:${r.type}`,
-                name: `ND-${provName.slice(1)}${typeTag}`,
+                name: `${provName}${typeTag}`,
                 source: "anidap",
                 provider: r.provider,
                 type: r.type,
@@ -300,7 +300,7 @@ export async function GET(
       (async () => {
         try {
           const pm = await withTimeout(fetchAniPmSources(id, epNum, { sub: true, dub: true, timeoutMs: 12000 }).catch(() => []), 12000, []);
-          if (pm?.length) { let p = 5; let pmIdx = 0; for (const r of pm) { if (!r.streamUrl) continue; servers.push({ id: `anipm:${r.provider}:${r.type}`, name: `NP-${pmIdx+1}${r.type === "dub" ? " (Dub)" : ""}`, source: "anipm" as any, provider: r.provider, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: r.isEmbed, hardsub: r.hardsub, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://ani.pm/") }); pmIdx++; } }
+          if (pm?.length) { let p = 5; let pmIdx = 0; for (const r of pm) { if (!r.streamUrl) continue; servers.push({ id: `anipm:${r.provider}:${r.type}`, name: `${r.provider}${r.type === "dub" ? " (Dub)" : ""}`, source: "anipm" as any, provider: r.provider, type: r.type, quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: r.isEmbed, hardsub: r.hardsub, priority: p++, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://ani.pm/") }); pmIdx++; } }
         } catch {}
       })(),
 
@@ -308,7 +308,7 @@ export async function GET(
       (async () => {
         try {
           const s = await withTimeout(resolveSenshi(id, epNum, title).catch(() => null), 10000, null);
-          if (s?.m3u8Url) servers.push({ id: "senshi:sub", name: "NS-1", source: "senshi", provider: "senshi", type: "sub", quality: "1080p", streamUrl: wrapM3u8UrlWithReferer(s.m3u8Url, "https://senshi.live/"), isM3U8: true, isMP4: false, isEmbed: false, hardsub: s.status === "HardSub", priority: 6, intro: s.intro, outro: s.outro });
+          if (s?.m3u8Url) servers.push({ id: "senshi:sub", name: "Carrot", source: "senshi", provider: "senshi", type: "sub", quality: "1080p", streamUrl: wrapM3u8UrlWithReferer(s.m3u8Url, "https://senshi.live/"), isM3U8: true, isMP4: false, isEmbed: false, hardsub: s.status === "HardSub", priority: 6, intro: s.intro, outro: s.outro });
         } catch {}
       })(),
 
@@ -316,8 +316,8 @@ export async function GET(
       (async () => {
         try {
           const al = await withTimeout(fetchAniLightSources(id, epNum, { sub: true, dub: true, timeoutMs: 10000 }).catch(() => []), 10000, []);
-          al.filter((r: any) => r.type === "sub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:sub:${i}`, name: `NL-${i+1}`.trim(), source: "anilight", provider: "anilight", type: "sub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
-          al.filter((r: any) => r.type === "dub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:dub:${i}`, name: `NL-${i+4} Dub`.trim(), source: "anilight", provider: "anilight", type: "dub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9.5 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
+          al.filter((r: any) => r.type === "sub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:sub:${i}`, name: `${["Weevil","Perona","Enel"][i] || `NL-${i+1}`}`, source: "anilight", provider: "anilight", type: "sub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
+          al.filter((r: any) => r.type === "dub").slice(0, 3).forEach((r: any, i: number) => servers.push({ id: `anilight:dub:${i}`, name: `${["Magellan","Buggy","Caesar"][i] || `NL-${i+4}`}`, source: "anilight", provider: "anilight", type: "dub", quality: r.quality || "1080p", streamUrl: r.streamUrl, isM3U8: r.isM3U8, isMP4: r.isMP4, isEmbed: false, hardsub: false, priority: 9.5 + i * 0.1, subtitleTracks: wrapSubsVercel(r.tracks as any, "https://anilight.live/") }))
         } catch {}
       })(),
 
@@ -336,7 +336,7 @@ export async function GET(
           let p = 14;
           for (const srv of akServers) {
             const isNin = srv.m3u8Url.includes("ninstream.com");
-            servers.push({ id: `anikage:${srv.provider}:${p}`, name: `NK-${p-14+5}`, source: "anikage", provider: srv.provider, type: srv.type, quality: srv.quality, streamUrl: isNin ? wrapM3u8UrlWithReferer(srv.m3u8Url, "https://senshi.live/") : wrapM3u8Url(srv.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: p++, intro: ak.intro, outro: ak.outro });
+            servers.push({ id: `anikage:${srv.provider}:${p}`, name: srv.provider.charAt(0).toUpperCase() + srv.provider.slice(1), source: "anikage", provider: srv.provider, type: srv.type, quality: srv.quality, streamUrl: isNin ? wrapM3u8UrlWithReferer(srv.m3u8Url, "https://senshi.live/") : wrapM3u8Url(srv.m3u8Url), isM3U8: true, isMP4: false, isEmbed: false, hardsub: false, priority: p++, intro: ak.intro, outro: ak.outro });
           }
         } catch {}
       })(),
@@ -357,7 +357,7 @@ export async function GET(
               const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
               servers.push({
                 id: `luna:${r.provider}:${r.type}`,
-                name: `LN-${lunaIdx+1}${typeTag}`,
+                name: `${provName}${typeTag}`,
                 source: "luna",
                 provider: r.provider,
                 type: r.type,
@@ -401,7 +401,7 @@ export async function GET(
               } catch {}
               servers.push({
                 id: `uniquestream:${urlKey}:${r.type}${r.hardsub ? ":hsub" : ""}`,
-                name: "NU-1",
+                name: "Koala",
                 source: "uniquestream" as any,
                 provider: r.serverName.toLowerCase().replace(/\s/g, ""),
                 type: r.type,

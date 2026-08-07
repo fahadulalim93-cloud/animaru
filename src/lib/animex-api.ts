@@ -75,18 +75,18 @@ const PROVIDER_PRIORITY = [
 ];
 
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-  kiwi: "K1",
-  mochi: "K2",
-  mimi: "K3",
-  yuki: "K4",
-  kami: "K5",
-  uwu: "K6",
-  beep: "K7",
-  vee: "K8",
-  miku: "K9",
-  neko: "K10",
-  huzz: "K11",
-  koto: "K12",
+  kiwi: "Ace",
+  mochi: "Sabo",
+  mimi: "Dragon",
+  yuki: "Garp",
+  kami: "Roger",
+  uwu: "Whitebeard",
+  beep: "Marco",
+  vee: "Jozu",
+  miku: "Vista",
+  neko: "Thatch",
+  huzz: "Katakuri",
+  koto: "Cracker",
 };
 
 const PROVIDER_TIPS: Record<string, string> = {

@@ -126,12 +126,12 @@ export const KYREN_HLS_SERVERS: KyrenServer[] = [
 ];
 
 export const KYREN_SERVER_NAMES: Record<KyrenServer, string> = {
-  pahe: "P1",
-  senshi: "P2",
-  "vidnest-direct": "P3",
-  "megaplay-direct": "P4",
-  vidnest: "P5",
-  "vidnest-pahe": "Vidnest Pahe",
+  pahe: "Mihawk",
+  senshi: "Crocodile",
+  "vidnest-direct": "Doflamingo",
+  "megaplay-direct": "Hancock",
+  vidnest: "Kuma",
+  "vidnest-pahe": "Moria",
 };
 
 export interface KyrenSearchItem {

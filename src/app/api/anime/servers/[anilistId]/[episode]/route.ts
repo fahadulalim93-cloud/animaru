@@ -18,7 +18,7 @@ import {
   ANIDAP_PROVIDER_META,
   type AniDapProvider,
 } from "@/lib/anidap-api";
-import { fetchAniLightSources } from "@/lib/anilight-api";
+import { fetchAniLightSources, ANILIGHT_SERVER_NAMES } from "@/lib/anilight-api";
 import { wrapStreamUrl, wrapM3u8Url, wrapM3u8UrlWithReferer } from "@/lib/proxy";
 import {
   fetchAllKyrenSources,
@@ -368,10 +368,10 @@ export async function GET(
 
   // AniVault (AnimeHeaven)
   if (anivaultSub.status === "fulfilled" && anivaultSub.value?.mp4) {
-    candidates.push({ id: "anivault:animeheaven:sub", name: "NH-1", source: "anivault", provider: "AnimeHeaven", type: "sub" });
+    candidates.push({ id: "anivault:animeheaven:sub", name: "Shanks", source: "anivault", provider: "AnimeHeaven", type: "sub" });
   }
   if (anivaultDub.status === "fulfilled" && anivaultDub.value?.mp4) {
-    candidates.push({ id: "anivault:animeheaven:dub", name: "NH-1 Dub", source: "anivault", provider: "AnimeHeaven", type: "dub" });
+    candidates.push({ id: "anivault:animeheaven:dub", name: "Shanks Dub", source: "anivault", provider: "AnimeHeaven", type: "dub" });
   }
 
   // AniVexa (animegg, allmanga, anikoto, anineko)
@@ -379,7 +379,7 @@ export async function GET(
     for (const cat of ["sub", "dub"] as const) {
       candidates.push({
         id: `anivexa:${prov}:${cat}`,
-        name: (() => { const m: Record<string,string> = { anineko: "NV-1", allmanga: "NA-1" }; return `${m[prov] || prov}${cat === "dub" ? " (Dub)" : ""}`; })(),
+        name: (() => { const m: Record<string,string> = { anineko: "Chopper", allmanga: "Robin" }; return `${m[prov] || prov}${cat === "dub" ? " (Dub)" : ""}`; })(),
         source: "anivexa", provider: prov, type: cat,
       });
     }
@@ -387,7 +387,7 @@ export async function GET(
 
   // Senshi via AniVault anikoto source (CF bypass)
   // Only add 1 server (sub) to keep verification fast — dub is rarely used
-  candidates.push({ id: "senshi:VidPlay-1:sub", name: "NS-1", source: "senshi", provider: "VidPlay-1", type: "sub" });
+  candidates.push({ id: "senshi:VidPlay-1:sub", name: "Carrot", source: "senshi", provider: "VidPlay-1", type: "sub" });
 
   // AniDap results are ALREADY verified playable (fetchAllAniDapSources filters out
   // providers with no playable stream). We push them straight into the final list
@@ -405,7 +405,7 @@ export async function GET(
                       || r.streamUrl.includes("streamsb.net/e/");
       anidapVerified.push({
         id: `anidap:${r.provider}:${r.type}`,
-        name: `ND-${provName.slice(1)}${typeTag}`,
+        name: `${provName}${typeTag}`,
         source: "anidap",
         provider: r.provider,
         type: r.type,
@@ -437,7 +437,7 @@ export async function GET(
       const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
       anilightVerified.push({
         id: `anilight:${r.server}:${r.type}`,
-        name: `NL-${(alIdx+1)}${typeTag}`,
+        name: `${(ANILIGHT_SERVER_NAMES[r.server] || serverDisplay)}${typeTag}`,
         source: "anilight",
         provider: r.server,
         type: r.type,
@@ -459,7 +459,7 @@ export async function GET(
       const serverName = KYREN_SERVER_NAMES[r.server as KyrenServer] || r.server;
       kyrenVerified.push({
         id: `kyren:${r.server}:${r.type}`,
-        name: `NK-${krIdx+1}${r.type === "dub" ? " (Dub)" : ""}`,
+        name: `${serverName}${r.type === "dub" ? " (Dub)" : ""}`,
         source: "kyren",
         provider: r.server,
         type: r.type,
@@ -483,7 +483,7 @@ export async function GET(
       const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
       anikageVerified.push({
         id: `anikage:${r.server}:${r.type}`,
-        name: `NK-${akIdx+5}${typeTag}`,
+        name: `${serverName}${typeTag}`,
         source: "anikage",
         provider: r.server,
         type: r.type,
@@ -506,7 +506,7 @@ export async function GET(
   if (mioanimeResults.status === "fulfilled" && mioanimeResults.value) {
     for (const [maIdx, r] of mioanimeResults.value.entries()) {
       const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
-      const maNameMap: Record<string, string> = { "AniZone": "L1", "MegaPlay": "L2", "Senshi": "L3", "AniDB": "L4", "AnimeSalt": "L5", "AniBD": "L6", "AnimeNexus": "L7", "AllAnime": "NA-1" };
+      const maNameMap: Record<string, string> = { "AniZone": "Vivi", "MegaPlay": "Shirahoshi", "Senshi": "Carrot", "AniDB": "Pedro", "AnimeSalt": "Reiju", "AniBD": "Pudding", "AnimeNexus": "Koala", "AllAnime": "Robin" };
       const maDisplayName = maNameMap[r.name] || r.name;
       mioanimeVerified.push({
         id: r.id,
@@ -581,7 +581,7 @@ export async function GET(
       for (const r of streams) {
         animo4Verified.push({
           id: `animo4:${best.id}:${r.type}:${r.serverName}`,
-        name: `NF-1 ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
+        name: `Pudding ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
           source: "animo4",
           provider: r.serverName.toLowerCase().replace(/\s/g, ""),
           type: r.type,
@@ -632,7 +632,7 @@ export async function GET(
     for (const r of streams) {
       anibdVerified.push({
         id: `anibd:${r.serverName}:${r.type}`,
-        name: `NB-1 ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
+        name: `Reiju ${r.serverName}${r.type === "dub" ? " (Dub)" : ""}`,
         source: "anibd",
         provider: r.serverName.toLowerCase().replace(/\s/g, ""),
         type: r.type,
@@ -662,7 +662,7 @@ export async function GET(
       const typeTag = r.type === "dub" ? " (Dub)" : (r.hardsub ? " (HS)" : "");
       anistreamVerified.push({
         id: `anistream:${r.server}:${r.type}`,
-        name: `NI-${asIdx+1}${typeTag}`,
+        name: `${provName}${typeTag}`,
         source: "anistream",
         provider: r.server,
         type: r.type,
@@ -685,17 +685,17 @@ export async function GET(
   const anikuroVerified: VerifiedServer[] = [];
   if (anikuroResults.status === "fulfilled" && anikuroResults.value) {
     const PROVIDER_NAMES: Record<string, string> = {
-      animepahe: "AnimePahe", anikoto: "AniKoto", reanime: "ReAnime",
-      animedao: "AnimeDao", animegg: "AnimeGG", anidb: "AniDB",
-      animedunya: "AnimeDunya", animeverse: "AnimeVerse", allani: "AllAnime",
-      senshi: "Senshi", animix: "AniMix",
+      animepahe: "Ivankov", anikoto: "Inazuma", reanime: "Bartolomeo",
+      animedao: "Cavendish", animegg: "Oden", anidb: "Crocus",
+      animedunya: "Trebol", animeverse: "Pica", allani: "Diamante",
+      senshi: "Sugar", animix: "Lao G",
     };
     for (const [akruIdx, r] of anikuroResults.value.entries()) {
       const provName = PROVIDER_NAMES[r.provider] || (r.provider[0].toUpperCase() + r.provider.slice(1));
       const typeTag = r.type === "dub" ? " (Dub)" : "";
       anikuroVerified.push({
         id: `anikuro:${r.provider}:${r.type}`,
-        name: `NQ-${akruIdx+1}${typeTag}`,
+        name: `${provName}${typeTag}`,
         source: "anikuro",
         provider: r.provider,
         type: r.type,
@@ -731,7 +731,7 @@ export async function GET(
       const safeName = r.name.replace(/[^a-zA-Z0-9]/g, "");
       anipmVerified.push({
         id: `anipm:${r.provider}:${safeName}:${r.type}`,
-        name: `NP-${apmIdx+1}`,
+        name: `${r.name}`,
         source: "anipm",
         provider: r.provider,
         type: r.type,
@@ -758,7 +758,7 @@ export async function GET(
     for (const r of animeheavenResults.value) {
       animeheavenVerified.push({
         id: `animeheaven:${r.provider}:sub`,
-        name: `NH-1`,
+        name: `Shanks`,
         source: "animeheaven",
         provider: r.provider,
         type: "sub",
@@ -932,7 +932,7 @@ export async function GET(
                     || r.streamUrl.includes("kwik.cx/e/");
       animepaheVerified.push({
         id: `animepahe:${r.type}:${qualityLabel}`,
-        name: `NQ-1 ${qualityLabel}${typeTag}`,
+        name: `Ivankov ${qualityLabel}${typeTag}`,
         source: "animepahe",
         provider: "animepahe",
         type: r.type,
@@ -955,7 +955,7 @@ export async function GET(
     for (const r of onsenResults.value) {
       onsenVerified.push({
         id: `animeonsen:${r.type}`,
-        name: `NO-1 ${r.quality}`,
+        name: `Kizaru ${r.quality}`,
         source: "animeonsen",
         provider: "animeonsen",
         type: r.type,
@@ -981,7 +981,7 @@ export async function GET(
     for (const r of reanimeResults.value) {
       reanimeVerified.push({
         id: `reanime:${r.provider}`,
-        name: `NR-1 ${r.provider.includes("hd-2") ? "HD-2" : "HD-1"} ${r.type === "dub" ? "Dub" : "Sub"}`,
+        name: `Bartolomeo ${r.provider.includes("hd-2") ? "HD-2" : "HD-1"} ${r.type === "dub" ? "Dub" : "Sub"}`,
         source: "reanime",
         provider: r.provider,
         type: r.type,

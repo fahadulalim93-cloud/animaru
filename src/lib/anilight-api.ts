@@ -336,8 +336,8 @@ export const ANILIGHT_SERVERS = [
 export type AniLightServer = typeof ANILIGHT_SERVERS[number];
 
 export const ANILIGHT_SERVER_NAMES: Record<string, string> = {
-  light: "Light", near: "Near", ryu: "Ryu", misa: "Misa",
-  kiwi: "Kiwi", misora: "Misora", raye: "Raye", rem: "Rem",
+  light: "Weevil", near: "Perona", ryu: "Enel", misa: "Magellan",
+  kiwi: "Buggy", misora: "Caesar", raye: "Vergo", rem: "Monet",
 };
 
 // ─── Per-server source fetch (via /api/sources) ──────────────────────────────

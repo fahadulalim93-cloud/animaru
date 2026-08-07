@@ -394,9 +394,9 @@ export type MiruroProvider = string;
 
 export function getProviderDisplayName(provider: string): string {
   const names: Record<string, string> = {
-    kiwi: "Kiwi", pewe: "Pewe", bee: "Bee", bonk: "Bonk", bun: "Bun",
-    ally: "Ally", nun: "Nun", twin: "Twin", cog: "Cog", moo: "Moo",
-    hop: "Hop", telli: "Telli",
+    kiwi: "King", pewe: "Queen", bee: "Yamato", bonk: "WhosWho", bun: "PageOne",
+    ally: "Smoothie", nun: "Perospero", twin: "Hawkins", cog: "Killer", moo: "Blackbeard",
+    hop: "BigMom", telli: "Kaido",
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }

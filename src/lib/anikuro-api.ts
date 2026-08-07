@@ -50,17 +50,17 @@ export type AnikuroProvider = typeof ANIKURO_PROVIDERS[number];
 
 // Display names for the providers
 export const ANIKURO_PROVIDER_NAMES: Record<string, string> = {
-  animepahe: "AnimePahe",
-  anikoto: "AniKoto",
-  reanime: "ReAnime",
-  animedao: "AnimeDao",
-  animegg: "AnimeGG",
-  anidb: "AniDB",
-  animedunya: "AnimeDunya",
-  animeverse: "AnimeVerse",
-  allani: "AllAnime",
-  senshi: "Senshi",
-  animix: "AniMix",
+  animepahe: "Ivankov",
+  anikoto: "Inazuma",
+  reanime: "Bartolomeo",
+  animedao: "Cavendish",
+  animegg: "Oden",
+  anidb: "Crocus",
+  animedunya: "Trebol",
+  animeverse: "Pica",
+  allani: "Diamante",
+  senshi: "Sugar",
+  animix: "Lao G",
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────

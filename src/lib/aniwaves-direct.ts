@@ -204,13 +204,13 @@ export async function resolveAniWaves(
         if (!sources) return null;
 
         const SERVER_NAMES: Record<number, string> = {
-          1: "AniWaves SV1",
-          2: "AniWaves SV2",
-          4: "AniWaves SV4",
+          1: "Hachi",
+          2: "Kumashi",
+          4: "Bepo",
         };
 
         return {
-          name: SERVER_NAMES[entry.svId] || `AniWaves SV${entry.svId}`,
+          name: SERVER_NAMES[entry.svId] || `Waves-${entry.svId}`,
           embedUrl: sources.url,
           type: entry.type as "sub" | "dub",
           svId: entry.svId,

@@ -92,13 +92,13 @@ export const LUNA_PROVIDERS: LunaProvider[] = [
 export const LUNA_PROVIDER_META: Record<LunaProvider, {
   name: string; hardsub: boolean; type: "sub" | "dub" | "both";
 }> = {
-  anizone:    { name: "L1",    hardsub: false, type: "sub" },
-  megaplay:   { name: "L2",   hardsub: false, type: "sub" },
-  senshi:     { name: "L3",     hardsub: true,  type: "sub" },
-  anidb:      { name: "L4",      hardsub: false, type: "sub" },
-  animesalt:  { name: "L5",  hardsub: false, type: "sub" },
-  anibd:      { name: "L6",      hardsub: true,  type: "sub" },
-  animenexus: { name: "L7", hardsub: false, type: "sub" },
+  anizone:    { name: "Vivi",       hardsub: false, type: "sub" },
+  megaplay:   { name: "Shirahoshi", hardsub: false, type: "sub" },
+  senshi:     { name: "Carrot",     hardsub: true,  type: "sub" },
+  anidb:      { name: "Pedro",      hardsub: false, type: "sub" },
+  animesalt:  { name: "Reiju",      hardsub: false, type: "sub" },
+  anibd:      { name: "Pudding",    hardsub: true,  type: "sub" },
+  animenexus: { name: "Koala",      hardsub: false, type: "sub" },
 };
 
 // ─── Types ──────────────────────────────────────────────────────────────────
