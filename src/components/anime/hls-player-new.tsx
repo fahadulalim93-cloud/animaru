@@ -391,7 +391,7 @@ export default function HLSPlayerNew({
   }, [intro, outro]);
 
   // ─── Controls auto-hide ───────────────────────────────────────────
-  const CONTROLS_TIMEOUT = isMobileRef.current ? 2500 : 3500;
+  const CONTROLS_TIMEOUT = isMobileRef.current ? 4000 : 3500;
   const showControlsTemp = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -782,7 +782,16 @@ export default function HLSPlayerNew({
       style={{ aspectRatio: '16 / 9' }}
       onMouseMove={showControlsTemp}
       onMouseLeave={() => { if (playing) { setShowControls(false); setActiveMenu(null); } }}
-      onTouchStart={() => { if (!showControls) { showControlsTemp(); } }}
+      onTouchStart={(e) => {
+        // If touch is on the controls area and controls are visible, reset the timeout
+        const target = e.target as HTMLElement;
+        const isOnControls = target.closest('[data-controls-area]');
+        if (isOnControls && showControls) {
+          showControlsTemp();
+        } else if (!showControls) {
+          showControlsTemp();
+        }
+      }}
       onTouchEnd={() => { /* auto-hide timeout handles hiding */ }}
     >
       <video
@@ -959,9 +968,12 @@ export default function HLSPlayerNew({
 
       {/* ═══ CONTROLS — Floating glass bar ═══ */}
       <div
+        data-controls-area
         className={`absolute bottom-0 left-0 right-0 px-4 pb-4 transition-all duration-300 ${
           showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
+        onTouchStart={() => { showControlsTemp(); }}
+        onMouseDown={() => { showControlsTemp(); }}
       >
         {/* Progress bar — floating, with glow */}
         <div
@@ -970,9 +982,12 @@ export default function HLSPlayerNew({
             const rect = e.currentTarget.getBoundingClientRect();
             const pct = (e.clientX - rect.left) / rect.width;
             seek(pct * duration);
+            showControlsTemp(); // keep controls visible after seeking
           }}
           onMouseMove={handleProgressHover}
           onMouseLeave={() => setHoverTime(null)}
+          onTouchStart={() => { showControlsTemp(); }}
+          onTouchMove={() => { showControlsTemp(); }}
         >
           {/* Buffered */}
           <div className="absolute h-full bg-white/25 rounded-full transition-all" style={{ width: `${bufferedProgress}%` }} />
@@ -1010,7 +1025,7 @@ export default function HLSPlayerNew({
         <div className="flex items-center gap-1 sm:gap-1.5 text-white bg-black/30 backdrop-blur-xl border border-white/10 rounded-full px-2 sm:px-3 py-1 sm:py-1.5 shadow-2xl">
           {/* Play/Pause — glass circle */}
           <button
-            onClick={togglePlay}
+            onClick={() => { togglePlay(); showControlsTemp(); }}
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
             title="Play/Pause (Space)"
           >
@@ -1023,7 +1038,7 @@ export default function HLSPlayerNew({
 
           {/* Skip back 10s */}
           <button
-            onClick={() => skipTime(-10)}
+            onClick={() => { skipTime(-10); showControlsTemp(); }}
             className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
             title="Back 10s (J)"
           >
@@ -1032,7 +1047,7 @@ export default function HLSPlayerNew({
 
           {/* Skip forward 10s */}
           <button
-            onClick={() => skipTime(10)}
+            onClick={() => { skipTime(10); showControlsTemp(); }}
             className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
             title="Forward 10s (L)"
           >
@@ -1046,7 +1061,7 @@ export default function HLSPlayerNew({
             onMouseLeave={() => setVolumeHover(false)}
           >
             <button
-              onClick={toggleMute}
+              onClick={() => { toggleMute(); showControlsTemp(); }}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
               title="Mute (M)"
             >
@@ -1075,7 +1090,7 @@ export default function HLSPlayerNew({
           {/* Speed — glass pill (compact on mobile) */}
           <div className="relative">
             <button
-              onClick={() => setActiveMenu(activeMenu === 'speed' ? null : 'speed')}
+              onClick={() => { setActiveMenu(activeMenu === 'speed' ? null : 'speed'); showControlsTemp(); }}
               className={`h-8 sm:h-9 px-2 sm:px-3 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 text-[11px] sm:text-xs font-bold ${activeMenu === 'speed' ? 'bg-white/20' : 'hover:bg-white/10'}`}
               title="Speed"
             >
@@ -1085,7 +1100,7 @@ export default function HLSPlayerNew({
               <GlassMenu>
                 <MenuLabel>Speed</MenuLabel>
                 {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
-                  <MenuItem key={rate} active={playbackRate === rate} onClick={() => changePlaybackRate(rate)}>
+                  <MenuItem key={rate} active={playbackRate === rate} onClick={() => { changePlaybackRate(rate); showControlsTemp(); }}>
                     {rate}x {rate === 1 && '·'}
                   </MenuItem>
                 ))}
@@ -1097,7 +1112,7 @@ export default function HLSPlayerNew({
           {qualities.length > 0 && (
             <div className="relative">
               <button
-                onClick={() => setActiveMenu(activeMenu === 'quality' ? null : 'quality')}
+                onClick={() => { setActiveMenu(activeMenu === 'quality' ? null : 'quality'); showControlsTemp(); }}
                 className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${activeMenu === 'quality' ? 'bg-white/20' : 'hover:bg-white/10'}`}
                 title="Quality"
               >
@@ -1106,9 +1121,9 @@ export default function HLSPlayerNew({
               {activeMenu === 'quality' && (
                 <GlassMenu>
                   <MenuLabel>Quality</MenuLabel>
-                  <MenuItem active={currentQuality === -1} onClick={() => changeQuality(-1)}>Auto</MenuItem>
+                  <MenuItem active={currentQuality === -1} onClick={() => { changeQuality(-1); showControlsTemp(); }}>Auto</MenuItem>
                   {qualities.map((q, i) => (
-                    <MenuItem key={i} active={currentQuality === i} onClick={() => changeQuality(i)}>{q.height}p</MenuItem>
+                    <MenuItem key={i} active={currentQuality === i} onClick={() => { changeQuality(i); showControlsTemp(); }}>{q.height}p</MenuItem>
                   ))}
                 </GlassMenu>
               )}
@@ -1119,7 +1134,7 @@ export default function HLSPlayerNew({
           {(hlsSubtitles.length > 0 || (subtitleTracks && subtitleTracks.length > 0)) && (
             <div className="relative">
               <button
-                onClick={() => setActiveMenu(activeMenu === 'subtitles' ? null : 'subtitles')}
+                onClick={() => { setActiveMenu(activeMenu === 'subtitles' ? null : 'subtitles'); showControlsTemp(); }}
                 className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${activeMenu === 'subtitles' ? 'bg-white/20' : 'hover:bg-white/10'} ${currentSubtitle !== -1 ? 'text-white' : ''}`}
                 title="Subtitles"
               >
@@ -1128,16 +1143,16 @@ export default function HLSPlayerNew({
               {activeMenu === 'subtitles' && !showSubtitleSettings && (
                 <GlassMenu>
                   <MenuLabel>Subtitles</MenuLabel>
-                  <MenuItem active={currentSubtitle === -1} onClick={() => changeSubtitle(-1)}>Off</MenuItem>
+                  <MenuItem active={currentSubtitle === -1} onClick={() => { changeSubtitle(-1); showControlsTemp(); }}>Off</MenuItem>
                   {hlsSubtitles.map((sub, i) => (
-                    <MenuItem key={`hls-${i}`} active={currentSubtitle === i} onClick={() => changeSubtitle(i)}>
+                    <MenuItem key={`hls-${i}`} active={currentSubtitle === i} onClick={() => { changeSubtitle(i); showControlsTemp(); }}>
                       {sub.name || sub.lang || `Track ${i + 1}`}
                     </MenuItem>
                   ))}
                   {(subtitleTracks || []).map((sub, i) => {
                     const idx = hlsSubtitles.length + i;
                     return (
-                      <MenuItem key={`ext-${i}`} active={currentSubtitle === idx} onClick={() => changeSubtitle(idx)}>
+                      <MenuItem key={`ext-${i}`} active={currentSubtitle === idx} onClick={() => { changeSubtitle(idx); showControlsTemp(); }}>
                         {sub.label || sub.lang || `External ${i + 1}`}
                       </MenuItem>
                     );
@@ -1149,6 +1164,7 @@ export default function HLSPlayerNew({
                       onClick={() => {
                         setActiveMenu(null);
                         setShowSubtitleSettings(true);
+                        showControlsTemp();
                       }}
                       className="block w-full text-left px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
                     >
@@ -1167,6 +1183,7 @@ export default function HLSPlayerNew({
               onClick={() => {
                 setShowSubtitleSettings(s => !s);
                 setActiveMenu(null);
+                showControlsTemp();
               }}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${showSubtitleSettings ? 'bg-white/20' : 'hover:bg-white/10'}`}
               title="Subtitle settings"
@@ -1187,7 +1204,7 @@ export default function HLSPlayerNew({
           {/* Stream health indicator — hidden on mobile (user request: remove wifi icon) */}
           <div className="relative hidden sm:block">
             <button
-              onClick={() => { setShowStreamInfo(!showStreamInfo); setActiveMenu(null); }}
+              onClick={() => { setShowStreamInfo(!showStreamInfo); setActiveMenu(null); showControlsTemp(); }}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${showStreamInfo ? 'bg-white/20' : 'hover:bg-white/10'}`}
               title="Stream health"
             >
@@ -1231,7 +1248,7 @@ export default function HLSPlayerNew({
 
           {/* Screenshot — hidden on mobile to save space */}
           <button
-            onClick={takeScreenshot}
+            onClick={() => { takeScreenshot(); showControlsTemp(); }}
             className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
             title="Screenshot (S)"
           >
@@ -1240,7 +1257,7 @@ export default function HLSPlayerNew({
 
           {/* Download — hidden on mobile to save space for fullscreen */}
           <button
-            onClick={() => setShowDownloadModal(true)}
+            onClick={() => { setShowDownloadModal(true); showControlsTemp(); }}
             className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
             title="Download"
           >
@@ -1249,7 +1266,7 @@ export default function HLSPlayerNew({
 
           {/* Fullscreen (always visible, slightly smaller on mobile) */}
           <button
-            onClick={toggleFullscreen}
+            onClick={() => { toggleFullscreen(); showControlsTemp(); }}
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
             title="Fullscreen (F)"
           >

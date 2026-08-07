@@ -1,0 +1,1483 @@
+     1→'use client';
+     2→
+     3→import { useEffect, useRef, useState, useCallback } from 'react';
+     4→import Hls from 'hls.js';
+     5→import { proxify, proxifyM3u8 } from '@/lib/proxy';
+     6→import { validateSkipTime } from '@/lib/episode-metadata';
+     7→import {
+     8→  useSubtitleSettings,
+     9→  CustomSubtitleOverlay,
+    10→  SubtitleSettingsPanel,
+    11→} from './subtitle-settings';
+    12→
+    13→interface HLSPlayerProps {
+    14→  url: string;
+    15→  animeId?: string;
+    16→  episodeNum?: number;
+    17→  sourceType?: 'hls' | 'mp4';
+    18→  intro?: { start: number; end: number } | null;
+    19→  outro?: { start: number; end: number } | null;
+    20→  allStreams?: Array<{ url: string; quality: string; label: string }>;
+    21→  subtitleTracks?: Array<{ url: string; lang: string; label: string }>;
+    22→  onEnded?: () => void;
+    23→  onProviderFailed?: () => void;
+    24→  onCanPlay?: () => void;
+    25→  autoplay?: boolean;
+    26→  autoSkip?: boolean;
+    27→}
+    28→
+    29→// ============================================================
+    30→// Glass Player — Animetsu-inspired glassmorphism design
+    31→// Features:
+    32→//   - Floating glass control bar (backdrop-blur, translucent)
+    33→//   - Animated progress bar with glow + gradient
+    34→//   - Smooth scale/translate animations on all interactions
+    35→//   - Glass menus for quality/subtitles/speed
+    36→//   - Animated center play button with pulse ring
+    37→//   - Double-tap to seek with ripple animation
+    38→//   - Keyboard shortcuts
+    39→// ============================================================
+    40→
+    41→export default function HLSPlayerNew({
+    42→  url, animeId, episodeNum, sourceType = 'hls',
+    43→  intro: introProp, outro: outroProp, allStreams, subtitleTracks, onEnded, onProviderFailed, onCanPlay, autoplay = true, autoSkip = false,
+    44→}: HLSPlayerProps) {
+    45→  const videoRef = useRef<HTMLVideoElement>(null);
+    46→  const hlsRef = useRef<Hls | null>(null);
+    47→  const containerRef = useRef<HTMLDivElement>(null);
+    48→
+    49→  // Defense-in-depth: validate skip times at the player level too.
+    50→  // Even if upstream code fails to filter bad data, this guarantees
+    51→  // the outro button never appears at the start of the video (which
+    52→  // happens when outro.start = 0 from a provider's "no data" sentinel).
+    53→  const intro = validateSkipTime(introProp ?? null, "intro");
+    54→  const outro = validateSkipTime(outroProp ?? null, "outro");
+    55→
+    56→  // Keep the latest callbacks in refs so the stream-loading and video-event
+    57→  // effects DON'T list them as deps. Parents (e.g. watch-page-shell) re-render
+    58→  // on every `timeupdate` (several times/sec) and often pass inline arrow
+    59→  // callbacks — a new identity each render. If those were in the effect deps,
+    60→  // the stream effect would destroy + recreate the hls.js instance on every
+    61→  // frame, refetching the m3u8 + all segments in an infinite loop. Reading
+    62→  // through a ref keeps the effect stable (only url/sourceType/autoplay matter).
+    63→  const onProviderFailedRef = useRef(onProviderFailed);
+    64→  const onEndedRef = useRef(onEnded);
+    65→  const onCanPlayRef = useRef(onCanPlay);
+    66→  const onCanPlayFiredRef = useRef(false);
+    67→  const autoSkipRef = useRef(autoSkip);
+    68→  onProviderFailedRef.current = onProviderFailed;
+    69→  onEndedRef.current = onEnded;
+    70→  onCanPlayRef.current = onCanPlay;
+    71→  autoSkipRef.current = autoSkip;
+    72→  const [playing, setPlaying] = useState(false);
+    73→  const [currentTime, setCurrentTime] = useState(0);
+    74→  const [duration, setDuration] = useState(0);
+    75→  const [buffered, setBuffered] = useState(0);
+    76→  const [volume, setVolume] = useState(1);
+    77→  const [muted, setMuted] = useState(false);
+    78→  const [fullscreen, setFullscreen] = useState(false);
+    79→  const [loading, setLoading] = useState(true);
+    80→  const [error, setError] = useState<string | null>(null);
+    81→  const [showControls, setShowControls] = useState(true);
+    82→  const isMobileRef = useRef(false);
+    83→  if (typeof window !== 'undefined') isMobileRef.current = 'ontouchstart' in window || window.innerWidth < 768;
+    84→  const [qualities, setQualities] = useState<any[]>([]);
+    85→  const [currentQuality, setCurrentQuality] = useState(-1);
+    86→  const [activeMenu, setActiveMenu] = useState<'quality' | 'subtitles' | 'speed' | null>(null);
+    87→  const [showSubtitleSettings, setShowSubtitleSettings] = useState(false);
+    88→  const [showDownloadModal, setShowDownloadModal] = useState(false);
+    89→  const { settings: subtitleSettings, update: updateSubtitleSettings, reset: resetSubtitleSettings } = useSubtitleSettings();
+    90→  const [currentSubtitle, setCurrentSubtitle] = useState(-1);
+    91→  const currentSubtitleRef = useRef(currentSubtitle);
+    92→  currentSubtitleRef.current = currentSubtitle;
+    93→  const [hlsSubtitles, setHlsSubtitles] = useState<any[]>([]);
+    94→  const [playbackRate, setPlaybackRate] = useState(1);
+    95→  const [showSkipIntro, setShowSkipIntro] = useState(false);
+    96→  const [showSkipOutro, setShowSkipOutro] = useState(false);
+    97→  // Track when user clicked skip — prevents the button from re-appearing
+    98→  // immediately after the click (the timeupdate loop would otherwise keep
+    99→  // showing it because video.currentTime is still in the skip range).
+   100→  const skipIntroClickedRef = useRef(0);
+   101→  const skipOutroClickedRef = useRef(0);
+   102→  const [hoverTime, setHoverTime] = useState<number | null>(null);
+   103→  const [hoverX, setHoverX] = useState(0);
+   104→  const [seekRipple, setSeekRipple] = useState<{ x: number; dir: 'left' | 'right' } | null>(null);
+   105→  const [volumeHover, setVolumeHover] = useState(false);
+   106→  const [screenshotFlash, setScreenshotFlash] = useState(false);
+   107→  const [screenshotToast, setScreenshotToast] = useState<string | null>(null);
+   108→  const [downloadLoading, setDownloadLoading] = useState(false);
+   109→  const [downloadToast, setDownloadToast] = useState<string | null>(null);
+   110→  const [streamHealth, setStreamHealth] = useState<'good' | 'fair' | 'poor' | 'unknown'>('unknown');
+   111→  const [showStreamInfo, setShowStreamInfo] = useState(false);
+   112→  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   113→  const retryCountRef = useRef(0);
+   114→  const lastTapRef = useRef<{ time: number; x: number } | null>(null);
+   115→  const canvasRef = useRef<HTMLCanvasElement>(null);
+   116→
+   117→  // ─── Load stream ──────────────────────────────────────────────────
+   118→  useEffect(() => {
+   119→    const video = videoRef.current;
+   120→    if (!video || !url) return;
+   121→
+   122→    setLoading(true);
+   123→    setError(null);
+   124→    retryCountRef.current = 0;
+   125→    setCurrentSubtitle(-1);
+   126→    setHlsSubtitles([]);
+   127→    onCanPlayFiredRef.current = false; // reset for new stream
+   128→
+   129→    if (hlsRef.current) {
+   130→      hlsRef.current.destroy();
+   131→      hlsRef.current = null;
+   132→    }
+   133→
+   134→    if (sourceType === 'mp4' || url.endsWith('.mp4') || url.includes('video.mp4')) {
+   135→      // Proxy the MP4 URL through the worker so the correct Referer is sent
+   136→      video.src = proxify(url);
+   137→      video.load();
+   138→      if (autoplay) video.play().catch(() => {});
+   139→      return;
+   140→    }
+   141→
+   142→    if (Hls.isSupported()) {
+   143→      const hls = new Hls({
+   144→        enableWorker: true,
+   145→        // ─── PERFORMANCE TUNING — optimized for FASTEST initial load ───
+   146→        // Strategy: Start at LOWEST quality (360p) for instant first-frame,
+   147→        // then ABR auto-upgrades to 1080p within 2-3 seconds as bandwidth
+   148→        // is measured. This gives the FASTEST perceived load time.
+   149→        // Previous config started at 1080p which meant downloading 5-10MB
+   150→        // before any frame appeared — now we download ~500KB first.
+   151→        lowLatencyMode: true,            // Enables reduced buffer targets + faster ABR
+   152→        backBufferLength: 20,            // 20s back buffer — saves memory, plenty for seeking
+   153→        maxBufferLength: 10,             // 10s ahead buffer — minimal wait before playback starts
+   154→        maxMaxBufferLength: 120,         // 120s max buffer — grows for smooth long-form playback
+   155→        maxBufferSize: 50 * 1000 * 1000, // 50MB max buffer size
+   156→        maxBufferHole: 0.5,
+   157→        // Start at the LOWEST quality level for FASTEST time-to-first-frame.
+   158→        // ABR will auto-upgrade to 1080p within 2-3s on fast connections.
+   159→        // -1 = ABR auto-select, 0 = lowest level (fastest first frame).
+   160→        startLevel: 0,
+   161→        // Assume 5Mbps bandwidth initially — conservative start ensures
+   162→        // smooth playback while ABR measures real bandwidth.
+   163→        // After 2-3s of measurement, ABR ramps up to full 1080p.
+   164→        abrEwmaDefaultEstimate: 5000000,   // 5Mbps — conservative, ramps up fast
+   165→        abrBandWidthFactor: 0.8,           // More aggressive quality upgrades
+   166→        abrBandWidthUpFactor: 0.7,
+   167→        maxStarvationDelay: 1,             // Switch quality instantly if buffer runs dry
+   168→        abrEwmaDefaultEstimateMax: 50000000, // 50Mbps max — allows 4K streams
+   169→        abrMaxWithRealBitrate: true,        // Use real bitrate from manifest for better ABR
+   170→        // ─── TIMEOUTS — fail FAST, retry FAST ───
+   171→        // Aggressive timeouts so dead servers don't hold up playback.
+   172→        manifestLoadingTimeOut: 6000,      // 6s — proxy+CDN should respond in <3s
+   173→        manifestLoadingMaxRetry: 2,        // Only retry twice — move on quickly
+   174→        levelLoadingTimeOut: 6000,         // 6s
+   175→        levelLoadingMaxRetry: 2,
+   176→        fragLoadingTimeOut: 10000,         // 10s per segment — generous even on slow CDNs
+   177→        fragLoadingMaxRetry: 3,            // 3 retries — enough to recover from transient errors
+   178→        fragLoadingRetryDelay: 250,        // 250ms — retry almost immediately
+   179→        // ─── PREFETCH + PROGRESSIVE for instant start ───
+   180→        startFragPrefetch: true,           // Prefetch first fragment while parsing manifest
+   181→        progressive: true,                 // Stream data progressively (faster TTFF)
+   182→        testBandwidth: true,               // Bandwidth test on first fragment for faster ABR
+   183→        // ─── SUBTITLES ───
+   184→        enableWebVTT: true,
+   185→        xhrSetup: (xhr) => { xhr.withCredentials = false; },
+   186→      });
+   187→      hlsRef.current = hls;
+   188→      hls.loadSource(proxifyM3u8(url));
+   189→      hls.attachMedia(video);
+   190→
+   191→      hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
+   192→        setQualities(data.levels);
+   193→        setLoading(false);
+   194→        // Reset retry counter on successful manifest parse
+   195→        retryCountRef.current = 0;
+   196→        if (autoplay) {
+   197→          video.play().catch(() => {
+   198→            video.muted = true;
+   199→            video.play().catch(() => {});
+   200→          });
+   201→        }
+   202→      });
+   203→
+   204→      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_e, data) => {
+   205→        setHlsSubtitles(data.subtitleTracks || []);
+   206→        if (data.subtitleTracks.length > 0 && hls.subtitleTrack === -1) {
+   207→          hls.subtitleTrack = 0;
+   208→          setCurrentSubtitle(0);
+   209→          // After HLS.js sets the subtitle track, it creates a textTrack with
+   210→          // mode='showing' (native rendering). We need to switch it to 'hidden'
+   211→          // so only our CustomSubtitleOverlay renders (prevents double subtitles).
+   212→          setTimeout(() => {
+   213→            const video = videoRef.current;
+   214→            if (video) {
+   215→              for (let i = 0; i < video.textTracks.length; i++) {
+   216→                if (i === 0) video.textTracks[i].mode = 'hidden';
+   217→              }
+   218→            }
+   219→          }, 200);
+   220→        }
+   221→      });
+   222→
+   223→      hls.on(Hls.Events.LEVEL_SWITCHED, (_e, data) => {
+   224→        setCurrentQuality(data.level);
+   225→        // After a level switch, HLS.js may re-enable native subtitle rendering.
+   226→        // Force the active track back to 'hidden' mode so only our overlay shows.
+   227→        if (currentSubtitleRef.current >= 0) {
+   228→          setTimeout(() => {
+   229→            const video = videoRef.current;
+   230→            if (video && video.textTracks.length > currentSubtitleRef.current) {
+   231→              video.textTracks[currentSubtitleRef.current].mode = 'hidden';
+   232→            }
+   233→          }, 100);
+   234→        }
+   235→      });
+   236→
+   237→      hls.on(Hls.Events.ERROR, (_e, data) => {
+   238→        // Non-fatal errors are expected during streaming (a segment/playlist
+   239→        // fetch hiccup) and hls.js already recovers from them on its own —
+   240→        // console.warn so they don't trip Next's dev error overlay for
+   241→        // something that isn't actually broken.
+   242→        const log = data.fatal ? console.error : console.warn;
+   243→        log(`[HLS] Error: type=${data.type} details=${data.details} fatal=${data.fatal}`);
+   244→        if (data.fatal) {
+   245→          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+   246→            if (retryCountRef.current < 3) {
+   247→              retryCountRef.current++;
+   248→              setTimeout(() => hls.startLoad(), 2000);
+   249→            } else {
+   250→              setError('Stream failed. Try another server.');
+   251→              setLoading(false);
+   252→              onProviderFailedRef.current?.();
+   253→            }
+   254→          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+   255→            hls.recoverMediaError();
+   256→          } else {
+   257→            setError('Playback error. Try another server.');
+   258→            setLoading(false);
+   259→            onProviderFailedRef.current?.();
+   260→          }
+   261→        }
+   262→      });
+   263→    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+   264→      // Safari/iOS — native HLS
+   265→      video.src = proxifyM3u8(url);
+   266→      const onNativeError = () => { setError('Stream failed to load.'); setLoading(false); };
+   267→      video.addEventListener('error', onNativeError);
+   268→      if (autoplay) video.play().catch(() => {});
+   269→      return () => {
+   270→        video.removeEventListener('error', onNativeError);
+   271→      };
+   272→    } else {
+   273→      setError('HLS not supported');
+   274→      setLoading(false);
+   275→    }
+   276→
+   277→    return () => {
+   278→      if (hlsRef.current) {
+   279→        hlsRef.current.destroy();
+   280→        hlsRef.current = null;
+   281→      }
+   282→    };
+   283→  }, [url, sourceType, autoplay]);
+   284→
+   285→  // ─── Video events ─────────────────────────────────────────────────
+   286→  useEffect(() => {
+   287→    const video = videoRef.current;
+   288→    if (!video) return;
+   289→
+   290→    const onPlay = () => setPlaying(true);
+   291→    const onPause = () => setPlaying(false);
+   292→    const onTime = () => {
+   293→      setCurrentTime(video.currentTime);
+   294→      if (video.buffered.length > 0) {
+   295→        setBuffered(video.buffered.end(video.buffered.length - 1));
+   296→      }
+   297→      // Auto Skip — when enabled, jump straight past the opening/ending.
+   298→      if (autoSkipRef.current) {
+   299→        if (intro && video.currentTime >= intro.start && video.currentTime < intro.end - 0.3) {
+   300→          video.currentTime = intro.end;
+   301→          return;
+   302→        }
+   303→        if (outro && video.currentTime >= outro.start && video.currentTime < outro.end - 0.3) {
+   304→          video.currentTime = Math.min(outro.end, video.duration || outro.end);
+   305→          return;
+   306→        }
+   307→      }
+   308→      // Show skip intro button from 3s BEFORE intro starts until 5s AFTER it ends.
+   309→      // Also show immediately if video just loaded and we're already in the intro range
+   310→      // (happens when mimi loads super fast and starts playing at 0s, which is before intro.start)
+   311→      //
+   312→      // BUT: if the user just clicked Skip Intro (within last 8s), DON'T re-show the
+   313→      // button — otherwise it instantly pops back up because video.currentTime is still
+   314→      // in the intro range right after the seek.
+   315→      const sinceIntroClick = Date.now() - skipIntroClickedRef.current;
+   316→      const sinceOutroClick = Date.now() - skipOutroClickedRef.current;
+   317→
+   318→      if (intro && video.currentTime >= (intro.start - 3) && video.currentTime < (intro.end + 5) && sinceIntroClick > 8000) {
+   319→        setShowSkipIntro(true);
+   320→      } else {
+   321→        setShowSkipIntro(false);
+   322→      }
+   323→      if (outro && video.currentTime >= (outro.start - 3) && video.currentTime < (outro.end + 10) && sinceOutroClick > 8000) {
+   324→        setShowSkipOutro(true);
+   325→      } else {
+   326→        setShowSkipOutro(false);
+   327→      }
+   328→    };
+   329→
+   330→    // Also check on MANIFEST_PARSED / loadedmetadata — if intro data is available
+   331→    // and we're at position 0, show the skip button immediately (before timeupdate fires)
+   332→    const onLoadedMetadata = () => {
+   333→      setDuration(video.duration || 0);
+   334→      // If intro starts soon (within first 60s), show the button immediately
+   335→      if (intro && intro.start < 60 && video.currentTime < intro.end) {
+   336→        setShowSkipIntro(true);
+   337→      }
+   338→      if (outro && video.duration && outro.start < video.duration) {
+   339→        // Don't show outro yet, just confirm we have the data
+   340→      }
+   341→    };
+   342→    const onDur = () => setDuration(video.duration || 0);
+   343→
+   344→    let waitingTimer: ReturnType<typeof setTimeout> | null = null;
+   345→    const onWaiting = () => {
+   346→      if (waitingTimer) clearTimeout(waitingTimer);
+   347→      // Show loading after 1.5s of waiting (was 5s — too long, user gets confused)
+   348→      waitingTimer = setTimeout(() => {
+   349→        if (video.readyState < 3) setLoading(true);
+   350→      }, 1500);
+   351→    };
+   352→    const onPlaying = () => {
+   353→      if (waitingTimer) { clearTimeout(waitingTimer); waitingTimer = null; }
+   354→      setLoading(false);
+   355→    };
+   356→    const onCanPlay = () => {
+   357→      if (waitingTimer) { clearTimeout(waitingTimer); waitingTimer = null; }
+   358→      setLoading(false);
+   359→      // Notify parent that video is ready to play (for loading screen dismissal)
+   360→      if (!onCanPlayFiredRef.current) {
+   361→        onCanPlayFiredRef.current = true;
+   362→        onCanPlayRef.current?.();
+   363→      }
+   364→    };
+   365→    const onEnd = () => onEndedRef.current?.();
+   366→    const onErr = () => { setError('Playback error.'); setLoading(false); };
+   367→
+   368→    video.addEventListener('play', onPlay);
+   369→    video.addEventListener('pause', onPause);
+   370→    video.addEventListener('timeupdate', onTime);
+   371→    video.addEventListener('durationchange', onDur);
+   372→    video.addEventListener('loadedmetadata', onLoadedMetadata);
+   373→    video.addEventListener('waiting', onWaiting);
+   374→    video.addEventListener('playing', onPlaying);
+   375→    video.addEventListener('canplay', onCanPlay);
+   376→    video.addEventListener('ended', onEnd);
+   377→    video.addEventListener('error', onErr);
+   378→
+   379→    return () => {
+   380→      video.removeEventListener('play', onPlay);
+   381→      video.removeEventListener('pause', onPause);
+   382→      video.removeEventListener('timeupdate', onTime);
+   383→      video.removeEventListener('durationchange', onDur);
+   384→      video.removeEventListener('loadedmetadata', onLoadedMetadata);
+   385→      video.removeEventListener('waiting', onWaiting);
+   386→      video.removeEventListener('playing', onPlaying);
+   387→      video.removeEventListener('canplay', onCanPlay);
+   388→      video.removeEventListener('ended', onEnd);
+   389→      video.removeEventListener('error', onErr);
+   390→    };
+   391→  }, [intro, outro]);
+   392→
+   393→  // ─── Controls auto-hide ───────────────────────────────────────────
+   394→  const CONTROLS_TIMEOUT = isMobileRef.current ? 2500 : 3500;
+   395→  const showControlsTemp = useCallback(() => {
+   396→    setShowControls(true);
+   397→    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+   398→    controlsTimeoutRef.current = setTimeout(() => {
+   399→      if (playing) { setShowControls(false); setActiveMenu(null); }
+   400→    }, CONTROLS_TIMEOUT);
+   401→  }, [playing, CONTROLS_TIMEOUT]);
+   402→
+   403→  // ─── Auto-hide controls when video starts playing ─────────────────
+   404→  // On mobile, there's no mousemove to trigger showControlsTemp(),
+   405→  // so the controls stay visible forever. This effect starts the
+   406→  // auto-hide timer whenever playback begins.
+   407→  useEffect(() => {
+   408→    if (playing) {
+   409→      // Start the auto-hide timer — controls will disappear after CONTROLS_TIMEOUT
+   410→      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+   411→      controlsTimeoutRef.current = setTimeout(() => {
+   412→        setShowControls(false);
+   413→        setActiveMenu(null);
+   414→      }, CONTROLS_TIMEOUT);
+   415→    } else {
+   416→      // Paused — show controls and cancel any pending hide
+   417→      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+   418→      setShowControls(true);
+   419→    }
+   420→  }, [playing, CONTROLS_TIMEOUT]);
+   421→
+   422→  // ─── Fullscreen ───────────────────────────────────────────────────
+   423→  useEffect(() => {
+   424→    const onFs = () => setFullscreen(!!document.fullscreenElement);
+   425→    document.addEventListener('fullscreenchange', onFs);
+   426→    return () => document.removeEventListener('fullscreenchange', onFs);
+   427→  }, []);
+   428→
+   429→  const toggleFullscreen = async () => {
+   430→    try {
+   431→      if (document.fullscreenElement) {
+   432→        await document.exitFullscreen();
+   433→        // Release orientation lock when exiting fullscreen
+   434→        try { await (screen.orientation as any)?.unlock(); } catch {}
+   435→      } else {
+   436→        await containerRef.current?.requestFullscreen();
+   437→        // On mobile, lock to landscape so the video fills the screen
+   438→        try {
+   439→          if (screen.orientation && typeof (screen.orientation as any).lock === 'function') {
+   440→            await (screen.orientation as any).lock('landscape');
+   441→          }
+   442→        } catch {
+   443→          // Orientation lock not supported or denied — fullscreen still works
+   444→        }
+   445→      }
+   446→    } catch {
+   447→      // Fullscreen request failed silently
+   448→    }
+   449→  };
+   450→
+   451→  const seek = (time: number) => { if (videoRef.current) videoRef.current.currentTime = time; };
+   452→  const togglePlay = () => {
+   453→    const v = videoRef.current; if (!v) return;
+   454→    if (v.paused) v.play(); else v.pause();
+   455→  };
+   456→  const toggleMute = () => {
+   457→    const v = videoRef.current; if (!v) return;
+   458→    v.muted = !v.muted; setMuted(v.muted);
+   459→  };
+   460→  const changeVolume = (vol: number) => {
+   461→    const v = videoRef.current; if (!v) return;
+   462→    v.volume = vol; v.muted = vol === 0;
+   463→    setVolume(vol); setMuted(vol === 0);
+   464→  };
+   465→  const changeQuality = (level: number) => {
+   466→    if (hlsRef.current) { hlsRef.current.currentLevel = level; setCurrentQuality(level); }
+   467→    setActiveMenu(null);
+   468→  };
+   469→
+   470→  // ── Auto-enable the first external subtitle track ──
+   471→  // The `default` attribute on <track> doesn't always work reliably across
+   472→  // browsers (especially when the track loads after the video starts). This
+   473→  // effect explicitly enables the first external subtitle track once the
+   474→  // video metadata has loaded AND there are no HLS-embedded subtitles.
+   475→  // This ensures subtitles show automatically when the user starts watching.
+   476→  useEffect(() => {
+   477→    if (hlsSubtitles.length > 0) return; // HLS-embedded subs handle their own default
+   478→    if (!subtitleTracks || subtitleTracks.length === 0) return;
+   479→    const video = videoRef.current;
+   480→    if (!video) return;
+   481→
+   482→    const enableFirstSub = () => {
+   483→      // video.textTracks includes both HLS-embedded and external <track> elements.
+   484→      // External tracks come AFTER HLS tracks in the list. Since we have no HLS
+   485→      // subs (checked above), the first external track is at index 0.
+   486→      if (video.textTracks.length > 0 && currentSubtitle === -1) {
+   487→        // Don't override if the user explicitly turned subs off
+   488→        // Use 'hidden' mode — cues fire but native rendering is suppressed
+   489→        // (our CustomSubtitleOverlay handles rendering)
+   490→        video.textTracks[0].mode = 'hidden';
+   491→        setCurrentSubtitle(0);
+   492→      }
+   493→    };
+   494→
+   495→    // Try immediately (in case metadata already loaded)
+   496→    if (video.readyState >= 1) {
+   497→      enableFirstSub();
+   498→    } else {
+   499→      video.addEventListener('loadedmetadata', enableFirstSub, { once: true });
+   500→      return () => video.removeEventListener('loadedmetadata', enableFirstSub);
+   501→    }
+   502→  }, [hlsSubtitles.length, subtitleTracks, currentSubtitle]);
+   503→
+   504→  // ── Force textTracks to 'hidden' mode (prevents double subtitles) ──
+   505→  // HLS.js periodically sets textTrack.mode back to 'showing' (native rendering),
+   506→  // which causes our CustomSubtitleOverlay + native ::cue to both render.
+   507→  // Listen to the 'change' event on TextTrackList for immediate reaction
+   508→  // instead of polling every 500ms (which caused visible flicker).
+   509→  useEffect(() => {
+   510→    const video = videoRef.current;
+   511→    if (!video) return;
+   512→    const handler = () => {
+   513→      for (let i = 0; i < video.textTracks.length; i++) {
+   514→        const track = video.textTracks[i];
+   515→        if (track.mode === 'showing') {
+   516→          track.mode = 'hidden';
+   517→        }
+   518→      }
+   519→    };
+   520→    video.textTracks.addEventListener('change', handler);
+   521→    return () => video.textTracks.removeEventListener('change', handler);
+   522→  }, []);
+   523→
+   524→  const changeSubtitle = (track: number) => {
+   525→    if (track === -1) {
+   526→      if (hlsRef.current) hlsRef.current.subtitleTrack = -1;
+   527→      const video = videoRef.current;
+   528→      if (video) for (let i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = 'disabled';
+   529→      setCurrentSubtitle(-1);
+   530→    } else if (hlsRef.current && track < hlsSubtitles.length) {
+   531→      // HLS-embedded subtitle track
+   532→      hlsRef.current.subtitleTrack = track;
+   533→      const video = videoRef.current;
+   534→      // Set the selected track to 'hidden' (cues fire, native rendering suppressed)
+   535→      // and disable all others. This prevents double subtitles.
+   536→      if (video) {
+   537→        setTimeout(() => {
+   538→          for (let i = 0; i < video.textTracks.length; i++) {
+   539→            video.textTracks[i].mode = (i === track) ? 'hidden' : 'disabled';
+   540→          }
+   541→        }, 100);
+   542→      }
+   543→      setCurrentSubtitle(track);
+   544→    } else {
+   545→      // External subtitle (<track> element)
+   546→      if (hlsRef.current) hlsRef.current.subtitleTrack = -1;
+   547→      const video = videoRef.current;
+   548→      if (video) for (let i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = (i === track) ? 'hidden' : 'disabled';
+   549→      setCurrentSubtitle(track);
+   550→    }
+   551→    setActiveMenu(null);
+   552→  };
+   553→  const changePlaybackRate = (rate: number) => {
+   554→    if (videoRef.current) videoRef.current.playbackRate = rate;
+   555→    setPlaybackRate(rate);
+   556→    setActiveMenu(null);
+   557→  };
+   558→  const skipTime = (seconds: number) => { if (videoRef.current) videoRef.current.currentTime += seconds; };
+   559→  const skipIntro = () => {
+   560→    if (videoRef.current && intro) {
+   561→      videoRef.current.currentTime = intro.end;
+   562→      skipIntroClickedRef.current = Date.now();
+   563→      setShowSkipIntro(false);
+   564→    }
+   565→  };
+   566→  const skipOutro = () => {
+   567→    if (videoRef.current && outro) {
+   568→      videoRef.current.currentTime = outro.end;
+   569→      skipOutroClickedRef.current = Date.now();
+   570→      setShowSkipOutro(false);
+   571→    }
+   572→  };
+   573→
+   574→  // ─── Screenshot: capture current video frame as PNG ───────────────
+   575→  const takeScreenshot = useCallback(() => {
+   576→    const video = videoRef.current;
+   577→    if (!video || !video.videoWidth) {
+   578→      setScreenshotToast('Video not ready');
+   579→      setTimeout(() => setScreenshotToast(null), 2000);
+   580→      return;
+   581→    }
+   582→    try {
+   583→      const canvas = canvasRef.current || document.createElement('canvas');
+   584→      canvas.width = video.videoWidth;
+   585→      canvas.height = video.videoHeight;
+   586→      const ctx = canvas.getContext('2d');
+   587→      if (!ctx) throw new Error('No canvas context');
+   588→      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+   589→      const dataUrl = canvas.toDataURL('image/png');
+   590→      // Download the screenshot
+   591→      const link = document.createElement('a');
+   592→      const filename = `screenshot-${animeId || 'anime'}-ep${episodeNum || 1}-${Math.floor(video.currentTime)}s.png`;
+   593→      link.download = filename;
+   594→      link.href = dataUrl;
+   595→      link.click();
+   596→      // Flash animation
+   597→      setScreenshotFlash(true);
+   598→      setTimeout(() => setScreenshotFlash(false), 300);
+   599→      setScreenshotToast('Screenshot saved!');
+   600→      setTimeout(() => setScreenshotToast(null), 2000);
+   601→    } catch (err) {
+   602→      // CORS-tainted canvas — can't capture directly
+   603→      setScreenshotToast('Screenshot blocked by CORS');
+   604→      setTimeout(() => setScreenshotToast(null), 3000);
+   605→    }
+   606→    showControlsTemp();
+   607→  }, [animeId, episodeNum, showControlsTemp]);
+   608→
+   609→  // ─── Download: download the current stream URL ────────────────────
+   610→  const handleDownload = useCallback(async () => {
+   611→    setDownloadLoading(true);
+   612→    try {
+   613→      const video = videoRef.current;
+   614→      if (!video) throw new Error('No video');
+   615→      // For MP4 sources, download directly
+   616→      if (sourceType === 'mp4' || url.endsWith('.mp4')) {
+   617→        const link = document.createElement('a');
+   618→        link.href = proxify(url);
+   619→        link.download = `${animeId || 'anime'}-ep${episodeNum || 1}.mp4`;
+   620→        link.target = '_blank';
+   621→        link.click();
+   622→        setDownloadToast('Download started');
+   623→      } else {
+   624→        // For HLS streams, open the proxied m3u8 URL in new tab
+   625→        // (user can use a downloader like ffmpeg or browser extension)
+   626→        const link = document.createElement('a');
+   627→        link.href = proxifyM3u8(url);
+   628→        link.download = `${animeId || 'anime'}-ep${episodeNum || 1}.m3u8`;
+   629→        link.target = '_blank';
+   630→        link.click();
+   631→        setDownloadToast('Stream link opened — use a video downloader for HLS');
+   632→      }
+   633→      setTimeout(() => setDownloadToast(null), 3500);
+   634→    } catch (err) {
+   635→      setDownloadToast('Download failed');
+   636→      setTimeout(() => setDownloadToast(null), 2000);
+   637→    }
+   638→    setDownloadLoading(false);
+   639→    showControlsTemp();
+   640→  }, [url, sourceType, animeId, episodeNum, showControlsTemp]);
+   641→
+   642→  // ─── Stream health monitor ────────────────────────────────────────
+   643→  useEffect(() => {
+   644→    const video = videoRef.current;
+   645→    if (!video) return;
+   646→    let lastTime = video.currentTime;
+   647→    let lastDate = Date.now();
+   648→    let stallCount = 0;
+   649→    const interval = setInterval(() => {
+   650→      if (video.paused) return;
+   651→      const now = Date.now();
+   652→      const elapsed = (now - lastDate) / 1000;
+   653→      const delta = video.currentTime - lastTime;
+   654→      // If time advanced less than 80% of real time, it's stalling
+   655→      if (delta < elapsed * 0.8 && delta >= 0) {
+   656→        stallCount++;
+   657→      } else if (delta >= elapsed * 0.9) {
+   658→        stallCount = Math.max(0, stallCount - 1);
+   659→      }
+   660→      // Determine health
+   661→      if (stallCount >= 3) setStreamHealth('poor');
+   662→      else if (stallCount >= 1) setStreamHealth('fair');
+   663→      else setStreamHealth('good');
+   664→      lastTime = video.currentTime;
+   665→      lastDate = now;
+   666→    }, 2000);
+   667→    return () => clearInterval(interval);
+   668→  }, [url]);
+   669→
+   670→  // ─── Keyboard shortcuts ───────────────────────────────────────────
+   671→  // Use refs for all handler functions to avoid stale closures and
+   672→  // prevent the effect from re-running on every render (which would
+   673→  // remove and re-add the event listener constantly).
+   674→  const togglePlayRef = useRef(togglePlay);
+   675→  const toggleMuteRef = useRef(toggleMute);
+   676→  const skipTimeRef = useRef(skipTime);
+   677→  const changeVolumeRef = useRef(changeVolume);
+   678→  const toggleFullscreenRef = useRef(toggleFullscreen);
+   679→  const showControlsTempRef = useRef(showControlsTemp);
+   680→  const takeScreenshotRef = useRef(takeScreenshot);
+   681→  const volumeRef = useRef(volume);
+   682→  togglePlayRef.current = togglePlay;
+   683→  toggleMuteRef.current = toggleMute;
+   684→  skipTimeRef.current = skipTime;
+   685→  changeVolumeRef.current = changeVolume;
+   686→  toggleFullscreenRef.current = toggleFullscreen;
+   687→  showControlsTempRef.current = showControlsTemp;
+   688→  takeScreenshotRef.current = takeScreenshot;
+   689→  volumeRef.current = volume;
+   690→
+   691→  useEffect(() => {
+   692→    const handleKey = (e: KeyboardEvent) => {
+   693→      const target = e.target as HTMLElement;
+   694→      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+   695→      switch (e.key.toLowerCase()) {
+   696→        case ' ':
+   697→        case 'k': e.preventDefault(); togglePlayRef.current(); showControlsTempRef.current(); break;
+   698→        case 'arrowright': e.preventDefault(); skipTimeRef.current(10); showControlsTempRef.current(); break;
+   699→        case 'arrowleft': e.preventDefault(); skipTimeRef.current(-10); showControlsTempRef.current(); break;
+   700→        case 'arrowup': e.preventDefault(); changeVolumeRef.current(Math.min(1, volumeRef.current + 0.1)); showControlsTempRef.current(); break;
+   701→        case 'arrowdown': e.preventDefault(); changeVolumeRef.current(Math.max(0, volumeRef.current - 0.1)); showControlsTempRef.current(); break;
+   702→        case 'f': e.preventDefault(); toggleFullscreenRef.current(); break;
+   703→        case 'm': e.preventDefault(); toggleMuteRef.current(); showControlsTempRef.current(); break;
+   704→        case 'j': e.preventDefault(); skipTimeRef.current(-10); showControlsTempRef.current(); break;
+   705→        case 'l': e.preventDefault(); skipTimeRef.current(10); showControlsTempRef.current(); break;
+   706→        case 's': e.preventDefault(); takeScreenshotRef.current(); break;
+   707→        case 'd': e.preventDefault(); break; // Download removed
+   708→      }
+   709→    };
+   710→    window.addEventListener('keydown', handleKey);
+   711→    return () => window.removeEventListener('keydown', handleKey);
+   712→  }, []);
+   713→
+   714→  // ─── Double-tap to seek with ripple ───────────────────────────────
+   715→  const handleVideoClick = (e: React.MouseEvent) => {
+   716→    const now = Date.now();
+   717→    const x = e.clientX;
+   718→    if (lastTapRef.current && now - lastTapRef.current.time < 300 && Math.abs(x - lastTapRef.current.x) < 50) {
+   719→      const rect = containerRef.current?.getBoundingClientRect();
+   720→      if (rect) {
+   721→        const relX = (x - rect.left) / rect.width;
+   722→        if (relX < 0.4) {
+   723→          skipTime(-10);
+   724→          setSeekRipple({ x: relX * rect.width, dir: 'left' });
+   725→          setTimeout(() => setSeekRipple(null), 600);
+   726→        } else if (relX > 0.6) {
+   727→          skipTime(10);
+   728→          setSeekRipple({ x: relX * rect.width, dir: 'right' });
+   729→          setTimeout(() => setSeekRipple(null), 600);
+   730→        } else {
+   731→          togglePlay();
+   732→        }
+   733→      }
+   734→      lastTapRef.current = null;
+   735→    } else {
+   736→      lastTapRef.current = { time: now, x };
+   737→      setTimeout(() => {
+   738→        if (lastTapRef.current && Date.now() - lastTapRef.current.time >= 300) {
+   739→          // On mobile: single tap toggles controls, NOT play/pause
+   740→          // On desktop: single tap toggles play/pause (existing behavior)
+   741→          if (isMobileRef.current) {
+   742→            if (showControls) {
+   743→              setShowControls(false);
+   744→              setActiveMenu(null);
+   745→            } else {
+   746→              showControlsTemp();
+   747→            }
+   748→          } else {
+   749→            togglePlay();
+   750→          }
+   751→          lastTapRef.current = null;
+   752→        }
+   753→      }, 300);
+   754→    }
+   755→  };
+   756→
+   757→  const fmt = (s: number) => {
+   758→    if (!s || isNaN(s)) return '0:00';
+   759→    const h = Math.floor(s / 3600);
+   760→    const m = Math.floor((s % 3600) / 60);
+   761→    const sec = Math.floor(s % 60);
+   762→    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+   763→    return `${m}:${sec.toString().padStart(2, '0')}`;
+   764→  };
+   765→
+   766→  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+   767→  const bufferedProgress = duration > 0 ? (buffered / duration) * 100 : 0;
+   768→
+   769→  const handleProgressHover = (e: React.MouseEvent) => {
+   770→    const rect = e.currentTarget.getBoundingClientRect();
+   771→    const pct = (e.clientX - rect.left) / rect.width;
+   772→    setHoverTime(pct * duration);
+   773→    setHoverX(e.clientX - rect.left);
+   774→  };
+   775→
+   776→  return (
+   777→    <>
+   778→    <style dangerouslySetInnerHTML={{ __html: SKIP_OVERLAY_STYLES }} />
+   779→    <div
+   780→      ref={containerRef}
+   781→      className="relative w-full bg-black overflow-hidden group select-none"
+   782→      style={{ aspectRatio: '16 / 9' }}
+   783→      onMouseMove={showControlsTemp}
+   784→      onMouseLeave={() => { if (playing) { setShowControls(false); setActiveMenu(null); } }}
+   785→      onTouchStart={() => { if (!showControls) { showControlsTemp(); } }}
+   786→      onTouchEnd={() => { /* auto-hide timeout handles hiding */ }}
+   787→    >
+   788→      <video
+   789→        ref={videoRef}
+   790→        className="w-full h-full object-contain"
+   791→        playsInline
+   792→        onClick={handleVideoClick}
+   793→        crossOrigin={undefined}
+   794→      >
+   795→        {(subtitleTracks || []).map((t, i) => {
+   796→          // The subtitle URL is ALREADY wrapped through /api/stream (which
+   797→          // handles SRT→VTT conversion + sends the correct Referer header).
+   798→          // Just use t.url directly — no need to proxify again here.
+   799→          // The `default` attribute auto-selects the first external subtitle
+   800→          // track so it shows immediately when the video starts playing.
+   801→          const trackSrc = t.url;
+   802→          return (
+   803→            <track
+   804→              key={`ext-sub-${i}`}
+   805→              kind="subtitles"
+   806→              src={trackSrc}
+   807→              srcLang={t.lang || 'en'}
+   808→              label={t.label || t.lang || 'English'}
+   809→              default={i === 0 && hlsSubtitles.length === 0}
+   810→            />
+   811→          );
+   812→        })}
+   813→      </video>
+   814→
+   815→      {/* ═══ Animated Corner Frames — bold anime-style SVG corners ═══ */}
+   816→      <div className="ltv-corner-frame">
+   817→        {/* Top-left */}
+   818→        <svg className="ltv-corner ltv-corner-tl" viewBox="0 0 100 100" fill="none">
+   819→          <path d="M0 0 L80 0 L70 15 L85 10 L75 25 L90 20 L60 40 L0 0 Z" fill="#D4A017" opacity="0.9"/>
+   820→          <path d="M0 0 L60 0 L50 8 L0 0 Z" fill="#000" opacity="0.4"/>
+   821→        </svg>
+   822→        {/* Top-right */}
+   823→        <svg className="ltv-corner ltv-corner-tr" viewBox="0 0 100 100" fill="none">
+   824→          <path d="M100 0 L20 0 L30 15 L15 10 L25 25 L10 20 L40 40 L100 0 Z" fill="#D4A017" opacity="0.9"/>
+   825→          <path d="M100 0 L40 0 L50 8 L100 0 Z" fill="#000" opacity="0.4"/>
+   826→        </svg>
+   827→        {/* Bottom-left */}
+   828→        <svg className="ltv-corner ltv-corner-bl" viewBox="0 0 100 100" fill="none">
+   829→          <path d="M0 100 L70 100 L60 85 L75 90 L50 70 L0 100 Z" fill="#1E88FF" opacity="0.7"/>
+   830→          <circle cx="20" cy="85" r="4" fill="#fff" opacity="0.3"/>
+   831→          <circle cx="32" cy="90" r="3" fill="#fff" opacity="0.2"/>
+   832→        </svg>
+   833→        {/* Bottom-right */}
+   834→        <svg className="ltv-corner ltv-corner-br" viewBox="0 0 100 100" fill="none">
+   835→          <path d="M100 100 L30 100 L40 85 L25 90 L50 70 L100 100 Z" fill="#1E88FF" opacity="0.7"/>
+   836→          <circle cx="80" cy="85" r="4" fill="#fff" opacity="0.3"/>
+   837→          <circle cx="68" cy="90" r="3" fill="#fff" opacity="0.2"/>
+   838→        </svg>
+   839→      </div>
+   840→
+   841→      {/* ═══ Custom Subtitle Overlay — replaces native ::cue ═══ */}
+   842→      <CustomSubtitleOverlay
+   843→        videoRef={videoRef}
+   844→        settings={subtitleSettings}
+   845→        activeTrackIndex={currentSubtitle}
+   846→        controlsVisible={showControls}
+   847→        isMobile={isMobileRef.current}
+   848→      />
+   849→
+   850→      {/* ═══ Loading spinner — shows during initial load AND buffering ═══ */}
+   851→      {loading && !error && (
+   852→        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+   853→          <div className="text-center space-y-2">
+   854→            <div className="relative w-16 h-16 mx-auto">
+   855→              <div className="absolute inset-0 rounded-full border-2 border-white/10" />
+   856→              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" style={{ animationDuration: '0.8s' }} />
+   857→              <div className="absolute inset-2 rounded-full border-2 border-transparent border-t-white/40 animate-spin" style={{ animationDuration: '1.2s', animationDirection: 'reverse' }} />
+   858→            </div>
+   859→            <p className="text-white/40 text-xs font-medium">Buffering...</p>
+   860→          </div>
+   861→        </div>
+   862→      )}
+   863→
+   864→      {/* ═══ Error state ═══ */}
+   865→      {error && (
+   866→        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md">
+   867→          <div className="text-center px-6 max-w-sm">
+   868→            <div className="w-16 h-16 rounded-full bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center mx-auto mb-4">
+   869→              <svg className="w-8 h-8 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+   870→                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   871→              </svg>
+   872→            </div>
+   873→            <p className="text-white/80 text-sm mb-4">{error}</p>
+   874→            <button onClick={() => onProviderFailed?.()} className="px-6 py-2.5 bg-white text-black text-xs font-bold rounded-full hover:bg-white/90 hover:scale-105 active:scale-95 transition-all">
+   875→              Switch Server
+   876→            </button>
+   877→          </div>
+   878→        </div>
+   879→      )}
+   880→
+   881→      {/* ═══ Center play button — glass with pulse ring ═══ */}
+   882→      {!playing && !loading && !error && (
+   883→        <button onClick={togglePlay} className="absolute inset-0 flex items-center justify-center z-10 group/play">
+   884→          <div className="relative">
+   885→            {/* Pulse ring */}
+   886→            <div className="absolute inset-0 rounded-full bg-white/20 animate-ping" style={{ animationDuration: '2s' }} />
+   887→            {/* Main button */}
+   888→            <div className="relative w-20 h-20 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center group-hover/play:scale-110 group-hover/play:bg-white/20 transition-all duration-300 shadow-2xl">
+   889→              <svg className="w-8 h-8 text-white ml-1" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+   890→            </div>
+   891→          </div>
+   892→        </button>
+   893→      )}
+   894→
+   895→      {/* ═══ Seek ripple animation (double-tap) ═══ */}
+   896→      {seekRipple && (
+   897→        <div
+   898→          className="absolute top-1/2 -translate-y-1/2 pointer-events-none z-20"
+   899→          style={{ left: seekRipple.x, transform: 'translate(-50%, -50%)' }}
+   900→        >
+   901→          <div className="relative flex flex-col items-center gap-2">
+   902→            <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center animate-ping" style={{ animationDuration: '0.6s' }}>
+   903→              <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+   904→                {seekRipple.dir === 'left'
+   905→                  ? <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+   906→                  : <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" style={{ transform: 'scaleX(-1)' }} />}
+   907→              </svg>
+   908→            </div>
+   909→            <span className="text-white text-xs font-bold bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full">10s</span>
+   910→          </div>
+   911→        </div>
+   912→      )}
+   913→
+   914→      {/* ═══ Skip Intro — small pill button (NOT full-screen) ═══ */}
+   915→      {showSkipIntro && intro && (
+   916→        <button
+   917→          onClick={skipIntro}
+   918→          className="absolute bottom-28 right-6 z-20 flex items-center gap-2 bg-white/15 backdrop-blur-xl border border-white/25 text-white text-xs font-bold px-5 py-2.5 rounded-full hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-2xl"
+   919→          style={{ animation: 'skipButtonIn 0.3s ease-out' }}
+   920→        >
+   921→          Skip Intro
+   922→          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
+   923→        </button>
+   924→      )}
+   925→
+   926→      {/* ═══ Skip Outro — small pill button (NOT full-screen) ═══ */}
+   927→      {showSkipOutro && outro && (
+   928→        <button
+   929→          onClick={skipOutro}
+   930→          className="absolute bottom-28 right-6 z-20 flex items-center gap-2 bg-white/15 backdrop-blur-xl border border-white/25 text-white text-xs font-bold px-5 py-2.5 rounded-full hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-2xl"
+   931→          style={{ animation: 'skipButtonIn 0.3s ease-out' }}
+   932→        >
+   933→          Skip Outro
+   934→          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
+   935→        </button>
+   936→      )}
+   937→
+   938→      {/* ═══ Screenshot flash overlay ═══ */}
+   939→      {screenshotFlash && (
+   940→        <div className="absolute inset-0 bg-white animate-pulse pointer-events-none z-30" style={{ animationDuration: '0.3s' }} />
+   941→      )}
+   942→
+   943→      {/* ═══ Toast notifications (screenshot/download) ═══ */}
+   944→      {(screenshotToast || downloadToast) && (
+   945→        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 animate-in fade-in slide-in-from-top-2 duration-200">
+   946→          <div className="bg-black/70 backdrop-blur-xl border border-white/15 text-white text-xs font-medium px-4 py-2 rounded-full shadow-2xl flex items-center gap-2">
+   947→            {screenshotToast ? (
+   948→              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M9 4v3h6V4h2v3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h3V4h2zm11 6H4v8h16v-8zm-5 1l2.5 3.5L19 14l1.5 2h-9L9 13l2.5 2z" /></svg>
+   949→            ) : (
+   950→              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2z" /></svg>
+   951→            )}
+   952→            {screenshotToast || downloadToast}
+   953→          </div>
+   954→        </div>
+   955→      )}
+   956→
+   957→      {/* Hidden canvas for screenshots */}
+   958→      <canvas ref={canvasRef} style={{ display: 'none' }} />
+   959→
+   960→      {/* ═══ CONTROLS — Floating glass bar ═══ */}
+   961→      <div
+   962→        className={`absolute bottom-0 left-0 right-0 px-4 pb-4 transition-all duration-300 ${
+   963→          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+   964→        }`}
+   965→      >
+   966→        {/* Progress bar — floating, with glow */}
+   967→        <div
+   968→          className="relative h-1.5 hover:h-2.5 bg-white/15 rounded-full mb-3 cursor-pointer transition-all group/bar"
+   969→          onClick={(e) => {
+   970→            const rect = e.currentTarget.getBoundingClientRect();
+   971→            const pct = (e.clientX - rect.left) / rect.width;
+   972→            seek(pct * duration);
+   973→          }}
+   974→          onMouseMove={handleProgressHover}
+   975→          onMouseLeave={() => setHoverTime(null)}
+   976→        >
+   977→          {/* Buffered */}
+   978→          <div className="absolute h-full bg-white/25 rounded-full transition-all" style={{ width: `${bufferedProgress}%` }} />
+   979→          {/* Played — with glow */}
+   980→          <div
+   981→            className="absolute h-full rounded-full transition-all"
+   982→            style={{
+   983→              width: `${progress}%`,
+   984→              background: 'linear-gradient(90deg, rgba(255,255,255,0.8), #ffffff)',
+   985→              boxShadow: '0 0 10px rgba(255,255,255,0.5)',
+   986→            }}
+   987→          >
+   988→            {/* Scrubber — glass circle */}
+   989→            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg opacity-0 group-hover/bar:opacity-100 transition-all duration-200 group-hover/bar:scale-125" style={{ boxShadow: '0 0 15px rgba(255,255,255,0.8)' }} />
+   990→          </div>
+   991→          {/* Hover preview */}
+   992→          {hoverTime !== null && (
+   993→            <div
+   994→              className="absolute bottom-full mb-3 -translate-x-1/2 bg-black/70 backdrop-blur-md text-white text-[10px] font-mono px-2.5 py-1 rounded-md pointer-events-none whitespace-nowrap border border-white/10"
+   995→              style={{ left: `${hoverX}px` }}
+   996→            >
+   997→              {fmt(hoverTime)}
+   998→            </div>
+   999→          )}
+  1000→          {/* Chapter markers */}
+  1001→          {intro && duration > 0 && (
+  1002→            <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-2.5 bg-white/50 rounded-full" style={{ left: `${(intro.start / duration) * 100}%` }} />
+  1003→          )}
+  1004→          {outro && duration > 0 && (
+  1005→            <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-2.5 bg-white/50 rounded-full" style={{ left: `${(outro.start / duration) * 100}%` }} />
+  1006→          )}
+  1007→        </div>
+  1008→
+  1009→        {/* Control bar — floating glass pill (compact on mobile) */}
+  1010→        <div className="flex items-center gap-1 sm:gap-1.5 text-white bg-black/30 backdrop-blur-xl border border-white/10 rounded-full px-2 sm:px-3 py-1 sm:py-1.5 shadow-2xl">
+  1011→          {/* Play/Pause — glass circle */}
+  1012→          <button
+  1013→            onClick={togglePlay}
+  1014→            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+  1015→            title="Play/Pause (Space)"
+  1016→          >
+  1017→            {playing ? (
+  1018→              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+  1019→            ) : (
+  1020→              <svg className="w-4 h-4 ml-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+  1021→            )}
+  1022→          </button>
+  1023→
+  1024→          {/* Skip back 10s */}
+  1025→          <button
+  1026→            onClick={() => skipTime(-10)}
+  1027→            className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
+  1028→            title="Back 10s (J)"
+  1029→          >
+  1030→            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" /></svg>
+  1031→          </button>
+  1032→
+  1033→          {/* Skip forward 10s */}
+  1034→          <button
+  1035→            onClick={() => skipTime(10)}
+  1036→            className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
+  1037→            title="Forward 10s (L)"
+  1038→          >
+  1039→            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" style={{ transform: 'scaleX(-1)' }}><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" /></svg>
+  1040→          </button>
+  1041→
+  1042→          {/* Volume — expandable (smaller on mobile) */}
+  1043→          <div
+  1044→            className="flex items-center gap-1 rounded-full hover:bg-white/10 transition-all duration-200 pr-1 sm:pr-2"
+  1045→            onMouseEnter={() => setVolumeHover(true)}
+  1046→            onMouseLeave={() => setVolumeHover(false)}
+  1047→          >
+  1048→            <button
+  1049→              onClick={toggleMute}
+  1050→              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+  1051→              title="Mute (M)"
+  1052→            >
+  1053→              {muted || volume === 0 ? (
+  1054→                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" /></svg>
+  1055→              ) : (
+  1056→                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" /></svg>
+  1057→              )}
+  1058→            </button>
+  1059→            <input
+  1060→              type="range" min="0" max="1" step="0.05"
+  1061→              value={muted ? 0 : volume}
+  1062→              onChange={(e) => changeVolume(parseFloat(e.target.value))}
+  1063→              className={`h-1 accent-white cursor-pointer transition-all duration-300 hidden sm:block ${volumeHover ? 'w-16' : 'w-0'}`}
+  1064→              style={{ background: `linear-gradient(to right, white ${volume * 100}%, rgba(255,255,255,0.2) ${volume * 100}%)` }}
+  1065→            />
+  1066→          </div>
+  1067→
+  1068→          {/* Time */}
+  1069→          <span className="text-[11px] sm:text-xs font-medium text-white/90 tabular-nums ml-0.5 sm:ml-1 mr-1 sm:mr-2">
+  1070→            {fmt(currentTime)} <span className="text-white/30">/</span> {fmt(duration)}
+  1071→          </span>
+  1072→
+  1073→          <div className="flex-1" />
+  1074→
+  1075→          {/* Speed — glass pill (compact on mobile) */}
+  1076→          <div className="relative">
+  1077→            <button
+  1078→              onClick={() => setActiveMenu(activeMenu === 'speed' ? null : 'speed')}
+  1079→              className={`h-8 sm:h-9 px-2 sm:px-3 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 text-[11px] sm:text-xs font-bold ${activeMenu === 'speed' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+  1080→              title="Speed"
+  1081→            >
+  1082→              {playbackRate}x
+  1083→            </button>
+  1084→            {activeMenu === 'speed' && (
+  1085→              <GlassMenu>
+  1086→                <MenuLabel>Speed</MenuLabel>
+  1087→                {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+  1088→                  <MenuItem key={rate} active={playbackRate === rate} onClick={() => changePlaybackRate(rate)}>
+  1089→                    {rate}x {rate === 1 && '·'}
+  1090→                  </MenuItem>
+  1091→                ))}
+  1092→              </GlassMenu>
+  1093→            )}
+  1094→          </div>
+  1095→
+  1096→          {/* Quality (smaller on mobile) */}
+  1097→          {qualities.length > 0 && (
+  1098→            <div className="relative">
+  1099→              <button
+  1100→                onClick={() => setActiveMenu(activeMenu === 'quality' ? null : 'quality')}
+  1101→                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${activeMenu === 'quality' ? 'bg-white/20' : 'hover:bg-white/10'}`}
+  1102→                title="Quality"
+  1103→              >
+  1104→                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" /></svg>
+  1105→              </button>
+  1106→              {activeMenu === 'quality' && (
+  1107→                <GlassMenu>
+  1108→                  <MenuLabel>Quality</MenuLabel>
+  1109→                  <MenuItem active={currentQuality === -1} onClick={() => changeQuality(-1)}>Auto</MenuItem>
+  1110→                  {qualities.map((q, i) => (
+  1111→                    <MenuItem key={i} active={currentQuality === i} onClick={() => changeQuality(i)}>{q.height}p</MenuItem>
+  1112→                  ))}
+  1113→                </GlassMenu>
+  1114→              )}
+  1115→            </div>
+  1116→          )}
+  1117→
+  1118→          {/* Subtitles (smaller on mobile) */}
+  1119→          {(hlsSubtitles.length > 0 || (subtitleTracks && subtitleTracks.length > 0)) && (
+  1120→            <div className="relative">
+  1121→              <button
+  1122→                onClick={() => setActiveMenu(activeMenu === 'subtitles' ? null : 'subtitles')}
+  1123→                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${activeMenu === 'subtitles' ? 'bg-white/20' : 'hover:bg-white/10'} ${currentSubtitle !== -1 ? 'text-white' : ''}`}
+  1124→                title="Subtitles"
+  1125→              >
+  1126→                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z" /></svg>
+  1127→              </button>
+  1128→              {activeMenu === 'subtitles' && !showSubtitleSettings && (
+  1129→                <GlassMenu>
+  1130→                  <MenuLabel>Subtitles</MenuLabel>
+  1131→                  <MenuItem active={currentSubtitle === -1} onClick={() => changeSubtitle(-1)}>Off</MenuItem>
+  1132→                  {hlsSubtitles.map((sub, i) => (
+  1133→                    <MenuItem key={`hls-${i}`} active={currentSubtitle === i} onClick={() => changeSubtitle(i)}>
+  1134→                      {sub.name || sub.lang || `Track ${i + 1}`}
+  1135→                    </MenuItem>
+  1136→                  ))}
+  1137→                  {(subtitleTracks || []).map((sub, i) => {
+  1138→                    const idx = hlsSubtitles.length + i;
+  1139→                    return (
+  1140→                      <MenuItem key={`ext-${i}`} active={currentSubtitle === idx} onClick={() => changeSubtitle(idx)}>
+  1141→                        {sub.label || sub.lang || `External ${i + 1}`}
+  1142→                      </MenuItem>
+  1143→                    );
+  1144→                  })}
+  1145→                  {/* Subtitle settings — closes the subtitles menu + opens the
+  1146→                      standalone settings panel (avoids 2 panels at once) */}
+  1147→                  <div className="border-t border-white/10 mt-1 pt-1">
+  1148→                    <button
+  1149→                      onClick={() => {
+  1150→                        setActiveMenu(null);
+  1151→                        setShowSubtitleSettings(true);
+  1152→                      }}
+  1153→                      className="block w-full text-left px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
+  1154→                    >
+  1155→                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h14v3h-1V6h-5v12h2v1H9v-1h2V6H6v1H5V4z M3 18h6v1H3z M15 18h6v1h-6z M9 18h6v1H9z" /></svg>
+  1156→                      Subtitle settings
+  1157→                    </button>
+  1158→                  </div>
+  1159→                </GlassMenu>
+  1160→              )}
+  1161→            </div>
+  1162→          )}
+  1163→
+  1164→          {/* ═══ Subtitle Settings gear — hidden on mobile to save space ═══ */}
+  1165→          <div className="relative hidden sm:block">
+  1166→            <button
+  1167→              onClick={() => {
+  1168→                setShowSubtitleSettings(s => !s);
+  1169→                setActiveMenu(null);
+  1170→              }}
+  1171→              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${showSubtitleSettings ? 'bg-white/20' : 'hover:bg-white/10'}`}
+  1172→              title="Subtitle settings"
+  1173→            >
+  1174→              {/* "Aa" text icon — subtitle customization, not a gear */}
+  1175→              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h14v3h-1V6h-5v12h2v1H9v-1h2V6H6v1H5V4z M3 18h6v1H3z M15 18h6v1h-6z M9 18h6v1H9z" /></svg>
+  1176→            </button>
+  1177→            {showSubtitleSettings && (
+  1178→              <SubtitleSettingsPanel
+  1179→                settings={subtitleSettings}
+  1180→                onUpdate={updateSubtitleSettings}
+  1181→                onReset={resetSubtitleSettings}
+  1182→                onClose={() => setShowSubtitleSettings(false)}
+  1183→              />
+  1184→            )}
+  1185→          </div>
+  1186→
+  1187→          {/* Stream health indicator — hidden on mobile (user request: remove wifi icon) */}
+  1188→          <div className="relative hidden sm:block">
+  1189→            <button
+  1190→              onClick={() => { setShowStreamInfo(!showStreamInfo); setActiveMenu(null); }}
+  1191→              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 ${showStreamInfo ? 'bg-white/20' : 'hover:bg-white/10'}`}
+  1192→              title="Stream health"
+  1193→            >
+  1194→              {streamHealth === 'good' && (
+  1195→                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l3.6-4.5c-1-.8-2.3-1.3-3.6-1.3s-2.6.5-3.6 1.3L12 21zm0-15c-3.6 0-6.9 1.2-9.5 3.3l1.5 1.9C6.2 9.5 8.9 8.5 12 8.5s5.8 1 8 2.7l1.5-1.9C18.9 7.2 15.6 6 12 6zm0 5c-2.1 0-4 .7-5.5 1.9l1.5 1.9C9.1 13.9 10.5 13.5 12 13.5s2.9.4 4 1.3l1.5-1.9C16 11.7 14.1 11 12 11z" /></svg>
+  1196→              )}
+  1197→              {streamHealth === 'fair' && (
+  1198→                <svg className="w-4 h-4 text-white/70" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l3.6-4.5c-1-.8-2.3-1.3-3.6-1.3s-2.6.5-3.6 1.3L12 21zm0-10c-2.1 0-4 .7-5.5 1.9l1.5 1.9C9.1 13.9 10.5 13.5 12 13.5s2.9.4 4 1.3l1.5-1.9C16 11.7 14.1 11 12 11z" /></svg>
+  1199→              )}
+  1200→              {streamHealth === 'poor' && (
+  1201→                <svg className="w-4 h-4 text-white/50" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l3.6-4.5c-1-.8-2.3-1.3-3.6-1.3s-2.6.5-3.6 1.3L12 21z" /></svg>
+  1202→              )}
+  1203→              {streamHealth === 'unknown' && (
+  1204→                <svg className="w-4 h-4 text-white/30" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l3.6-4.5c-1-.8-2.3-1.3-3.6-1.3s-2.6.5-3.6 1.3L12 21zm0-15c-3.6 0-6.9 1.2-9.5 3.3l1.5 1.9C6.2 9.5 8.9 8.5 12 8.5s5.8 1 8 2.7l1.5-1.9C18.9 7.2 15.6 6 12 6z" /></svg>
+  1205→              )}
+  1206→            </button>
+  1207→            {showStreamInfo && (
+  1208→              <GlassMenu>
+  1209→                <MenuLabel>Stream Health</MenuLabel>
+  1210→                <div className="px-3 py-2 space-y-1.5">
+  1211→                  <div className="flex items-center justify-between gap-3">
+  1212→                    <span className="text-[10px] text-white/50 uppercase">Status</span>
+  1213→                    <span className={`text-xs font-bold ${streamHealth === 'good' ? 'text-white' : streamHealth === 'fair' ? 'text-white/70' : 'text-white/50'}`}>
+  1214→                      {streamHealth === 'good' ? 'Excellent' : streamHealth === 'fair' ? 'Fair' : streamHealth === 'poor' ? 'Poor' : 'Connecting...'}
+  1215→                    </span>
+  1216→                  </div>
+  1217→                  <div className="flex items-center justify-between gap-3">
+  1218→                    <span className="text-[10px] text-white/50 uppercase">Quality</span>
+  1219→                    <span className="text-xs font-bold text-white">
+  1220→                      {currentQuality === -1 ? 'Auto' : qualities[currentQuality]?.height + 'p' || 'Auto'}
+  1221→                    </span>
+  1222→                  </div>
+  1223→                  <div className="flex items-center justify-between gap-3">
+  1224→                    <span className="text-[10px] text-white/50 uppercase">Buffer</span>
+  1225→                    <span className="text-xs font-bold text-white">{Math.round(bufferedProgress)}%</span>
+  1226→                  </div>
+  1227→                </div>
+  1228→              </GlassMenu>
+  1229→            )}
+  1230→          </div>
+  1231→
+  1232→          {/* Screenshot — hidden on mobile to save space */}
+  1233→          <button
+  1234→            onClick={takeScreenshot}
+  1235→            className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
+  1236→            title="Screenshot (S)"
+  1237→          >
+  1238→            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M9 4v3h6V4h2v3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h3V4h2zm11 6H4v8h16v-8zm-5 1l2.5 3.5L19 14l1.5 2h-9L9 13l2.5 2z" /></svg>
+  1239→          </button>
+  1240→
+  1241→          {/* Download — hidden on mobile to save space for fullscreen */}
+  1242→          <button
+  1243→            onClick={() => setShowDownloadModal(true)}
+  1244→            className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 hidden sm:flex"
+  1245→            title="Download"
+  1246→          >
+  1247→            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+  1248→          </button>
+  1249→
+  1250→          {/* Fullscreen (always visible, slightly smaller on mobile) */}
+  1251→          <button
+  1252→            onClick={toggleFullscreen}
+  1253→            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+  1254→            title="Fullscreen (F)"
+  1255→          >
+  1256→            {fullscreen ? (
+  1257→              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" /></svg>
+  1258→            ) : (
+  1259→              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" /></svg>
+  1260→            )}
+  1261→          </button>
+  1262→        </div>
+  1263→      </div>
+  1264→
+  1265→      {/* ═══ Download Modal — fetches download links from AnimeX API ═══ */}
+  1266→      {showDownloadModal && (
+  1267→        <DownloadModal
+  1268→          animeId={animeId || ''}
+  1269→          episodeNum={episodeNum || 1}
+  1270→          onClose={() => setShowDownloadModal(false)}
+  1271→        />
+  1272→      )}
+  1273→    </div>
+  1274→    </>
+  1275→  );
+  1276→}
+  1277→
+  1278→// ─── Download Modal ─────────────────────────────────────────────
+  1279→function DownloadModal({ animeId, episodeNum, onClose }: { animeId: string; episodeNum: number; onClose: () => void }) {
+  1280→  const [loading, setLoading] = useState(true);
+  1281→  const [links, setLinks] = useState<Array<{ text: string; decodedUrl: string }>>([]);
+  1282→  const [error, setError] = useState('');
+  1283→
+  1284→  useEffect(() => {
+  1285→    const fetchDownloads = async () => {
+  1286→      try {
+  1287→        setLoading(true);
+  1288→        setError('');
+  1289→        let title = '';
+  1290→        try {
+  1291→          const titleRes = await fetch('https://graphql.anilist.co', {
+  1292→            method: 'POST',
+  1293→            headers: { 'Content-Type': 'application/json' },
+  1294→            body: JSON.stringify({
+  1295→              query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
+  1296→              variables: { id: parseInt(animeId) },
+  1297→            }),
+  1298→          });
+  1299→          if (titleRes.ok) {
+  1300→            const titleData = await titleRes.json();
+  1301→            title = titleData?.data?.Media?.title?.english || titleData?.data?.Media?.title?.romaji || '';
+  1302→          }
+  1303→        } catch { /* ignore */ }
+  1304→
+  1305→        if (!title) {
+  1306→          setError('Could not determine anime title');
+  1307→          setLoading(false);
+  1308→          return;
+  1309→        }
+  1310→
+  1311→        const res = await fetch(`/api/anime/download?title=${encodeURIComponent(title)}&auto=1`);
+  1312→        if (!res.ok) {
+  1313→          setError('Failed to fetch download links');
+  1314→          setLoading(false);
+  1315→          return;
+  1316→        }
+  1317→        const data = await res.json();
+  1318→        if (data.links && data.links.length > 0) {
+  1319→          setLinks(data.links);
+  1320→        } else {
+  1321→          setError('No download links found for this anime');
+  1322→        }
+  1323→      } catch (e: any) {
+  1324→        setError(e?.message || 'Failed to load downloads');
+  1325→      } finally {
+  1326→        setLoading(false);
+  1327→      }
+  1328→    };
+  1329→    fetchDownloads();
+  1330→  }, [animeId]);
+  1331→
+  1332→  // Show only top 2 links (quick access) + "explore more" link
+  1333→  const quickLinks = links.slice(0, 2);
+  1334→
+  1335→  return (
+  1336→    <div
+  1337→      className="absolute inset-0 z-50 flex items-center justify-center"
+  1338→      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+  1339→      onClick={onClose}
+  1340→    >
+  1341→      <div
+  1342→        className="bg-black border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+  1343→        onClick={(e) => e.stopPropagation()}
+  1344→      >
+  1345→        {/* Header */}
+  1346→        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">
+  1347→          <div className="flex items-center gap-2">
+  1348→            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+  1349→            <h3 className="text-sm font-bold text-white">Download</h3>
+  1350→          </div>
+  1351→          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+  1352→            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  1353→          </button>
+  1354→        </div>
+  1355→
+  1356→        {/* Body */}
+  1357→        <div className="px-4 py-4">
+  1358→          {loading && (
+  1359→            <div className="flex items-center justify-center py-8">
+  1360→              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+  1361→              <span className="ml-2.5 text-xs text-white/50">Finding links...</span>
+  1362→            </div>
+  1363→          )}
+  1364→
+  1365→          {error && !loading && (
+  1366→            <div className="text-center py-6">
+  1367→              <p className="text-xs text-white/40 mb-3">{error}</p>
+  1368→              {/* Even on error, show the explore link */}
+  1369→              <a
+  1370→                href="https://animex.one/community/download"
+  1371→                target="_blank"
+  1372→                rel="noopener noreferrer"
+  1373→                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline"
+  1374→              >
+  1375→                Want to explore downloads?
+  1376→                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  1377→              </a>
+  1378→            </div>
+  1379→          )}
+  1380→
+  1381→          {!loading && !error && quickLinks.length > 0 && (
+  1382→            <div>
+  1383→              {/* Top 2 download links */}
+  1384→              <div className="space-y-2">
+  1385→                {quickLinks.map((link, i) => (
+  1386→                  <a
+  1387→                    key={i}
+  1388→                    href={link.decodedUrl}
+  1389→                    target="_blank"
+  1390→                    rel="noopener noreferrer"
+  1391→                    className="block px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/15 transition-all group"
+  1392→                  >
+  1393→                    <div className="flex items-center gap-2.5">
+  1394→                      <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-white/10 transition-colors">
+  1395→                        <svg className="w-3 h-3 text-white/50" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+  1396→                      </div>
+  1397→                      <div className="flex-1 min-w-0">
+  1398→                        <p className="text-[11px] font-medium text-white/80 truncate">
+  1399→                          {link.text.split('|').pop()?.trim() || link.text}
+  1400→                        </p>
+  1401→                        <p className="text-[9px] text-white/30 truncate">{link.decodedUrl}</p>
+  1402→                      </div>
+  1403→                      <svg className="w-3 h-3 text-white/30 group-hover:text-white/60 transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  1404→                    </div>
+  1405→                  </a>
+  1406→                ))}
+  1407→              </div>
+  1408→
+  1409→              {/* "Want to explore downloads?" link at bottom */}
+  1410→              <div className="mt-3 pt-3 border-t border-white/8 text-center">
+  1411→                <a
+  1412→                  href="https://animex.one/community/download"
+  1413→                  target="_blank"
+  1414→                  rel="noopener noreferrer"
+  1415→                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline"
+  1416→                >
+  1417→                  Want to explore downloads?
+  1418→                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  1419→                </a>
+  1420→              </div>
+  1421→            </div>
+  1422→          )}
+  1423→        </div>
+  1424→      </div>
+  1425→    </div>
+  1426→  );
+  1427→}
+  1428→
+  1429→// ─── Glass Menu Components ─────────────────────────────────────────
+  1430→function GlassMenu({ children }: { children: React.ReactNode }) {
+  1431→  return (
+  1432→    <div className="absolute bottom-full right-0 mb-3 bg-black/60 backdrop-blur-2xl border border-white/15 rounded-2xl overflow-hidden min-w-[140px] py-1.5 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+  1433→      {children}
+  1434→    </div>
+  1435→  );
+  1436→}
+  1437→
+  1438→function MenuLabel({ children }: { children: React.ReactNode }) {
+  1439→  return (
+  1440→    <div className="px-3 py-1 text-[10px] font-bold text-white/40 uppercase tracking-wider">{children}</div>
+  1441→  );
+  1442→}
+  1443→
+  1444→function MenuItem({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  1445→  return (
+  1446→    <button
+  1447→      onClick={onClick}
+  1448→      className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition-all duration-150 ${active ? 'text-white font-bold' : 'text-white/60'}`}
+  1449→    >
+  1450→      <div className="flex items-center justify-between">
+  1451→        <span>{children}</span>
+  1452→        {active && (
+  1453→          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
+  1454→        )}
+  1455→      </div>
+  1456→    </button>
+  1457→  );
+  1458→}
+  1459→
+  1460→// ═══ Skip overlay animations ═══
+  1461→// These must be defined as a style tag injected into the DOM
+  1462→const SKIP_OVERLAY_STYLES = `
+  1463→@keyframes skipOverlayIn {
+  1464→  from { opacity: 0; backdrop-filter: blur(0px); }
+  1465→  to { opacity: 1; backdrop-filter: blur(8px); }
+  1466→}
+  1467→@keyframes skipCardContent {
+  1468→  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  1469→  to { opacity: 1; transform: translateY(0) scale(1); }
+  1470→}
+  1471→@keyframes skipIconPulse {
+  1472→  0%, 100% { transform: scale(1); opacity: 1; }
+  1473→  50% { transform: scale(1.08); opacity: 0.9; }
+  1474→}
+  1475→@keyframes skipButtonIn {
+  1476→  from { opacity: 0; transform: translateY(10px); }
+  1477→  to { opacity: 1; transform: translateY(0); }
+  1478→}
+  1479→@keyframes spin {
+  1480→  to { transform: rotate(360deg); }
+  1481→}
+  1482→`;
+  1483→
