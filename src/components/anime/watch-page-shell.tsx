@@ -29,39 +29,12 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
   disabledIds?: string[];
 }) {
   const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
   const current = options.find(o => o.id === value);
-
-  // Calculate position for fixed dropdown on open
-  const handleOpen = () => {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      const isMobile = window.innerWidth < 640;
-      if (isMobile) {
-        // On mobile: position dropdown below the button, full-width with padding
-        setMenuPos({
-          top: rect.bottom + 4,
-          left: 8,
-          width: window.innerWidth - 16,
-        });
-      } else {
-        // On desktop: position aligned to right edge of button
-        setMenuPos({
-          top: rect.bottom + 4,
-          left: rect.right - Math.max(140, rect.width),
-          width: Math.max(140, rect.width),
-        });
-      }
-    }
-    setOpen(!open);
-  };
 
   return (
     <div className="relative">
       <button
-        ref={btnRef}
-        onClick={handleOpen}
+        onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-white/85 transition-all w-full sm:w-auto"
       >
         {label && <span className="text-[9px] font-bold text-white/35 uppercase tracking-wider">{label}</span>}
@@ -70,10 +43,15 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
       </button>
       {open && (
         <>
-          <button className="fixed inset-0 z-30 cursor-default" onClick={() => setOpen(false)} aria-label="Close menu" />
+          {/* Backdrop — fixed to cover entire viewport */}
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          {/* Dropdown — absolute positioned below the button.
+              Uses absolute (not fixed) to avoid CSS transform bugs where
+              fixed-positioned elements detach from the viewport when a
+              parent has transform/filter/will-change. */}
           <div
-            className="fixed bg-[#0a0a0a] border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl z-40 max-h-[280px] overflow-y-auto"
-            style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+            className="absolute top-full left-0 sm:left-auto sm:right-0 mt-1 bg-[#0a0a0a] border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl z-40 max-h-[280px] overflow-y-auto min-w-[140px] w-max sm:w-auto"
+            style={{ maxWidth: "min(90vw, 320px)" }}
           >
             {options.map(o => {
               const disabled = disabledIds.includes(o.id);
@@ -82,7 +60,7 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
                   key={o.id}
                   disabled={disabled}
                   onClick={() => { if (!disabled) { onChange(o.id); setOpen(false); } }}
-                  className={`block w-full text-left px-3 py-2.5 sm:py-2 text-xs sm:text-xs transition-colors ${o.id === value ? "font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
+                  className={`block w-full text-left px-3 py-2.5 sm:py-2 text-xs sm:text-xs transition-colors whitespace-nowrap ${o.id === value ? "font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
                   style={o.id === value ? { color: ACCENT } : undefined}
                 >
                   {o.label}
