@@ -419,21 +419,49 @@ export default function HLSPlayerNew({
     }
   }, [playing, CONTROLS_TIMEOUT]);
 
-  // ─── Fullscreen ───────────────────────────────────────────────────
+  // ─── Fullscreen (cross-browser: standard + webkit for iOS Safari) ───
+  const getFullscreenElement = () =>
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    null;
+
+  const requestFullscreen = async (el: HTMLElement) => {
+    if (el.requestFullscreen) return el.requestFullscreen();
+    if ((el as any).webkitRequestFullscreen) return (el as any).webkitRequestFullscreen();
+    // iOS Safari < 16.4: only <video> can go fullscreen
+    if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
+      return (videoRef.current as any).webkitEnterFullscreen();
+    }
+    throw new Error('Fullscreen not supported');
+  };
+
+  const exitFullscreen = async () => {
+    if (document.exitFullscreen) return document.exitFullscreen();
+    if ((document as any).webkitExitFullscreen) return (document as any).webkitExitFullscreen();
+    // iOS video fullscreen
+    if (videoRef.current && (videoRef.current as any).webkitExitFullscreen) {
+      return (videoRef.current as any).webkitExitFullscreen();
+    }
+  };
+
   useEffect(() => {
-    const onFs = () => setFullscreen(!!document.fullscreenElement);
+    const onFs = () => setFullscreen(!!getFullscreenElement());
     document.addEventListener('fullscreenchange', onFs);
-    return () => document.removeEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('webkitfullscreenchange', onFs);
+    };
   }, []);
 
   const toggleFullscreen = async () => {
     try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
+      if (getFullscreenElement()) {
+        await exitFullscreen();
         // Release orientation lock when exiting fullscreen
         try { await (screen.orientation as any)?.unlock(); } catch {}
-      } else {
-        await containerRef.current?.requestFullscreen();
+      } else if (containerRef.current) {
+        await requestFullscreen(containerRef.current);
         // On mobile, lock to landscape so the video fills the screen
         try {
           if (screen.orientation && typeof (screen.orientation as any).lock === 'function') {
