@@ -93,16 +93,8 @@ export default function NovelDetailPage({ novelId, novelTitle, novelCover }: Nov
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/85 to-black/40" />
         </div>
 
-        <button
-          onClick={() => navigate({ page: "novel" })}
-          className="absolute top-20 left-4 z-10 flex items-center gap-1 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm border border-white/[0.08] text-sm text-white/70 hover:bg-black/80 hover:border-white/[0.12] hover:text-white transition-colors"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
-          Back
-        </button>
-
         <div className="relative h-full max-w-5xl mx-auto px-4 flex items-end pb-6">
-          <div className="flex gap-5 w-full">
+          <div className="flex gap-5 w-full items-end">
             {/* Cover */}
             <div className="shrink-0 w-28 sm:w-40 aspect-[3/4] rounded-xl overflow-hidden shadow-lg shadow-black/50 border-2 border-white/[0.08]">
               {cover ? (
@@ -118,7 +110,14 @@ export default function NovelDetailPage({ novelId, novelTitle, novelCover }: Nov
             </div>
 
             {/* Info */}
-            <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex-1 min-w-0 flex flex-col justify-end gap-2">
+              <button
+                onClick={() => navigate({ page: "novel" })}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm border border-white/[0.08] text-sm text-white/70 hover:bg-black/80 hover:border-white/[0.12] hover:text-white transition-colors self-start mb-1"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg>
+                Back
+              </button>
               <h1
                 className="font-karla text-xl sm:text-3xl font-extrabold leading-tight bg-clip-text text-transparent"
                 style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
@@ -169,7 +168,7 @@ export default function NovelDetailPage({ novelId, novelTitle, novelCover }: Nov
               {totalChapters > 0 && (
                 <button
                   onClick={() => handleReadChapter(1)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black font-bold text-sm hover:bg-white/90 transition-all hover:scale-105 mt-2"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black font-bold text-sm hover:bg-white/90 transition-all hover:scale-105"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
                   Start Reading
