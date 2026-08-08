@@ -724,80 +724,160 @@ export function WatchPageShell({
         </div>
       )}
 
-      {/* Download modal — show download options */}
+      {/* Download modal — fetches real download links from AnimeX API */}
       {showDownloadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDownloadModal(false)}>
-          <div className="w-full max-w-md mx-4 rounded-xl bg-[#111] border border-white/10 shadow-2xl overflow-hidden max-h-[80vh] flex flex-col" onClick={(e: any) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <svg className="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                Download Episode
-              </h3>
-              <button onClick={() => setShowDownloadModal(false)} className="p-1 rounded text-white/40 hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
+        <WatchPageDownloadModal
+          animeTitle={animeTitle}
+          animeId={animeId}
+          episodeNum={episodeNum}
+          downloadUrl={downloadUrl}
+          streamData={streamData}
+          serverList={serverList}
+          onClose={() => setShowDownloadModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// WatchPageDownloadModal — Black theme, fetches REAL download links
+// from AnimeX API (Google Drive, Mega, etc.) — NO proxy URLs
+// Matches the HLS player download modal style exactly
+// ============================================================
+
+function WatchPageDownloadModal({
+  animeTitle, animeId, episodeNum, downloadUrl, streamData, serverList, onClose
+}: {
+  animeTitle: string; animeId: number; episodeNum: number;
+  downloadUrl: string | null; streamData: any; serverList: any[]; onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [links, setLinks] = useState<Array<{ text: string; decodedUrl: string }>>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchDownloads = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        let title = animeTitle || '';
+        // If no title, try AniList
+        if (!title && animeId) {
+          try {
+            const titleRes = await fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
+                variables: { id: animeId },
+              }),
+            });
+            if (titleRes.ok) {
+              const titleData = await titleRes.json();
+              title = titleData?.data?.Media?.title?.english || titleData?.data?.Media?.title?.romaji || '';
+            }
+          } catch { /* ignore */ }
+        }
+        if (!title) {
+          setError('Could not determine anime title');
+          setLoading(false);
+          return;
+        }
+        const res = await fetch(`/api/anime/download?title=${encodeURIComponent(title)}&auto=1`);
+        if (!res.ok) {
+          setError('Failed to fetch download links');
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        if (data.links && data.links.length > 0) {
+          setLinks(data.links);
+        } else {
+          setError('No download links found');
+        }
+      } catch (e: any) {
+        setError(e?.message || 'Failed to load downloads');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDownloads();
+  }, [animeId, animeTitle]);
+
+  const quickLinks = links.slice(0, 2);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
+      <div className="bg-black border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+            <h3 className="text-sm font-bold text-white">Download</h3>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-4 py-4 overflow-y-auto">
+          {/* Episode info */}
+          <div className="text-xs text-white/40 mb-3">{animeTitle} — Episode {episodeNum}</div>
+
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              <span className="ml-2.5 text-xs text-white/50">Finding links...</span>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="text-center py-6">
+              <p className="text-xs text-white/40 mb-3">{error}</p>
+              <button
+                onClick={() => { onClose(); window.location.href = '/download'; }}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline cursor-pointer"
+              >
+                Want to explore downloads?
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
-            <div className="p-5 space-y-4 overflow-y-auto">
-              <div className="text-xs text-white/50">{animeTitle} — Episode {episodeNum}</div>
-              {downloadUrl ? (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-lg bg-white/[0.04] border border-white/10 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white/70">Direct Stream</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">HLS</span>
+          )}
+
+          {!loading && !error && quickLinks.length > 0 && (
+            <div>
+              {/* Top 2 download links — same style as HLS player */}
+              <div className="space-y-2">
+                {quickLinks.map((link, i) => (
+                  <a
+                    key={i}
+                    href={link.decodedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/15 transition-all group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-white/10 transition-colors">
+                        <svg className="w-3 h-3 text-white/50" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-medium text-white/80 truncate">
+                          {link.text.split('|').pop()?.trim() || link.text}
+                        </p>
+                        <p className="text-[9px] text-white/30 truncate">{link.decodedUrl}</p>
+                      </div>
+                      <svg className="w-3 h-3 text-white/30 group-hover:text-white/60 transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </div>
-                    <p className="text-[10px] text-white/30 break-all font-mono leading-relaxed">{downloadUrl}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <a href={downloadUrl} download target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 transition-all">
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                      Download
-                    </a>
-                    <button onClick={() => { try { navigator.clipboard.writeText(downloadUrl); } catch {} }} className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-bold text-white/60 border border-white/10 hover:border-white/20 hover:text-white transition-all">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              ) : streamData?.video_link ? (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-lg bg-white/[0.04] border border-white/10 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white/70">Stream URL</span>
-                      {streamData.source_type === "embed" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">Embed</span>}
-                    </div>
-                    <p className="text-[10px] text-white/30 break-all font-mono leading-relaxed">{streamData.video_link}</p>
-                  </div>
-                  <a href={streamData.video_link} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 transition-all">
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
-                    Open Stream
                   </a>
-                </div>
-              ) : (
-                <div className="p-3 rounded-lg bg-white/[0.04] border border-white/10 text-center">
-                  <svg className="w-8 h-8 mx-auto text-white/20 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                  <p className="text-xs text-white/40">No download available for this server.</p>
-                  <p className="text-[10px] text-white/25 mt-1">Try switching to a non-embed server.</p>
-                </div>
-              )}
-              {serverList && serverList.length > 0 && (
-                <div className="pt-2 border-t border-white/10">
-                  <p className="text-[10px] text-white/30 mb-2">Available servers (non-embed):</p>
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {serverList.filter((s: any) => !s.isEmbed && s.streamUrl).slice(0, 8).map((s: any) => (
-                      <a key={s.id} href={s.streamUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-2 py-1.5 rounded text-[10px] text-white/50 hover:text-white hover:bg-white/[0.06] transition-all">
-                        <span className="font-bold text-white/70 truncate">{s.name}</span>
-                        <span className="text-white/30">{s.quality}</span>
-                        {s.type === "dub" && <span className="text-purple-300">(Dub)</span>}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* Explore downloads link — routes to our /download page */}
-              <div className="pt-2 border-t border-white/10 text-center">
+                ))}
+              </div>
+
+              {/* "Want to explore downloads?" link at bottom */}
+              <div className="mt-3 pt-3 border-t border-white/8 text-center">
                 <button
-                  onClick={() => { setShowDownloadModal(false); window.location.href = '/download'; }}
+                  onClick={() => { onClose(); window.location.href = '/download'; }}
                   className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline cursor-pointer"
                 >
                   Want to explore downloads?
@@ -805,9 +885,9 @@ export function WatchPageShell({
                 </button>
               </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
