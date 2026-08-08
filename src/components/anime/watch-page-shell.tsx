@@ -188,15 +188,15 @@ export function WatchPageShell({
       return s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld" || s.source === "desidub";
     }
     if (translation === "dub") {
-      // Dub tab: English dub only — exclude Hindi sources (AnixTV + AnimoStream)
-      return s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld";
+      // Dub tab: English dub only — exclude ALL Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld + DesiDubAnime)
+      return s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub";
     }
     if (translation === "hardsub") {
       // Hardsub tab: true hardsub servers + 4animo (user wants 4animo here too)
       return s.type === "sub" && (s.hardsub === true || s.source === "animo4");
     }
-    // Sub tab: soft sub servers — exclude Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld)
-    return s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld";
+    // Sub tab: soft sub servers — exclude ALL Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld + DesiDubAnime)
+    return s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub";
   });
 
   const audioOptions = [
