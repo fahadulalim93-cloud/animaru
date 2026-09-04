@@ -1,0 +1,761 @@
+{
+  "detailPath": "beauty-in-black-E6NEe5Ha927",
+  "subjectId": "5904172458474619680",
+  "extracted_at": 1788544716,
+  "playResponses": [],
+  "apiResults": [
+    {
+      "se": "",
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": "",
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": "",
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 1,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 1,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 1,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 60,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 60,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 60,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 13,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 13,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 13,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 235,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 235,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 235,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 73,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 73,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 73,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 17,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 17,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 17,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 395,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 395,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 395,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 491,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 491,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 491,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 499,
+      "ep": "",
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 499,
+      "ep": 1,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    },
+    {
+      "se": 499,
+      "ep": 2,
+      "result": {
+        "streams": [],
+        "freeNum": 999,
+        "limited": false,
+        "limitedCode": "",
+        "dash": [],
+        "hls": [],
+        "hasResource": false,
+        "vipLocked": false,
+        "codecPriority": [
+          "hevc",
+          "h264"
+        ],
+        "playConfig": {
+          "adFree": false,
+          "maxResolution": 480
+        },
+        "shareUnlocked": false
+      }
+    }
+  ],
+  "m3u8Urls": [],
+  "parsedPlaylists": [],
+  "shareUnlockCalls": [],
+  "allApiCalls": [
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/country-code"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/country-code"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/vip/sku-list"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/vip/member-rights"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/app/get-latest-app-pkgs?appName=moviebox"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/app/get-latest-app-pkgs?appName=fm"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/app/get-latest-app-pkgs?appName=MovieBoxTV"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/detail-rec?subjectId=5904172458474619680&page=1&perPage=12"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/everyone-search"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/media-player/get-domain"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/media-player/get-domain"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/media-player/get-domain"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/ad/get-config?adScenes=H5DetailBannerPC%2CH5interstitialPC%2CH5DetailNativeMobile%2CH5interstitialMobile"
+    },
+    {
+      "method": "GET",
+      "url": "https://h5-api.aoneroom.com/wefeed-h5api-bff/media-player/get-domain"
+    }
+  ],
+  "pageErrors": [],
+  "finalUrl": "https://movieboxhd.net/detail/beauty-in-black-E6NEe5Ha927"
+}

@@ -1,0 +1,1257 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useState, useMemo, useEffect, useCallback, useSyncExternalStore } from "react";
+     4→     4→import {
+     5→     5→  hasAdminCredential, setAdminCredential, verifyAdmin, getAdminUsername,
+     6→     6→  changeAdminPassword, startAdminSession, isAdminSession, endAdminSession,
+     7→     7→  getAdminToken, bootstrapAdminCredential,
+     8→     8→} from "@/lib/admin-auth";
+     9→     9→import { setOwnerBrowser, isOwnerBrowser } from "@/lib/analytics";
+    10→    10→import { loadSeo, saveSeo, auditSeo, DEFAULT_SEO, type SeoSettings } from "@/lib/seo-config";
+    11→    11→
+    12→    12→/* ============================================================
+    13→    13→   Real analytics (server / KV) — types + fetch hook
+    14→    14→   ============================================================ */
+    15→    15→export interface Stats {
+    16→    16→  kvEnabled: boolean;
+    17→    17→  range: number;
+    18→    18→  totalViews: number;
+    19→    19→  totalSessions: number;
+    20→    20→  uniqueVisitors: number;
+    21→    21→  onlineNow: number;
+    22→    22→  signupsTotal: number;
+    23→    23→  views: number; viewsDelta: number | null;
+    24→    24→  sessions: number; sessionsDelta: number | null;
+    25→    25→  signups: number; signupsDelta: number | null;
+    26→    26→  series: { day: number; views: number; sessions: number }[];
+    27→    27→  topPaths: { path: string; count: number }[];
+    28→    28→  referrers: { source: string; count: number }[];
+    29→    29→  countries: { code: string; count: number }[];
+    30→    30→  devices: { name: string; count: number }[];
+    31→    31→}
+    32→    32→
+    33→    33→/* ============================================================
+    34→    34→   Members directory (cross-browser, KV-backed) + moderation actions
+    35→    35→   ============================================================ */
+    36→    36→export interface Member {
+    37→    37→  id: string;
+    38→    38→  username: string;
+    39→    39→  name: string;
+    40→    40→  email: string;
+    41→    41→  createdAt: string;
+    42→    42→  lastSeen: number;
+    43→    43→  status: "active" | "banned" | "suspended";
+    44→    44→  reason: string | null;
+    45→    45→  until: number | null;
+    46→    46→  role: "member" | "mod";
+    47→    47→}
+    48→    48→
+    49→    49→function useMembers(refreshKey: number) {
+    50→    50→  const [members, setMembers] = useState<Member[] | null>(null);
+    51→    51→  const [loading, setLoading] = useState(true);
+    52→    52→  const [error, setError] = useState<string | null>(null);
+    53→    53→  const [bump, setBump] = useState(0);
+    54→    54→
+    55→    55→  useEffect(() => {
+    56→    56→    let cancel = false;
+    57→    57→    Promise.resolve().then(async () => {
+    58→    58→      const token = getAdminToken();
+    59→    59→      if (!token) throw new Error("No admin token");
+    60→    60→      const r = await fetch("/api/admin/moderation", { headers: { "x-admin-token": token }, cache: "no-store" });
+    61→    61→      return r.json();
+    62→    62→    }).then((d) => {
+    63→    63→      if (cancel) return;
+    64→    64→      if (d.ok) { setMembers(d.members); setError(null); }
+    65→    65→      else setError(d.error || "Failed to load members");
+    66→    66→    }).catch((e) => { if (!cancel) setError(e instanceof Error ? e.message : "Failed to load members"); })
+    67→    67→      .finally(() => { if (!cancel) setLoading(false); });
+    68→    68→    return () => { cancel = true; };
+    69→    69→  }, [refreshKey, bump]);
+    70→    70→
+    71→    71→  const mutate = useCallback(async (username: string, action: "ban" | "unban" | "suspend" | "unsuspend" | "promote" | "demote", opts?: { reason?: string; hours?: number }) => {
+    72→    72→    const token = getAdminToken();
+    73→    73→    if (!token) return { ok: false, error: "No admin token" };
+    74→    74→    const res = await fetch("/api/admin/moderation", {
+    75→    75→      method: "POST",
+    76→    76→      headers: { "content-type": "application/json", "x-admin-token": token },
+    77→    77→      body: JSON.stringify({ username, action, ...opts }),
+    78→    78→    }).then((r) => r.json()).catch(() => ({ ok: false, error: "Network error" }));
+    79→    79→    if (res.ok) setBump((b) => b + 1);
+    80→    80→    return res;
+    81→    81→  }, []);
+    82→    82→
+    83→    83→  return { members, loading, error, mutate };
+    84→    84→}
+    85→    85→
+    86→    86→function useStats(range: number, refreshKey: number) {
+    87→    87→  const [data, setData] = useState<Stats | null>(null);
+    88→    88→  const [loading, setLoading] = useState(true);
+    89→    89→  useEffect(() => {
+    90→    90→    let cancel = false;
+    91→    91→    fetch(`/api/analytics/stats?days=${range}`, { cache: "no-store" })
+    92→    92→      .then((r) => r.json())
+    93→    93→      .then((d: Stats) => { if (!cancel) { setData(d); setLoading(false); } })
+    94→    94→      .catch(() => { if (!cancel) setLoading(false); });
+    95→    95→    return () => { cancel = true; };
+    96→    96→  }, [range, refreshKey]);
+    97→    97→  return { data, loading };
+    98→    98→}
+    99→    99→
+   100→   100→const COUNTRY_NAMES: Record<string, string> = {
+   101→   101→  US: "United States", GB: "United Kingdom", IN: "India", CA: "Canada", DE: "Germany", FR: "France",
+   102→   102→  BR: "Brazil", JP: "Japan", AU: "Australia", PH: "Philippines", ID: "Indonesia", NG: "Nigeria",
+   103→   103→  PK: "Pakistan", BD: "Bangladesh", MX: "Mexico", ES: "Spain", IT: "Italy", NL: "Netherlands",
+   104→   104→  RU: "Russia", TR: "Turkey", SA: "Saudi Arabia", AE: "UAE", EG: "Egypt", ZA: "South Africa",
+   105→   105→  KR: "South Korea", SE: "Sweden", PL: "Poland", VN: "Vietnam", TH: "Thailand", MY: "Malaysia",
+   106→   106→  "??": "Unknown",
+   107→   107→};
+   108→   108→function flag(cc: string): string {
+   109→   109→  if (cc.length !== 2 || cc === "??") return "🌐";
+   110→   110→  return String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+   111→   111→}
+   112→   112→
+   113→   113→/* ============================================================
+   114→   114→   Admin theme / customization (persisted)
+   115→   115→   ============================================================ */
+   116→   116→const ACCENTS = [
+   117→   117→  { id: "blue", v: "#3b82f6" }, { id: "violet", v: "#8b5cf6" }, { id: "emerald", v: "#10b981" },
+   118→   118→  { id: "amber", v: "#f59e0b" }, { id: "rose", v: "#f43f5e" }, { id: "cyan", v: "#06b6d4" },
+   119→   119→];
+   120→   120→const THEME_KEY = "luffytv_admin_accent";
+   121→   121→function loadAccent(): string { try { return localStorage.getItem(THEME_KEY) || "#3b82f6"; } catch { return "#3b82f6"; } }
+   122→   122→function saveAccent(v: string) { try { localStorage.setItem(THEME_KEY, v); } catch {} }
+   123→   123→
+   124→   124→/* ============================================================
+   125→   125→   Mounted gate (avoid SSR/localStorage hydration mismatch)
+   126→   126→   ============================================================ */
+   127→   127→const sub = () => () => {};
+   128→   128→function useMounted() { return useSyncExternalStore(sub, () => true, () => false); }
+   129→   129→
+   130→   130→export default function AdminApp() {
+   131→   131→  const mounted = useMounted();
+   132→   132→  // Bootstrap default admin credential synchronously BEFORE render
+   133→   133→  // so AuthScreen's useState initializer sees the correct credential.
+   134→   134→  if (mounted) bootstrapAdminCredential();
+   135→   135→  if (!mounted) {
+   136→   136→    return (
+   137→   137→      <div className="min-h-screen bg-[#0b0e14] flex items-center justify-center">
+   138→   138→        <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" />
+   139→   139→      </div>
+   140→   140→    );
+   141→   141→  }
+   142→   142→  return <AdminGate />;
+   143→   143→}
+   144→   144→
+   145→   145→/* ============================================================
+   146→   146→   Auth gate — setup / login / dashboard
+   147→   147→   ============================================================ */
+   148→   148→function AdminGate() {
+   149→   149→  const [authed, setAuthed] = useState(() => isAdminSession());
+   150→   150→  if (authed) return <Dashboard onLogout={() => { endAdminSession(); setAuthed(false); }} />;
+   151→   151→  return <AuthScreen onAuthed={() => setAuthed(true)} />;
+   152→   152→}
+   153→   153→
+   154→   154→function AuthScreen({ onAuthed }: { onAuthed: () => void }) {
+   155→   155→  const [mode] = useState<"setup" | "login">(hasAdminCredential() ? "login" : "setup");
+   156→   156→  const [username, setUsername] = useState(mode === "login" ? getAdminUsername() : "");
+   157→   157→  const [password, setPassword] = useState("");
+   158→   158→  const [confirm, setConfirm] = useState("");
+   159→   159→  const [error, setError] = useState("");
+   160→   160→  const [accent] = useState(loadAccent);
+   161→   161→
+   162→   162→  const submit = () => {
+   163→   163→    setError("");
+   164→   164→    if (mode === "setup") {
+   165→   165→      if (password !== confirm) { setError("Passwords do not match"); return; }
+   166→   166→      const r = setAdminCredential(username, password);
+   167→   167→      if (!r.ok) { setError(r.error || "Could not create credential"); return; }
+   168→   168→      startAdminSession();
+   169→   169→      onAuthed();
+   170→   170→    } else {
+   171→   171→      if (!verifyAdmin(username, password)) { setError("Invalid username or password"); return; }
+   172→   172→      startAdminSession();
+   173→   173→      onAuthed();
+   174→   174→    }
+   175→   175→  };
+   176→   176→
+   177→   177→  return (
+   178→   178→    <div className="min-h-screen bg-[#0b0e14] text-white flex items-center justify-center px-4"
+   179→   179→      style={{ backgroundImage: `radial-gradient(circle at 20% 0%, ${accent}22, transparent 45%), radial-gradient(circle at 85% 100%, ${accent}15, transparent 45%)` }}>
+   180→   180→      <div className="w-full max-w-sm">
+   181→   181→        <div className="flex items-center gap-2.5 justify-center mb-6">
+   182→   182→          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black" style={{ backgroundColor: accent }}>L</div>
+   183→   183→          <div>
+   184→   184→            <p className="font-black text-lg leading-none">Luffy TV</p>
+   185→   185→            <p className="text-[11px] text-white/40">Admin Console</p>
+   186→   186→          </div>
+   187→   187→        </div>
+   188→   188→        <div className="rounded-2xl border border-white/10 bg-[#111722] p-6 shadow-2xl">
+   189→   189→          <h1 className="text-lg font-bold mb-1">{mode === "setup" ? "Create admin access" : "Admin sign in"}</h1>
+   190→   190→          <p className="text-xs text-white/45 mb-5">{mode === "setup" ? "Set the credentials for this admin console." : "Enter your admin credentials to continue."}</p>
+   191→   191→
+   192→   192→          <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Username</label>
+   193→   193→          <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={mode === "setup"}
+   194→   194→            className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30 mb-4" placeholder="admin" />
+   195→   195→
+   196→   196→          <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Password</label>
+   197→   197→          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+   198→   198→            onKeyDown={(e) => e.key === "Enter" && mode === "login" && submit()}
+   199→   199→            className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30 mb-4" placeholder="••••••••" />
+   200→   200→
+   201→   201→          {mode === "setup" && (
+   202→   202→            <>
+   203→   203→              <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Confirm password</label>
+   204→   204→              <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
+   205→   205→                onKeyDown={(e) => e.key === "Enter" && submit()}
+   206→   206→                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30 mb-4" placeholder="••••••••" />
+   207→   207→            </>
+   208→   208→          )}
+   209→   209→
+   210→   210→          {error && <p className="text-xs text-red-400 mb-4">{error}</p>}
+   211→   211→
+   212→   212→          <button onClick={submit} className="w-full py-2.5 rounded-lg text-black text-sm font-bold hover:opacity-90 transition-opacity" style={{ backgroundColor: accent }}>
+   213→   213→            {mode === "setup" ? "Create & enter" : "Sign in"}
+   214→   214→          </button>
+   215→   215→          <a href="/" className="block text-center text-xs text-white/40 hover:text-white/70 mt-4">← Back to site</a>
+   216→   216→        </div>
+   217→   217→      </div>
+   218→   218→    </div>
+   219→   219→  );
+   220→   220→}
+   221→   221→
+   222→   222→/* ============================================================
+   223→   223→   Dashboard shell (sidebar + topbar)
+   224→   224→   ============================================================ */
+   225→   225→type Tab = "dashboard" | "users" | "xp" | "reports" | "announcements" | "seo" | "content" | "audience" | "settings";
+   226→   226→const NAV: { id: Tab; label: string; icon: string }[] = [
+   227→   227→  { id: "dashboard", label: "Overview", icon: "grid" },
+   228→   228→  { id: "users", label: "Members", icon: "user" },
+   229→   229→  { id: "xp", label: "XP Leaderboard", icon: "sparkle" },
+   230→   230→  { id: "reports", label: "Reports", icon: "flag" },
+   231→   231→  { id: "announcements", label: "Announcements", icon: "megaphone" },
+   232→   232→  { id: "seo", label: "SEO", icon: "search" },
+   233→   233→  { id: "content", label: "Content", icon: "film" },
+   234→   234→  { id: "audience", label: "Audience", icon: "users" },
+   235→   235→  { id: "settings", label: "Settings", icon: "cog" },
+   236→   236→];
+   237→   237→
+   238→   238→function Dashboard({ onLogout }: { onLogout: () => void }) {
+   239→   239→  const [tab, setTab] = useState<Tab>("dashboard");
+   240→   240→  const [collapsed, setCollapsed] = useState(false);
+   241→   241→  const [mobileOpen, setMobileOpen] = useState(false);
+   242→   242→  const [range, setRange] = useState<7 | 14 | 30>(14);
+   243→   243→  const [accent, setAccent] = useState(loadAccent);
+   244→   244→  const [refreshKey, setRefreshKey] = useState(0);
+   245→   245→
+   246→   246→  const { data: stats, loading } = useStats(range, refreshKey);
+   247→   247→  const { members, loading: membersLoading, error: membersError, mutate } = useMembers(refreshKey);
+   248→   248→
+   249→   249→  // Live auto-refresh every 30s (keeps "online now" & counters fresh).
+   250→   250→  useEffect(() => {
+   251→   251→    const id = setInterval(() => setRefreshKey((k) => k + 1), 30000);
+   252→   252→    return () => clearInterval(id);
+   253→   253→  }, []);
+   254→   254→
+   255→   255→  const setAcc = (v: string) => { setAccent(v); saveAccent(v); };
+   256→   256→
+   257→   257→  return (
+   258→   258→    <div className="min-h-screen bg-[#0b0e14] text-white flex" style={{ ["--acc" as string]: accent }}>
+   259→   259→      {/* Mobile backdrop */}
+   260→   260→      {mobileOpen && <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={() => setMobileOpen(false)} />}
+   261→   261→      {/* Sidebar */}
+   262→   262→      <aside className={`fixed lg:sticky top-0 z-40 h-screen w-60 ${collapsed ? "lg:w-16" : "lg:w-60"} shrink-0 border-r border-white/[0.06] bg-[#0e131c] flex flex-col transition-all duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+   263→   263→        <div className="h-16 flex items-center gap-2.5 px-4 border-b border-white/[0.06]">
+   264→   264→          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base font-black shrink-0" style={{ backgroundColor: accent }}>L</div>
+   265→   265→          <div className={collapsed ? "lg:hidden" : ""}><p className="font-black text-sm leading-none">Luffy TV</p><p className="text-[10px] text-white/40 mt-0.5">Admin</p></div>
+   266→   266→        </div>
+   267→   267→        <nav className="flex-1 p-2.5 space-y-1">
+   268→   268→          {NAV.map((n) => {
+   269→   269→            const active = tab === n.id;
+   270→   270→            return (
+   271→   271→              <button key={n.id} onClick={() => { setTab(n.id); setMobileOpen(false); }} title={n.label}
+   272→   272→                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all ${active ? "text-white" : "text-white/45 hover:text-white/80 hover:bg-white/[0.04]"}`}
+   273→   273→                style={active ? { backgroundColor: accent + "1f", color: accent } : undefined}>
+   274→   274→                <NavIcon name={n.icon} />
+   275→   275→                <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
+   276→   276→              </button>
+   277→   277→            );
+   278→   278→          })}
+   279→   279→        </nav>
+   280→   280→        <div className="p-2.5 border-t border-white/[0.06] space-y-1">
+   281→   281→          <button onClick={() => setCollapsed((c) => !c)} className="hidden lg:flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-white/45 hover:text-white/80 hover:bg-white/[0.04]">
+   282→   282→            <NavIcon name={collapsed ? "expand" : "collapse"} /><span className={collapsed ? "lg:hidden" : ""}>Collapse</span>
+   283→   283→          </button>
+   284→   284→          <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-red-400/80 hover:text-red-400 hover:bg-red-500/10">
+   285→   285→            <NavIcon name="logout" /><span className={collapsed ? "lg:hidden" : ""}>Sign out</span>
+   286→   286→          </button>
+   287→   287→        </div>
+   288→   288→      </aside>
+   289→   289→
+   290→   290→      {/* Main */}
+   291→   291→      <div className="flex-1 min-w-0 flex flex-col">
+   292→   292→        {/* Topbar */}
+   293→   293→        <header className="h-16 shrink-0 border-b border-white/[0.06] bg-[#0b0e14]/80 backdrop-blur sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6">
+   294→   294→          <div className="flex items-center gap-3">
+   295→   295→            <button onClick={() => setMobileOpen(true)} className="lg:hidden w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-white/70" aria-label="Open menu">
+   296→   296→              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+   297→   297→            </button>
+   298→   298→            <div>
+   299→   299→              <h1 className="text-lg font-black capitalize leading-none">{tab === "users" ? "Members" : tab === "xp" ? "XP Leaderboard" : tab === "announcements" ? "Announcements" : tab}</h1>
+   300→   300→              <p className="text-[11px] text-white/40 mt-0.5 hidden sm:block">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+   301→   301→            </div>
+   302→   302→          </div>
+   303→   303→          <div className="flex items-center gap-2">
+   304→   304→            {(tab === "dashboard" || tab === "audience" || tab === "content") && (
+   305→   305→              <div className="flex rounded-lg border border-white/10 overflow-hidden text-xs font-bold">
+   306→   306→                {[7, 14, 30].map((d) => (
+   307→   307→                  <button key={d} onClick={() => setRange(d as 7 | 14 | 30)}
+   308→   308→                    className="px-2.5 py-1.5 transition-colors" style={range === d ? { backgroundColor: accent, color: "#000" } : { color: "rgba(255,255,255,0.5)" }}>{d}d</button>
+   309→   309→                ))}
+   310→   310→              </div>
+   311→   311→            )}
+   312→   312→            <button onClick={() => setRefreshKey((k) => k + 1)} className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.05]" title="Refresh">
+   313→   313→              <NavIcon name="refresh" />
+   314→   314→            </button>
+   315→   315→            <a href="/" className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-lg border border-white/10 text-xs font-bold text-white/60 hover:text-white hover:bg-white/[0.05]">View site</a>
+   316→   316→            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black" style={{ backgroundColor: accent + "33", color: accent }}>{getAdminUsername().charAt(0).toUpperCase()}</div>
+   317→   317→          </div>
+   318→   318→        </header>
+   319→   319→
+   320→   320→        <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
+   321→   321→          {stats && !stats.kvEnabled && (tab === "dashboard" || tab === "audience" || tab === "content") && <KvBanner />}
+   322→   322→          {loading && !stats ? (
+   323→   323→            <div className="flex items-center justify-center py-24"><div className="w-7 h-7 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" /></div>
+   324→   324→          ) : (
+   325→   325→            <>
+   326→   326→              {tab === "dashboard" && <DashboardTab s={stats} userCount={members?.length ?? 0} accent={accent} />}
+   327→   327→              {tab === "users" && <UsersTab members={members} loading={membersLoading} error={membersError} mutate={mutate} accent={accent} />}
+   328→   328→              {tab === "xp" && <XpLeaderboardTab accent={accent} />}
+   329→   329→              {tab === "reports" && <ReportsTab accent={accent} />}
+   330→   330→              {tab === "announcements" && <AnnouncementsTab accent={accent} />}
+   331→   331→              {tab === "seo" && <SeoTab accent={accent} />}
+   332→   332→              {tab === "content" && <ContentTab s={stats} accent={accent} />}
+   333→   333→              {tab === "audience" && <AudienceTab s={stats} accent={accent} />}
+   334→   334→              {tab === "settings" && <SettingsTab accent={accent} setAccent={setAcc} onData={() => setRefreshKey((k) => k + 1)} />}
+   335→   335→            </>
+   336→   336→          )}
+   337→   337→        </main>
+   338→   338→      </div>
+   339→   339→    </div>
+   340→   340→  );
+   341→   341→}
+   342→   342→
+   343→   343→/* ============================================================
+   344→   344→   Reusable UI
+   345→   345→   ============================================================ */
+   346→   346→function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+   347→   347→  return <div className={`rounded-2xl border border-white/[0.07] bg-[#111722] ${className}`}>{children}</div>;
+   348→   348→}
+   349→   349→
+   350→   350→function Delta({ v, invert = false }: { v: number | null; invert?: boolean }) {
+   351→   351→  if (v === null) return <span className="text-[11px] text-white/30">— new</span>;
+   352→   352→  const good = invert ? v <= 0 : v >= 0;
+   353→   353→  return (
+   354→   354→    <span className={`text-[11px] font-bold flex items-center gap-0.5 ${good ? "text-emerald-400" : "text-red-400"}`}>
+   355→   355→      {v >= 0 ? "▲" : "▼"} {Math.abs(v)}%
+   356→   356→    </span>
+   357→   357→  );
+   358→   358→}
+   359→   359→
+   360→   360→function Kpi({ label, value, delta, invert, icon, accent, spark }: { label: string; value: string | number; delta?: number | null; invert?: boolean; icon: string; accent: string; spark?: number[] }) {
+   361→   361→  return (
+   362→   362→    <Card className="p-4">
+   363→   363→      <div className="flex items-start justify-between mb-3">
+   364→   364→        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: accent + "1f", color: accent }}><NavIcon name={icon} /></div>
+   365→   365→        {delta !== undefined && <Delta v={delta ?? null} invert={invert} />}
+   366→   366→      </div>
+   367→   367→      <p className="text-2xl font-black">{value}</p>
+   368→   368→      <p className="text-[11px] text-white/45 mt-0.5">{label}</p>
+   369→   369→      {spark && spark.length > 1 && <Sparkline data={spark} accent={accent} />}
+   370→   370→    </Card>
+   371→   371→  );
+   372→   372→}
+   373→   373→
+   374→   374→function Sparkline({ data, accent }: { data: number[]; accent: string }) {
+   375→   375→  const max = Math.max(1, ...data);
+   376→   376→  const pts = data.map((d, i) => `${(i / (data.length - 1)) * 100},${28 - (d / max) * 24}`).join(" ");
+   377→   377→  return (
+   378→   378→    <svg viewBox="0 0 100 28" preserveAspectRatio="none" className="w-full h-6 mt-2">
+   379→   379→      <polyline points={pts} fill="none" stroke={accent} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+   380→   380→    </svg>
+   381→   381→  );
+   382→   382→}
+   383→   383→
+   384→   384→function AreaChart({ series, accent }: { series: { day: number; views: number; sessions: number }[]; accent: string }) {
+   385→   385→  const W = 700, H = 220, P = 8;
+   386→   386→  const max = Math.max(1, ...series.map((s) => Math.max(s.views, s.sessions)));
+   387→   387→  const x = (i: number) => P + (i / Math.max(1, series.length - 1)) * (W - 2 * P);
+   388→   388→  const y = (v: number) => H - P - (v / max) * (H - 2 * P - 16);
+   389→   389→  const line = (key: "views" | "sessions") => series.map((s, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(s[key])}`).join(" ");
+   390→   390→  const area = `${line("views")} L${x(series.length - 1)},${H - P} L${x(0)},${H - P} Z`;
+   391→   391→  return (
+   392→   392→    <div className="w-full overflow-hidden">
+   393→   393→      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-56">
+   394→   394→        <defs>
+   395→   395→          <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+   396→   396→            <stop offset="0%" stopColor={accent} stopOpacity="0.35" />
+   397→   397→            <stop offset="100%" stopColor={accent} stopOpacity="0" />
+   398→   398→          </linearGradient>
+   399→   399→        </defs>
+   400→   400→        {[0.25, 0.5, 0.75, 1].map((g) => (
+   401→   401→          <line key={g} x1={P} x2={W - P} y1={H - P - g * (H - 2 * P - 16)} y2={H - P - g * (H - 2 * P - 16)} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+   402→   402→        ))}
+   403→   403→        <path d={area} fill="url(#areaFill)" />
+   404→   404→        <path d={line("views")} fill="none" stroke={accent} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+   405→   405→        <path d={line("sessions")} fill="none" stroke="#22D3EE" strokeWidth="2" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+   406→   406→      </svg>
+   407→   407→      <div className="flex items-center gap-4 mt-2 text-[11px] text-white/45 px-1">
+   408→   408→        <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded" style={{ backgroundColor: accent }} /> Page views</span>
+   409→   409→        <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded bg-[#22D3EE]" /> Sessions</span>
+   410→   410→        <span className="ml-auto">{new Date(series[0]?.day).toLocaleDateString(undefined, { month: "short", day: "numeric" })} – today</span>
+   411→   411→      </div>
+   412→   412→    </div>
+   413→   413→  );
+   414→   414→}
+   415→   415→
+   416→   416→function Donut({ data, accent }: { data: { label: string; value: number; color: string }[]; accent: string }) {
+   417→   417→  const total = data.reduce((s, d) => s + d.value, 0);
+   418→   418→  if (total === 0) return <p className="text-sm text-white/40 text-center py-8">No data yet.</p>;
+   419→   419→  const R = 42, C = 2 * Math.PI * R;
+   420→   420→  const segments = data.reduce<{ d: typeof data[number]; start: number }[]>((acc, d) => {
+   421→   421→    const prev = acc.length ? acc[acc.length - 1] : null;
+   422→   422→    const start = prev ? prev.start + prev.d.value / total : 0;
+   423→   423→    return [...acc, { d, start }];
+   424→   424→  }, []);
+   425→   425→  return (
+   426→   426→    <div className="flex items-center gap-5">
+   427→   427→      <svg viewBox="0 0 100 100" className="w-28 h-28 shrink-0 -rotate-90">
+   428→   428→        <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="12" />
+   429→   429→        {segments.map(({ d, start }, i) => (
+   430→   430→          <circle key={i} cx="50" cy="50" r={R} fill="none" stroke={d.color} strokeWidth="12" strokeDasharray={`${(d.value / total) * C} ${C}`} strokeDashoffset={-start * C} />
+   431→   431→        ))}
+   432→   432→      </svg>
+   433→   433→      <div className="flex-1 min-w-0 space-y-1.5">
+   434→   434→        {data.map((d) => (
+   435→   435→          <div key={d.label} className="flex items-center gap-2 text-xs">
+   436→   436→            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
+   437→   437→            <span className="text-white/60 flex-1 truncate">{d.label}</span>
+   438→   438→            <span className="font-bold tabular-nums">{Math.round((d.value / total) * 100)}%</span>
+   439→   439→          </div>
+   440→   440→        ))}
+   441→   441→      </div>
+   442→   442→    </div>
+   443→   443→  );
+   444→   444→}
+   445→   445→
+   446→   446→function BarList({ rows, accent }: { rows: { label: string; value: number }[]; accent: string }) {
+   447→   447→  const max = Math.max(1, ...rows.map((r) => r.value));
+   448→   448→  if (rows.length === 0) return <p className="text-sm text-white/35 text-center py-6">No data yet.</p>;
+   449→   449→  return (
+   450→   450→    <div className="space-y-2.5">
+   451→   451→      {rows.map((r) => (
+   452→   452→        <div key={r.label} className="flex items-center gap-3">
+   453→   453→          <span className="text-xs text-white/55 w-28 truncate shrink-0">{r.label}</span>
+   454→   454→          <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, backgroundColor: accent }} /></div>
+   455→   455→          <span className="text-xs font-bold tabular-nums w-9 text-right">{r.value}</span>
+   456→   456→        </div>
+   457→   457→      ))}
+   458→   458→    </div>
+   459→   459→  );
+   460→   460→}
+   461→   461→
+   462→   462→function PanelHead({ title, sub }: { title: string; sub?: string }) {
+   463→   463→  return <div className="mb-4"><h2 className="text-sm font-bold">{title}</h2>{sub && <p className="text-[11px] text-white/40 mt-0.5">{sub}</p>}</div>;
+   464→   464→}
+   465→   465→
+   466→   466→const PAGE_LABELS: Record<string, string> = {
+   467→   467→  landing: "Landing", home: "Anime Home", hub: "Hub", movies: "Movies", tv: "TV Shows", manga: "Manga",
+   468→   468→  novel: "Novels", live: "Live Sports", search: "Search", profile: "Profile", watch: "Anime Watch",
+   469→   469→  "movie-watch": "Movie Watch", "tv-watch": "TV Watch", "manga-read": "Manga Reader", admin: "Admin",
+   470→   470→};
+   471→   471→const plabel = (p: string) => PAGE_LABELS[p] || p;
+   472→   472→
+   473→   473→/* ============================================================
+   474→   474→   KV status banner
+   475→   475→   ============================================================ */
+   476→   476→function KvBanner() {
+   477→   477→  return (
+   478→   478→    <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-4 mb-6 flex items-start gap-3">
+   479→   479→      <span className="text-lg">⚡</span>
+   480→   480→      <div className="text-xs text-amber-200/80 leading-relaxed">
+   481→   481→        <span className="font-bold text-amber-300">Local mode — connect a store for real global numbers.</span>{" "}
+   482→   482→        Real visitor counting needs a shared datastore. In your Vercel project open <b>Storage → Create → KV</b> and connect it to this
+   483→   483→        project. It auto-adds the env vars and every visit is then counted here — automatically, no code changes.
+   484→   484→      </div>
+   485→   485→    </div>
+   486→   486→  );
+   487→   487→}
+   488→   488→
+   489→   489→const SOURCE_COLORS = ["#3b82f6", "#22D3EE", "#8b5cf6", "#f59e0b", "#10b981", "#f43f5e"];
+   490→   490→const EMPTY: Stats = { kvEnabled: false, range: 14, totalViews: 0, totalSessions: 0, uniqueVisitors: 0, onlineNow: 0, signupsTotal: 0, views: 0, viewsDelta: null, sessions: 0, sessionsDelta: null, signups: 0, signupsDelta: null, series: [], topPaths: [], referrers: [], countries: [], devices: [] };
+   491→   491→
+   492→   492→/* ============================================================
+   493→   493→   Tabs (real server data)
+   494→   494→   ============================================================ */
+   495→   495→function DashboardTab({ s, userCount, accent }: { s: Stats | null; userCount: number; accent: string }) {
+   496→   496→  const d = s || EMPTY;
+   497→   497→  return (
+   498→   498→    <div className="space-y-6">
+   499→   499→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   500→   500→        <Kpi label={`Page views · ${d.range}d`} value={d.views.toLocaleString()} delta={d.viewsDelta} icon="eye" accent={accent} spark={d.series.map((x) => x.views)} />
+   501→   501→        <Kpi label={`Unique visitors · all-time`} value={d.uniqueVisitors.toLocaleString()} icon="user" accent="#8b5cf6" />
+   502→   502→        <Kpi label={`Sessions · ${d.range}d`} value={d.sessions.toLocaleString()} delta={d.sessionsDelta} icon="cursor" accent="#22D3EE" spark={d.series.map((x) => x.sessions)} />
+   503→   503→        <Kpi label="Online now" value={d.onlineNow} icon="live" accent="#10b981" />
+   504→   504→      </div>
+   505→   505→
+   506→   506→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   507→   507→        <Kpi label="New signups" value={d.signups} delta={d.signupsDelta} icon="sparkle" accent="#f59e0b" />
+   508→   508→        <Kpi label="Registered members" value={userCount} icon="users" accent="#f43f5e" />
+   509→   509→        <Kpi label="Views / visitor" value={d.uniqueVisitors ? (d.totalViews / d.uniqueVisitors).toFixed(1) : "0"} icon="chart" accent="#06b6d4" />
+   510→   510→        <Kpi label="All-time views" value={d.totalViews.toLocaleString()} icon="eye" accent={accent} />
+   511→   511→      </div>
+   512→   512→
+   513→   513→      <Card className="p-5">
+   514→   514→        <PanelHead title="Traffic overview" sub={`Page views & sessions · last ${d.range} days`} />
+   515→   515→        {d.series.length ? <AreaChart series={d.series} accent={accent} /> : <Empty />}
+   516→   516→      </Card>
+   517→   517→
+   518→   518→      <div className="grid lg:grid-cols-3 gap-6">
+   519→   519→        <Card className="p-5 lg:col-span-2"><PanelHead title="Top pages" /><BarList rows={d.topPaths.map((p) => ({ label: plabel(p.path), value: p.count }))} accent={accent} /></Card>
+   520→   520→        <Card className="p-5"><PanelHead title="Traffic sources" /><Donut data={d.referrers.map((r, i) => ({ label: r.source, value: r.count, color: SOURCE_COLORS[i % SOURCE_COLORS.length] }))} accent={accent} /></Card>
+   521→   521→      </div>
+   522→   522→    </div>
+   523→   523→  );
+   524→   524→}
+   525→   525→
+   526→   526→function AudienceTab({ s, accent }: { s: Stats | null; accent: string }) {
+   527→   527→  const d = s || EMPTY;
+   528→   528→  return (
+   529→   529→    <div className="space-y-6">
+   530→   530→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   531→   531→        <Kpi label="Unique visitors" value={d.uniqueVisitors.toLocaleString()} icon="user" accent="#8b5cf6" />
+   532→   532→        <Kpi label={`Sessions · ${d.range}d`} value={d.sessions} delta={d.sessionsDelta} icon="cursor" accent={accent} />
+   533→   533→        <Kpi label="Online now" value={d.onlineNow} icon="live" accent="#10b981" />
+   534→   534→        <Kpi label="Countries" value={d.countries.length} icon="globe" accent="#22D3EE" />
+   535→   535→      </div>
+   536→   536→      <div className="grid lg:grid-cols-2 gap-6">
+   537→   537→        <Card className="p-5">
+   538→   538→          <PanelHead title="Top countries" sub="Real geography from visitor IPs" />
+   539→   539→          {d.countries.length ? (
+   540→   540→            <div className="space-y-2.5">
+   541→   541→              {d.countries.map((c) => {
+   542→   542→                const max = Math.max(1, ...d.countries.map((x) => x.count));
+   543→   543→                return (
+   544→   544→                  <div key={c.code} className="flex items-center gap-3">
+   545→   545→                    <span className="text-base shrink-0">{flag(c.code)}</span>
+   546→   546→                    <span className="text-xs text-white/60 w-28 truncate shrink-0">{COUNTRY_NAMES[c.code] || c.code}</span>
+   547→   547→                    <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${(c.count / max) * 100}%`, backgroundColor: accent }} /></div>
+   548→   548→                    <span className="text-xs font-bold tabular-nums w-9 text-right">{c.count}</span>
+   549→   549→                  </div>
+   550→   550→                );
+   551→   551→              })}
+   552→   552→            </div>
+   553→   553→          ) : <Empty />}
+   554→   554→        </Card>
+   555→   555→        <Card className="p-5"><PanelHead title="Devices" /><Donut data={d.devices.map((x, i) => ({ label: x.name, value: x.count, color: SOURCE_COLORS[i % SOURCE_COLORS.length] }))} accent={accent} /></Card>
+   556→   556→      </div>
+   557→   557→      <Card className="p-5"><PanelHead title="Sessions over time" />{d.series.length ? <AreaChart series={d.series} accent={accent} /> : <Empty />}</Card>
+   558→   558→      <Card className="p-5"><PanelHead title="Traffic sources" /><Donut data={d.referrers.map((r, i) => ({ label: r.source, value: r.count, color: SOURCE_COLORS[i % SOURCE_COLORS.length] }))} accent={accent} /></Card>
+   559→   559→    </div>
+   560→   560→  );
+   561→   561→}
+   562→   562→
+   563→   563→function ContentTab({ s, accent }: { s: Stats | null; accent: string }) {
+   564→   564→  const d = s || EMPTY;
+   565→   565→  const sectionOf = (p: string): string | null => {
+   566→   566→    if (["home", "watch", "anime", "genre"].includes(p)) return "Anime";
+   567→   567→    if (p.startsWith("movie") || p === "movies") return "Movies";
+   568→   568→    if (p.startsWith("tv")) return "TV";
+   569→   569→    if (p.startsWith("manga")) return "Manga";
+   570→   570→    if (p.startsWith("novel")) return "Novels";
+   571→   571→    if (p.startsWith("live")) return "Live";
+   572→   572→    return null;
+   573→   573→  };
+   574→   574→  const colors: Record<string, string> = { Anime: "#48A6FF", Movies: "#F59E0B", TV: "#34D399", Manga: "#F472B6", Novels: "#a855f7", Live: "#ef4444" };
+   575→   575→  const bySection = useMemo(() => {
+   576→   576→    const m = new Map<string, number>();
+   577→   577→    for (const p of d.topPaths) { const sec = sectionOf(p.path); if (sec) m.set(sec, (m.get(sec) || 0) + p.count); }
+   578→   578→    return [...m.entries()].map(([label, value]) => ({ label, value, color: colors[label] })).sort((a, b) => b.value - a.value);
+   579→   579→  }, [d]);
+   580→   580→  return (
+   581→   581→    <div className="space-y-6">
+   582→   582→      <Card className="p-5">
+   583→   583→        <PanelHead title="Engagement by section" />
+   584→   584→        {bySection.length === 0 ? <Empty /> : (
+   585→   585→          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   586→   586→            {bySection.map((r) => (
+   587→   587→              <div key={r.label} className="rounded-xl border border-white/[0.06] p-4" style={{ background: `linear-gradient(135deg, ${r.color}14, transparent)` }}>
+   588→   588→                <p className="text-2xl font-black" style={{ color: r.color }}>{r.value}</p>
+   589→   589→                <p className="text-xs text-white/50 mt-0.5">{r.label}</p>
+   590→   590→              </div>
+   591→   591→            ))}
+   592→   592→          </div>
+   593→   593→        )}
+   594→   594→      </Card>
+   595→   595→      <Card className="p-5"><PanelHead title="All viewed pages" /><BarList rows={d.topPaths.map((p) => ({ label: plabel(p.path), value: p.count }))} accent={accent} /></Card>
+   596→   596→    </div>
+   597→   597→  );
+   598→   598→}
+   599→   599→
+   600→   600→function Empty() {
+   601→   601→  return <p className="text-sm text-white/35 text-center py-8">No data yet — real visits will appear here.</p>;
+   602→   602→}
+   603→   603→
+   604→   604→function StatusBadge({ status, until }: { status: Member["status"]; until: number | null }) {
+   605→   605→  if (status === "banned") return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">BANNED</span>;
+   606→   606→  if (status === "suspended") return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">SUSPENDED{until ? ` · ${new Date(until).toLocaleDateString()}` : ""}</span>;
+   607→   607→  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">ACTIVE</span>;
+   608→   608→}
+   609→   609→
+   610→   610→function UsersTab({
+   611→   611→  members, loading, error, mutate, accent,
+   612→   612→}: {
+   613→   613→  members: Member[] | null;
+   614→   614→  loading: boolean;
+   615→   615→  error: string | null;
+   616→   616→  mutate: (username: string, action: "ban" | "unban" | "suspend" | "unsuspend" | "promote" | "demote", opts?: { reason?: string; hours?: number }) => Promise<{ ok: boolean; error?: string }>;
+   617→   617→  accent: string;
+   618→   618→}) {
+   619→   619→  const [query, setQuery] = useState("");
+   620→   620→  const [menuFor, setMenuFor] = useState<string | null>(null);
+   621→   621→  const [busy, setBusy] = useState<string | null>(null);
+   622→   622→  const [suspendFor, setSuspendFor] = useState<Member | null>(null);
+   623→   623→  const [reason, setReason] = useState("");
+   624→   624→  const [hours, setHours] = useState(24);
+   625→   625→
+   626→   626→  const filtered = useMemo(() => {
+   627→   627→    if (!members) return [];
+   628→   628→    const q = query.trim().toLowerCase();
+   629→   629→    if (!q) return members;
+   630→   630→    return members.filter((m) => m.username.toLowerCase().includes(q) || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
+   631→   631→  }, [members, query]);
+   632→   632→
+   633→   633→  const act = async (username: string, action: "ban" | "unban" | "suspend" | "unsuspend" | "promote" | "demote", opts?: { reason?: string; hours?: number }) => {
+   634→   634→    setBusy(username);
+   635→   635→    setMenuFor(null);
+   636→   636→    await mutate(username, action, opts);
+   637→   637→    setBusy(null);
+   638→   638→  };
+   639→   639→
+   640→   640→  if (error === "No admin token") {
+   641→   641→    return (
+   642→   642→      <Card className="p-5">
+   643→   643→        <p className="text-sm text-white/35 text-center py-8">
+   644→   644→          Sign out and back in to link this browser as the admin — moderation actions need a verified admin session.
+   645→   645→        </p>
+   646→   646→      </Card>
+   647→   647→    );
+   648→   648→  }
+   649→   649→
+   650→   650→  return (
+   651→   651→    <Card className="p-5">
+   652→   652→      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+   653→   653→        <PanelHead title={`Registered members (${members?.length ?? 0})`} sub="Cross-device directory — ban, suspend, unban, or promote a member to moderator." />
+   654→   654→        <input
+   655→   655→          value={query} onChange={(e) => setQuery(e.target.value)}
+   656→   656→          placeholder="Search name, username, email…"
+   657→   657→          className="w-full sm:w-64 px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30"
+   658→   658→        />
+   659→   659→      </div>
+   660→   660→
+   661→   661→      {error && error !== "No admin token" && <p className="text-sm text-red-400 text-center py-8">{error}</p>}
+   662→   662→      {loading && !members && <div className="flex items-center justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" /></div>}
+   663→   663→      {!loading && members && members.length === 0 && <p className="text-sm text-white/35 text-center py-8">No registered members yet.</p>}
+   664→   664→      {!loading && members && members.length > 0 && filtered.length === 0 && <p className="text-sm text-white/35 text-center py-8">No members match &ldquo;{query}&rdquo;.</p>}
+   665→   665→
+   666→   666→      {filtered.length > 0 && (
+   667→   667→        <div className="overflow-x-auto">
+   668→   668→          <table className="w-full text-sm min-w-[640px]">
+   669→   669→            <thead><tr className="text-left text-[10px] uppercase tracking-wider text-white/40 border-b border-white/[0.06]">
+   670→   670→              <th className="py-2 pr-3 font-bold">Member</th><th className="py-2 px-3 font-bold">Username</th><th className="py-2 px-3 font-bold">Email</th><th className="py-2 px-3 font-bold">Status</th><th className="py-2 px-3 font-bold">Joined</th><th className="py-2 pl-3 font-bold text-right">Actions</th>
+   671→   671→            </tr></thead>
+   672→   672→            <tbody>{filtered.map((u, i) => (
+   673→   673→              <tr key={u.username} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+   674→   674→                <td className="py-2.5 pr-3"><div className="flex items-center gap-2.5">
+   675→   675→                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ backgroundColor: accent + "22", color: accent }}>{u.name.charAt(0).toUpperCase()}</div>
+   676→   676→                  <span className="font-semibold text-white/90 truncate">{u.name}</span>
+   677→   677→                  {i === 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: accent + "22", color: accent }}>OWNER</span>}
+   678→   678→                  {u.role === "mod" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400">MOD</span>}
+   679→   679→                </div></td>
+   680→   680→                <td className="py-2.5 px-3 text-white/45 font-mono">@{u.username}</td>
+   681→   681→                <td className="py-2.5 px-3 text-white/45 truncate max-w-[180px]">{u.email}</td>
+   682→   682→                <td className="py-2.5 px-3"><StatusBadge status={u.status} until={u.until} /></td>
+   683→   683→                <td className="py-2.5 px-3 text-white/45 whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</td>
+   684→   684→                <td className="py-2.5 pl-3 text-right relative">
+   685→   685→                  {busy === u.username ? (
+   686→   686→                    <div className="w-4 h-4 ml-auto rounded-full border-2 border-white/20 border-t-white/70 animate-spin" />
+   687→   687→                  ) : (
+   688→   688→                    <>
+   689→   689→                      <button onClick={() => setMenuFor(menuFor === u.username ? null : u.username)} className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.05] ml-auto">
+   690→   690→                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
+   691→   691→                      </button>
+   692→   692→                      {menuFor === u.username && (
+   693→   693→                        <div className="absolute right-0 top-9 z-10 w-44 rounded-lg border border-white/10 bg-[#11161f] shadow-2xl py-1 text-left">
+   694→   694→                          {u.status === "banned" ? (
+   695→   695→                            <button onClick={() => act(u.username, "unban")} className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/[0.05]">Unban</button>
+   696→   696→                          ) : (
+   697→   697→                            <button onClick={() => act(u.username, "ban", { reason: "Violated community guidelines" })} className="w-full text-left px-3 py-2 text-xs font-semibold text-red-400 hover:bg-white/[0.05]">Ban permanently</button>
+   698→   698→                          )}
+   699→   699→                          {u.status === "suspended" ? (
+   700→   700→                            <button onClick={() => act(u.username, "unsuspend")} className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-white/[0.05]">Lift suspension</button>
+   701→   701→                          ) : (
+   702→   702→                            <button onClick={() => { setSuspendFor(u); setReason(""); setHours(24); setMenuFor(null); }} className="w-full text-left px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-white/[0.05]">Suspend…</button>
+   703→   703→                          )}
+   704→   704→                          {i !== 0 && (
+   705→   705→                            u.role === "mod" ? (
+   706→   706→                              <button onClick={() => act(u.username, "demote")} className="w-full text-left px-3 py-2 text-xs font-semibold text-white/60 hover:bg-white/[0.05]">Remove mod</button>
+   707→   707→                            ) : (
+   708→   708→                              <button onClick={() => act(u.username, "promote")} className="w-full text-left px-3 py-2 text-xs font-semibold text-sky-400 hover:bg-white/[0.05]">Make mod</button>
+   709→   709→                            )
+   710→   710→                          )}
+   711→   711→                        </div>
+   712→   712→                      )}
+   713→   713→                    </>
+   714→   714→                  )}
+   715→   715→                </td>
+   716→   716→              </tr>
+   717→   717→            ))}</tbody>
+   718→   718→          </table>
+   719→   719→        </div>
+   720→   720→      )}
+   721→   721→
+   722→   722→      {suspendFor && (
+   723→   723→        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSuspendFor(null)}>
+   724→   724→          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#11161f] p-5" onClick={(e) => e.stopPropagation()}>
+   725→   725→            <h3 className="font-black text-base mb-1">Suspend @{suspendFor.username}</h3>
+   726→   726→            <p className="text-xs text-white/45 mb-4">They&rsquo;ll be signed out and blocked from signing back in until the suspension ends.</p>
+   727→   727→            <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Duration</label>
+   728→   728→            <select value={hours} onChange={(e) => setHours(Number(e.target.value))} className="w-full mb-3 px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30">
+   729→   729→              <option value={1}>1 hour</option>
+   730→   730→              <option value={24}>24 hours</option>
+   731→   731→              <option value={24 * 7}>7 days</option>
+   732→   732→              <option value={24 * 30}>30 days</option>
+   733→   733→            </select>
+   734→   734→            <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Reason (optional)</label>
+   735→   735→            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Spam, abuse, etc." className="w-full mb-4 px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30" />
+   736→   736→            <div className="flex gap-2">
+   737→   737→              <button onClick={() => setSuspendFor(null)} className="flex-1 py-2 rounded-lg border border-white/10 text-sm font-bold text-white/60 hover:text-white">Cancel</button>
+   738→   738→              <button
+   739→   739→                onClick={async () => { const u = suspendFor.username; setSuspendFor(null); await act(u, "suspend", { reason: reason || undefined, hours }); }}
+   740→   740→                className="flex-1 py-2 rounded-lg text-sm font-bold" style={{ backgroundColor: "#f59e0b", color: "#000" }}
+   741→   741→              >Suspend</button>
+   742→   742→            </div>
+   743→   743→          </div>
+   744→   744→        </div>
+   745→   745→      )}
+   746→   746→    </Card>
+   747→   747→  );
+   748→   748→}
+   749→   749→
+   750→   750→interface ReportRow {
+   751→   751→  id: string;
+   752→   752→  kind: "mod" | "watch";
+   753→   753→  byUsername: string;
+   754→   754→  byName: string;
+   755→   755→  message: string;
+   756→   756→  meta?: { animeTitle?: string; episodeNum?: number; server?: string; mode?: string; error?: string; url?: string };
+   757→   757→  createdAt: number;
+   758→   758→  status: "open" | "resolved";
+   759→   759→}
+   760→   760→
+   761→   761→function ReportKindBadge({ kind }: { kind: "mod" | "watch" }) {
+   762→   762→  if (kind === "mod") return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 shrink-0">MOD REPORT</span>;
+   763→   763→  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/60 shrink-0">VIEWER REPORT</span>;
+   764→   764→}
+   765→   765→
+   766→   766→function ReportsTab({ accent }: { accent: string }) {
+   767→   767→  const [reports, setReports] = useState<ReportRow[] | null>(null);
+   768→   768→  const [error, setError] = useState<string | null>(null);
+   769→   769→  const [busy, setBusy] = useState<string | null>(null);
+   770→   770→  const [bump, setBump] = useState(0);
+   771→   771→
+   772→   772→  useEffect(() => {
+   773→   773→    let cancel = false;
+   774→   774→    Promise.resolve().then(async () => {
+   775→   775→      const token = getAdminToken();
+   776→   776→      if (!token) throw new Error("No admin token");
+   777→   777→      const r = await fetch("/api/mod/reports", { headers: { "x-admin-token": token }, cache: "no-store" });
+   778→   778→      return r.json();
+   779→   779→    }).then((d) => {
+   780→   780→      if (cancel) return;
+   781→   781→      if (d.ok) { setReports(d.reports); setError(null); }
+   782→   782→      else setError(d.error || "Failed to load reports");
+   783→   783→    }).catch((e) => { if (!cancel) setError(e instanceof Error ? e.message : "Failed to load reports"); });
+   784→   784→    return () => { cancel = true; };
+   785→   785→  }, [bump]);
+   786→   786→
+   787→   787→  const setStatus = async (id: string, status: "open" | "resolved" | "dismissed") => {
+   788→   788→    const token = getAdminToken();
+   789→   789→    if (!token) return;
+   790→   790→    setBusy(id);
+   791→   791→    await fetch("/api/mod/reports", {
+   792→   792→      method: "PATCH",
+   793→   793→      headers: { "content-type": "application/json", "x-admin-token": token },
+   794→   794→      body: JSON.stringify({ id, status: status === "dismissed" ? "resolved" : status }),
+   795→   795→    }).catch(() => {});
+   796→   796→    setBusy(null);
+   797→   797→    setBump((b) => b + 1);
+   798→   798→  };
+   799→   799→
+   800→   800→  if (error === "No admin token") {
+   801→   801→    return (
+   802→   802→      <Card className="p-5">
+   803→   803→        <p className="text-sm text-white/35 text-center py-8">Sign out and back in to link this browser as the admin.</p>
+   804→   804→      </Card>
+   805→   805→    );
+   806→   806→  }
+   807→   807→
+   808→   808→  const open = (reports || []).filter((r) => r.status === "open");
+   809→   809→  const resolved = (reports || []).filter((r) => r.status === "resolved");
+   810→   810→
+   811→   811→  return (
+   812→   812→    <Card className="p-5">
+   813→   813→      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+   814→   814→        <PanelHead title="Reports" sub="Issues flagged by your mods and by viewers reporting broken playback." />
+   815→   815→        <button onClick={() => setBump((b) => b + 1)} className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-white/60 hover:text-white hover:bg-white/[0.05]">Refresh</button>
+   816→   816→      </div>
+   817→   817→      {error && error !== "No admin token" && <p className="text-sm text-red-400 text-center py-8">{error}</p>}
+   818→   818→      {!error && reports === null && <div className="flex items-center justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" /></div>}
+   819→   819→      {reports !== null && reports.length === 0 && <p className="text-sm text-white/35 text-center py-8">No reports yet.</p>}
+   820→   820→
+   821→   821→      {open.length > 0 && (
+   822→   822→        <div className="space-y-2 mb-6">
+   823→   823→          <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider">Open ({open.length})</p>
+   824→   824→          {open.map((r) => (
+   825→   825→            <div key={r.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3.5 flex items-start justify-between gap-3">
+   826→   826→              <div className="min-w-0">
+   827→   827→                <div className="flex items-center gap-2 flex-wrap mb-1">
+   828→   828→                  <ReportKindBadge kind={r.kind} />
+   829→   829→                  <p className="text-[11px] text-white/40">@{r.byUsername} · {new Date(r.createdAt).toLocaleString()}</p>
+   830→   830→                </div>
+   831→   831→                <p className="text-sm text-white/90">{r.message}</p>
+   832→   832→                {r.meta && (r.meta.server || r.meta.error || r.meta.url) && (
+   833→   833→                  <p className="text-[11px] text-white/40 mt-1 font-mono truncate">
+   834→   834→                    {[r.meta.server && `server: ${r.meta.server}`, r.meta.mode && `mode: ${r.meta.mode}`, r.meta.error && `error: ${r.meta.error}`].filter(Boolean).join(" · ")}
+   835→   835→                  </p>
+   836→   836→                )}
+   837→   837→              </div>
+   838→   838→              <div className="flex gap-2 shrink-0">
+   839→   839→                <button
+   840→   840→                  onClick={() => setStatus(r.id, "resolved")}
+   841→   841→                  disabled={busy === r.id}
+   842→   842→                  className="px-3 py-1.5 rounded-lg text-xs font-bold"
+   843→   843→                  style={{ backgroundColor: accent, color: "#000" }}
+   844→   844→                >{busy === r.id ? "…" : "Resolve"}</button>
+   845→   845→                <button
+   846→   846→                  onClick={() => setStatus(r.id, "dismissed")}
+   847→   847→                  disabled={busy === r.id}
+   848→   848→                  className="px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-white/50 hover:text-white hover:bg-white/[0.05]"
+   849→   849→                >{busy === r.id ? "…" : "Dismiss"}</button>
+   850→   850→              </div>
+   851→   851→            </div>
+   852→   852→          ))}
+   853→   853→        </div>
+   854→   854→      )}
+   855→   855→
+   856→   856→      {resolved.length > 0 && (
+   857→   857→        <div className="space-y-2">
+   858→   858→          <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider">Resolved ({resolved.length})</p>
+   859→   859→          {resolved.map((r) => (
+   860→   860→            <div key={r.id} className="rounded-xl border border-white/[0.06] bg-white/[0.01] p-3.5 flex items-start justify-between gap-3 opacity-60">
+   861→   861→              <div className="min-w-0">
+   862→   862→                <div className="flex items-center gap-2 flex-wrap mb-1">
+   863→   863→                  <ReportKindBadge kind={r.kind} />
+   864→   864→                  <p className="text-[11px] text-white/35">@{r.byUsername} · {new Date(r.createdAt).toLocaleString()}</p>
+   865→   865→                </div>
+   866→   866→                <p className="text-sm text-white/70">{r.message}</p>
+   867→   867→              </div>
+   868→   868→              <button onClick={() => setStatus(r.id, "open")} disabled={busy === r.id} className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-white/60 hover:text-white">Reopen</button>
+   869→   869→            </div>
+   870→   870→          ))}
+   871→   871→        </div>
+   872→   872→      )}
+   873→   873→    </Card>
+   874→   874→  );
+   875→   875→}
+   876→   876→
+   877→   877→/* ============================================================
+   878→   878→   XP Leaderboard tab
+   879→   879→   ============================================================ */
+   880→   880→interface LeaderboardEntry {
+   881→   881→  rank: number;
+   882→   882→  username: string;
+   883→   883→  name: string;
+   884→   884→  totalXP: number;
+   885→   885→  level: number;
+   886→   886→  lastActive: string;
+   887→   887→}
+   888→   888→
+   889→   889→function XpLeaderboardTab({ accent }: { accent: string }) {
+   890→   890→  const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+   891→   891→  const [error, setError] = useState<string | null>(null);
+   892→   892→  const [loading, setLoading] = useState(true);
+   893→   893→
+   894→   894→  const fetchLeaderboard = useCallback(async () => {
+   895→   895→    setLoading(true);
+   896→   896→    setError(null);
+   897→   897→    try {
+   898→   898→      const token = getAdminToken();
+   899→   899→      if (!token) throw new Error("No admin token");
+   900→   900→      const r = await fetch("/api/xp/leaderboard", { headers: { "x-admin-token": token }, cache: "no-store" });
+   901→   901→      const d = await r.json();
+   902→   902→      if (d.ok) { setEntries(d.leaderboard); setError(null); }
+   903→   903→      else setError(d.error || "Failed to load leaderboard");
+   904→   904→    } catch (e) {
+   905→   905→      setError(e instanceof Error ? e.message : "Failed to load leaderboard");
+   906→   906→    } finally { setLoading(false); }
+   907→   907→  }, []);
+   908→   908→
+   909→   909→  useEffect(() => { fetchLeaderboard(); }, [fetchLeaderboard]);
+   910→   910→
+   911→   911→  if (error === "No admin token") {
+   912→   912→    return (
+   913→   913→      <Card className="p-5">
+   914→   914→        <p className="text-sm text-white/35 text-center py-8">Sign out and back in to access the leaderboard.</p>
+   915→   915→      </Card>
+   916→   916→    );
+   917→   917→  }
+   918→   918→
+   919→   919→  return (
+   920→   920→    <Card className="p-5">
+   921→   921→      <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+   922→   922→        <PanelHead title="XP Leaderboard" sub="Top users ranked by accumulated experience points." />
+   923→   923→        <button onClick={fetchLeaderboard} className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-white/60 hover:text-white hover:bg-white/[0.05]">Refresh</button>
+   924→   924→      </div>
+   925→   925→
+   926→   926→      {error && <p className="text-sm text-red-400 text-center py-8">{error}</p>}
+   927→   927→      {loading && !entries && <div className="flex items-center justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" /></div>}
+   928→   928→      {entries && entries.length === 0 && <p className="text-sm text-white/35 text-center py-8">No users on the leaderboard yet.</p>}
+   929→   929→
+   930→   930→      {entries && entries.length > 0 && (
+   931→   931→        <div className="overflow-x-auto">
+   932→   932→          <table className="w-full text-sm min-w-[500px]">
+   933→   933→            <thead>
+   934→   934→              <tr className="text-left text-[10px] uppercase tracking-wider text-white/40 border-b border-white/[0.06]">
+   935→   935→                <th className="py-2 pr-3 font-bold">Rank</th>
+   936→   936→                <th className="py-2 px-3 font-bold">User</th>
+   937→   937→                <th className="py-2 px-3 font-bold">Username</th>
+   938→   938→                <th className="py-2 px-3 font-bold">Total XP</th>
+   939→   939→                <th className="py-2 px-3 font-bold">Level</th>
+   940→   940→                <th className="py-2 pl-3 font-bold">Last Active</th>
+   941→   941→              </tr>
+   942→   942→            </thead>
+   943→   943→            <tbody>
+   944→   944→              {entries.map((e) => (
+   945→   945→                <tr key={e.username} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+   946→   946→                  <td className="py-2.5 pr-3">
+   947→   947→                    <span className={`text-xs font-bold ${e.rank <= 3 ? "px-2 py-1 rounded-full" : ""}`}
+   948→   948→                      style={e.rank <= 3 ? { backgroundColor: e.rank === 1 ? "#f59e0b" : e.rank === 2 ? "#94a3b8" : "#cd7f32", color: "#000" } : undefined}>
+   949→   949→                      {e.rank <= 3 ? ["🥇", "🥈", "🥉"][e.rank - 1] : `#${e.rank}`}
+   950→   950→                    </span>
+   951→   951→                  </td>
+   952→   952→                  <td className="py-2.5 px-3">
+   953→   953→                    <div className="flex items-center gap-2">
+   954→   954→                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ backgroundColor: accent + "22", color: accent }}>{e.name.charAt(0).toUpperCase()}</div>
+   955→   955→                      <span className="font-semibold text-white/90">{e.name}</span>
+   956→   956→                    </div>
+   957→   957→                  </td>
+   958→   958→                  <td className="py-2.5 px-3 text-white/45 font-mono">@{e.username}</td>
+   959→   959→                  <td className="py-2.5 px-3 font-bold tabular-nums">{e.totalXP.toLocaleString()}</td>
+   960→   960→                  <td className="py-2.5 px-3"><span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: accent + "22", color: accent }}>Lv {e.level}</span></td>
+   961→   961→                  <td className="py-2.5 pl-3 text-white/45 whitespace-nowrap">{new Date(e.lastActive).toLocaleDateString()}</td>
+   962→   962→                </tr>
+   963→   963→              ))}
+   964→   964→            </tbody>
+   965→   965→          </table>
+   966→   966→        </div>
+   967→   967→      )}
+   968→   968→    </Card>
+   969→   969→  );
+   970→   970→}
+   971→   971→
+   972→   972→/* ============================================================
+   973→   973→   Announcements tab
+   974→   974→   ============================================================ */
+   975→   975→interface Announcement {
+   976→   976→  id: string;
+   977→   977→  title: string;
+   978→   978→  message: string;
+   979→   979→  type: "info" | "warning" | "update";
+   980→   980→  createdAt: number;
+   981→   981→  expiry: number | null;
+   982→   982→  active: boolean;
+   983→   983→}
+   984→   984→
+   985→   985→function AnnouncementsTab({ accent }: { accent: string }) {
+   986→   986→  const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
+   987→   987→  const [error, setError] = useState<string | null>(null);
+   988→   988→  const [busy, setBusy] = useState<string | null>(null);
+   989→   989→
+   990→   990→  // Create form state
+   991→   991→  const [title, setTitle] = useState("");
+   992→   992→  const [message, setMessage] = useState("");
+   993→   993→  const [type, setType] = useState<"info" | "warning" | "update">("info");
+   994→   994→  const [expiry, setExpiry] = useState<string>("");
+   995→   995→  const [createMsg, setCreateMsg] = useState<{ ok: boolean; t: string } | null>(null);
+   996→   996→
+   997→   997→  const fetchAnnouncements = useCallback(async () => {
+   998→   998→    setError(null);
+   999→   999→    try {
+  1000→  1000→      const token = getAdminToken();
+  1001→  1001→      if (!token) throw new Error("No admin token");
+  1002→  1002→      const r = await fetch("/api/admin/announcements", { headers: { "x-admin-token": token }, cache: "no-store" });
+  1003→  1003→      const d = await r.json();
+  1004→  1004→      if (d.ok) { setAnnouncements(d.announcements); setError(null); }
+  1005→  1005→      else setError(d.error || "Failed to load announcements");
+  1006→  1006→    } catch (e) {
+  1007→  1007→      setError(e instanceof Error ? e.message : "Failed to load announcements");
+  1008→  1008→    }
+  1009→  1009→  }, []);
+  1010→  1010→
+  1011→  1011→  useEffect(() => { fetchAnnouncements(); }, [fetchAnnouncements]);
+  1012→  1012→
+  1013→  1013→  const createAnnouncement = async () => {
+  1014→  1014→    const token = getAdminToken();
+  1015→  1015→    if (!token) { setCreateMsg({ ok: false, t: "No admin token" }); return; }
+  1016→  1016→    setBusy("create");
+  1017→  1017→    try {
+  1018→  1018→      const expiryNum = expiry ? new Date(expiry).getTime() : null;
+  1019→  1019→      const r = await fetch("/api/admin/announcements", {
+  1020→  1020→        method: "POST",
+  1021→  1021→        headers: { "content-type": "application/json", "x-admin-token": token },
+  1022→  1022→        body: JSON.stringify({ action: "create", title, message, type, expiry: expiryNum }),
+  1023→  1023→      });
+  1024→  1024→      const d = await r.json();
+  1025→  1025→      if (d.ok) {
+  1026→  1026→        setTitle(""); setMessage(""); setType("info"); setExpiry("");
+  1027→  1027→        setCreateMsg({ ok: true, t: "Announcement created" });
+  1028→  1028→        await fetchAnnouncements();
+  1029→  1029→      } else {
+  1030→  1030→        setCreateMsg({ ok: false, t: d.error || "Failed" });
+  1031→  1031→      }
+  1032→  1032→    } catch {
+  1033→  1033→      setCreateMsg({ ok: false, t: "Network error" });
+  1034→  1034→    } finally { setBusy(null); }
+  1035→  1035→  };
+  1036→  1036→
+  1037→  1037→  const deleteAnnouncement = async (id: string) => {
+  1038→  1038→    const token = getAdminToken();
+  1039→  1039→    if (!token) return;
+  1040→  1040→    setBusy(id);
+  1041→  1041→    await fetch("/api/admin/announcements", {
+  1042→  1042→      method: "POST",
+  1043→  1043→      headers: { "content-type": "application/json", "x-admin-token": token },
+  1044→  1044→      body: JSON.stringify({ action: "delete", id }),
+  1045→  1045→    }).catch(() => {});
+  1046→  1046→    setBusy(null);
+  1047→  1047→    await fetchAnnouncements();
+  1048→  1048→  };
+  1049→  1049→
+  1050→  1050→  const typeColor = (t: string) => t === "warning" ? "#f59e0b" : t === "update" ? "#8b5cf6" : "#3b82f6";
+  1051→  1051→
+  1052→  1052→  if (error === "No admin token") {
+  1053→  1053→    return (
+  1054→  1054→      <Card className="p-5">
+  1055→  1055→        <p className="text-sm text-white/35 text-center py-8">Sign out and back in to manage announcements.</p>
+  1056→  1056→      </Card>
+  1057→  1057→    );
+  1058→  1058→  }
+  1059→  1059→
+  1060→  1060→  return (
+  1061→  1061→    <div className="space-y-6">
+  1062→  1062→      <Card className="p-5">
+  1063→  1063→        <PanelHead title="Create announcement" sub="Post a site-wide announcement visible to all users." />
+  1064→  1064→        <div className="grid sm:grid-cols-2 gap-3 mb-3">
+  1065→  1065→          <div>
+  1066→  1066→            <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Title</label>
+  1067→  1067→            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Announcement title" className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30" />
+  1068→  1068→          </div>
+  1069→  1069→          <div>
+  1070→  1070→            <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Type</label>
+  1071→  1071→            <select value={type} onChange={(e) => setType(e.target.value as "info" | "warning" | "update")} className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30">
+  1072→  1072→              <option value="info">Info</option>
+  1073→  1073→              <option value="warning">Warning</option>
+  1074→  1074→              <option value="update">Update</option>
+  1075→  1075→            </select>
+  1076→  1076→          </div>
+  1077→  1077→        </div>
+  1078→  1078→        <div className="mb-3">
+  1079→  1079→          <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Message</label>
+  1080→  1080→          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} placeholder="Announcement message…" className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30 resize-none" />
+  1081→  1081→        </div>
+  1082→  1082→        <div className="mb-4">
+  1083→  1083→          <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">Expiry date (optional)</label>
+  1084→  1084→          <input type="datetime-local" value={expiry} onChange={(e) => setExpiry(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30" />
+  1085→  1085→        </div>
+  1086→  1086→        {createMsg && <p className={`text-xs mb-3 ${createMsg.ok ? "text-emerald-400" : "text-red-400"}`}>{createMsg.t}</p>}
+  1087→  1087→        <button onClick={createAnnouncement} disabled={busy === "create" || !title.trim() || !message.trim()}
+  1088→  1088→          className="px-4 py-2 rounded-lg text-black text-sm font-bold disabled:opacity-40" style={{ backgroundColor: accent }}>
+  1089→  1089→          {busy === "create" ? "Creating…" : "Create announcement"}
+  1090→  1090→        </button>
+  1091→  1091→      </Card>
+  1092→  1092→
+  1093→  1093→      <Card className="p-5">
+  1094→  1094→        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+  1095→  1095→          <PanelHead title="Active announcements" sub={`${announcements?.length ?? 0} announcements currently active`} />
+  1096→  1096→          <button onClick={fetchAnnouncements} className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-white/60 hover:text-white hover:bg-white/[0.05]">Refresh</button>
+  1097→  1097→        </div>
+  1098→  1098→
+  1099→  1099→        {error && <p className="text-sm text-red-400 text-center py-8">{error}</p>}
+  1100→  1100→        {!error && announcements === null && <div className="flex items-center justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" /></div>}
+  1101→  1101→        {announcements && announcements.length === 0 && <p className="text-sm text-white/35 text-center py-8">No active announcements.</p>}
+  1102→  1102→
+  1103→  1103→        {announcements && announcements.length > 0 && (
+  1104→  1104→          <div className="space-y-2.5">
+  1105→  1105→            {announcements.map((a) => (
+  1106→  1106→              <div key={a.id} className="rounded-xl border border-white/[0.08] p-3.5 flex items-start justify-between gap-3"
+  1107→  1107→                style={{ background: `linear-gradient(135deg, ${typeColor(a.type)}08, transparent)` }}>
+  1108→  1108→                <div className="min-w-0">
+  1109→  1109→                  <div className="flex items-center gap-2 flex-wrap mb-1">
+  1110→  1110→                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: typeColor(a.type) + "20", color: typeColor(a.type) }}>{a.type.toUpperCase()}</span>
+  1111→  1111→                    <p className="text-sm font-bold text-white/90">{a.title}</p>
+  1112→  1112→                    <p className="text-[11px] text-white/40">{new Date(a.createdAt).toLocaleString()}</p>
+  1113→  1113→                    {a.expiry && <p className="text-[11px] text-white/35">Expires {new Date(a.expiry).toLocaleString()}</p>}
+  1114→  1114→                  </div>
+  1115→  1115→                  <p className="text-sm text-white/70">{a.message}</p>
+  1116→  1116→                </div>
+  1117→  1117→                <button onClick={() => deleteAnnouncement(a.id)} disabled={busy === a.id}
+  1118→  1118→                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-400 border border-red-500/20 hover:bg-red-500/10 disabled:opacity-40">
+  1119→  1119→                  {busy === a.id ? "…" : "Delete"}
+  1120→  1120→                </button>
+  1121→  1121→              </div>
+  1122→  1122→            ))}
+  1123→  1123→          </div>
+  1124→  1124→        )}
+  1125→  1125→      </Card>
+  1126→  1126→    </div>
+  1127→  1127→  );
+  1128→  1128→}
+  1129→  1129→
+  1130→  1130→function SeoTab({ accent }: { accent: string }) {
+  1131→  1131→  const [s, setS] = useState<SeoSettings>(() => loadSeo());
+  1132→  1132→  const [saved, setSaved] = useState(false);
+  1133→  1133→  const audit = useMemo(() => auditSeo(s), [s]);
+  1134→  1134→  const set = (k: keyof SeoSettings, v: string | boolean) => { setS((p) => ({ ...p, [k]: v })); setSaved(false); };
+  1135→  1135→  const scoreColor = audit.score >= 80 ? "#10b981" : audit.score >= 50 ? "#f59e0b" : "#ef4444";
+  1136→  1136→  const field = (label: string, k: keyof SeoSettings, area = false, ph = "") => (
+  1137→  1137→    <div className="mb-4">
+  1138→  1138→      <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5">{label}</label>
+  1139→  1139→      {area
+  1140→  1140→        ? <textarea value={String(s[k])} onChange={(e) => set(k, e.target.value)} rows={3} placeholder={ph} className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30 resize-none" />
+  1141→  1141→        : <input value={String(s[k])} onChange={(e) => set(k, e.target.value)} placeholder={ph} className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30" />}
+  1142→  1142→    </div>
+  1143→  1143→  );
+  1144→  1144→  return (
+  1145→  1145→    <div className="grid lg:grid-cols-[1fr_340px] gap-6">
+  1146→  1146→      <Card className="p-5">
+  1147→  1147→        <div className="flex items-center justify-between mb-4"><h2 className="text-sm font-bold">Search engine optimization</h2><span className="text-lg font-black" style={{ color: scoreColor }}>{audit.score}<span className="text-white/30 text-xs font-bold">/100</span></span></div>
+  1148→  1148→        {field("Site name", "siteName")}
+  1149→  1149→        {field("Meta title", "title")}
+  1150→  1150→        {field("Meta description", "description", true)}
+  1151→  1151→        {field("Keywords", "keywords", true)}
+  1152→  1152→        {field("Canonical URL", "canonicalUrl", false, "https://…")}
+  1153→  1153→        <div className="grid grid-cols-2 gap-3">{field("OG image URL", "ogImage", false, "/og.png")}{field("Twitter handle", "twitterHandle", false, "@handle")}</div>
+  1154→  1154→        <label className="flex items-center gap-2.5 mb-5 cursor-pointer"><input type="checkbox" checked={s.robotsIndex} onChange={(e) => set("robotsIndex", e.target.checked)} className="w-4 h-4" style={{ accentColor: accent }} /><span className="text-sm text-white/70">Allow search engines to index the site</span></label>
+  1155→  1155→        <div className="flex gap-2">
+  1156→  1156→          <button onClick={() => { saveSeo(s); setSaved(true); }} className="px-4 py-2 rounded-lg text-black text-sm font-bold" style={{ backgroundColor: accent }}>{saved ? "Saved ✓" : "Save settings"}</button>
+  1157→  1157→          <button onClick={() => { setS(DEFAULT_SEO); setSaved(false); }} className="px-4 py-2 rounded-lg border border-white/10 text-sm font-bold text-white/50">Reset</button>
+  1158→  1158→        </div>
+  1159→  1159→      </Card>
+  1160→  1160→      <div className="space-y-6">
+  1161→  1161→        <Card className="p-5"><PanelHead title="Google preview" />
+  1162→  1162→          <div className="rounded-lg bg-white p-3">
+  1163→  1163→            <p className="text-[#1a0dab] text-[15px] leading-snug truncate">{s.title || "Page title"}</p>
+  1164→  1164→            <p className="text-[#006621] text-xs truncate">{s.canonicalUrl || "https://luffytv.app"}</p>
+  1165→  1165→            <p className="text-[#545454] text-xs leading-snug line-clamp-2 mt-0.5">{s.description || "Meta description…"}</p>
+  1166→  1166→          </div>
+  1167→  1167→          <p className="text-[10px] text-white/40 mt-2">sitemap.xml, robots.txt & structured data ship automatically.</p>
+  1168→  1168→        </Card>
+  1169→  1169→        <Card className="p-5"><PanelHead title="SEO audit" />
+  1170→  1170→          <div className="space-y-2">{audit.checks.map((c) => (
+  1171→  1171→            <div key={c.id} className="flex items-start gap-2" title={c.hint}>
+  1172→  1172→              <span className={`text-sm mt-0.5 ${c.ok ? "text-emerald-500" : "text-red-500"}`}>{c.ok ? "✓" : "✗"}</span>
+  1173→  1173→              <div><p className={`text-xs font-semibold ${c.ok ? "text-white/70" : "text-white/50"}`}>{c.label}</p>{!c.ok && <p className="text-[10px] text-white/35">{c.hint}</p>}</div>
+  1174→  1174→            </div>
+  1175→  1175→          ))}</div>
+  1176→  1176→        </Card>
+  1177→  1177→      </div>
+  1178→  1178→    </div>
+  1179→  1179→  );
+  1180→  1180→}
+  1181→  1181→
+  1182→  1182→function SettingsTab({ accent, setAccent }: { accent: string; setAccent: (v: string) => void; onData: () => void }) {
+  1183→  1183→  const [oldPw, setOldPw] = useState(""); const [newPw, setNewPw] = useState(""); const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  1184→  1184→  const [countMe, setCountMe] = useState(() => !isOwnerBrowser());
+  1185→  1185→  const changePw = () => { const r = changeAdminPassword(oldPw, newPw); setMsg({ ok: r.ok, t: r.ok ? "Password updated" : (r.error || "Failed") }); if (r.ok) { setOldPw(""); setNewPw(""); } };
+  1186→  1186→  const toggleCount = () => { const next = !countMe; setCountMe(next); setOwnerBrowser(!next); };
+  1187→  1187→  return (
+  1188→  1188→    <div className="grid lg:grid-cols-2 gap-6">
+  1189→  1189→      <Card className="p-5">
+  1190→  1190→        <PanelHead title="Appearance" sub="Personalize your admin console" />
+  1191→  1191→        <label className="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Accent color</label>
+  1192→  1192→        <div className="flex gap-2.5 flex-wrap">
+  1193→  1193→          {ACCENTS.map((a) => (
+  1194→  1194→            <button key={a.id} onClick={() => setAccent(a.v)} className={`w-9 h-9 rounded-full border-2 transition-all ${accent === a.v ? "border-white scale-110" : "border-white/10 hover:scale-105"}`} style={{ backgroundColor: a.v }} title={a.id} />
+  1195→  1195→          ))}
+  1196→  1196→        </div>
+  1197→  1197→      </Card>
+  1198→  1198→
+  1199→  1199→      <Card className="p-5">
+  1200→  1200→        <PanelHead title="Change password" sub="Update your admin credentials" />
+  1201→  1201→        <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} placeholder="Current password" className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30 mb-3" />
+  1202→  1202→        <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password (min 6)" className="w-full px-3 py-2 rounded-lg bg-[#0b0e14] border border-white/10 text-sm outline-none focus:border-white/30 mb-3" />
+  1203→  1203→        {msg && <p className={`text-xs mb-3 ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.t}</p>}
+  1204→  1204→        <button onClick={changePw} className="px-4 py-2 rounded-lg text-black text-sm font-bold" style={{ backgroundColor: accent }}>Update password</button>
+  1205→  1205→      </Card>
+  1206→  1206→
+  1207→  1207→      <Card className="p-5 lg:col-span-2">
+  1208→  1208→        <PanelHead title="Tracking" sub="How real visitor analytics are collected" />
+  1209→  1209→        <label className="flex items-center justify-between gap-3 py-2 cursor-pointer">
+  1210→  1210→          <span className="text-sm text-white/70">Count my own visits in analytics</span>
+  1211→  1211→          <button onClick={toggleCount} className="relative w-11 h-6 rounded-full transition-colors" style={{ backgroundColor: countMe ? accent : "rgba(255,255,255,0.12)" }}>
+  1212→  1212→            <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: countMe ? "22px" : "2px" }} />
+  1213→  1213→          </button>
+  1214→  1214→        </label>
+  1215→  1215→        <p className="text-[11px] text-white/35 mt-3 max-w-2xl leading-relaxed">
+  1216→  1216→          Visitor analytics are recorded server-side and aggregated in a KV store (real, global). Your own visits are excluded by default so they
+  1217→  1217→          don&apos;t inflate the numbers. To enable global counting on Vercel: <b>Storage → Create → KV → Connect to project</b> — no code changes needed.
+  1218→  1218→        </p>
+  1219→  1219→      </Card>
+  1220→  1220→    </div>
+  1221→  1221→  );
+  1222→  1222→}
+  1223→  1223→
+  1224→  1224→/* ============================================================
+  1225→  1225→   Inline icon set (stroke)
+  1226→  1226→   ============================================================ */
+  1227→  1227→function NavIcon({ name }: { name: string }) {
+  1228→  1228→  const p: Record<string, string> = {
+  1229→  1229→    grid: "M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z",
+  1230→  1230→    users: "M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8z",
+  1231→  1231→    film: "M7 4v16M17 4v16M3 8h4m10 0h4M3 16h4m10 0h4M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z",
+  1232→  1232→    user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+  1233→  1233→    search: "M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z",
+  1234→  1234→    cog: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
+  1235→  1235→    eye: "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
+  1236→  1236→    cursor: "M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122",
+  1237→  1237→    bounce: "M13 10V3L4 14h7v7l9-11h-7z",
+  1238→  1238→    clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+  1239→  1239→    live: "M12 12a3 3 0 100-6 3 3 0 000 6z M4.5 4.5a10.5 10.5 0 000 15M19.5 4.5a10.5 10.5 0 010 15M7.5 7.5a6 6 0 000 9M16.5 7.5a6 6 0 010 9",
+  1240→  1240→    repeat: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
+  1241→  1241→    chart: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+  1242→  1242→    sparkle: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
+  1243→  1243→    refresh: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
+  1244→  1244→    globe: "M21 12a9 9 0 11-18 0 9 9 0 0118 0z M3.6 9h16.8M3.6 15h16.8 M12 3a15 15 0 010 18 M12 3a15 15 0 000 18",
+  1245→  1245→    logout: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+  1246→  1246→    collapse: "M11 19l-7-7 7-7m8 14l-7-7 7-7",
+  1247→  1247→    expand: "M13 5l7 7-7 7M5 5l7 7-7 7",
+  1248→  1248→    flag: "M4 3v18M4 4h13l-2 4 2 4H4",
+  1249→  1249→    megaphone: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z M11 4a4 4 0 014 4 M11 8a2 2 0 012 2",
+  1250→  1250→  };
+  1251→  1251→  return (
+  1252→  1252→    <svg className="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+  1253→  1253→      <path d={p[name] || p.grid} />
+  1254→  1254→    </svg>
+  1255→  1255→  );
+  1256→  1256→}
+  1257→  1257→

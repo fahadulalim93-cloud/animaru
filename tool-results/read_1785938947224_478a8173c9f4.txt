@@ -1,0 +1,1820 @@
+     1→"use client";
+     2→
+     3→import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+     4→import { useAppStore } from "./store";
+     5→import HLSPlayerNew from "./hls-player-new";
+     6→import AnimeComments from "./anime-comments";
+     7→import WatchPageExtras from "./watch-page-extras";
+     8→import { getProviderDisplayName } from "@/lib/miruro-api";
+     9→import { proxifyM3u8, proxify } from "@/lib/proxy";
+    10→import { WatchPageShell } from "./watch-page-shell";
+    11→import { validateSkipTime } from "@/lib/episode-metadata";
+    12→
+    13→// ============================================================
+    14→// DASH PLAYER — for AnimeOnsen .mpd streams
+    15→// Dynamically loads dash.js from CDN, plays .mpd manifest
+    16→// ============================================================
+    17→
+    18→declare global {
+    19→  interface Window { dashjs: any; }
+    20→}
+    21→
+    22→function loadDashJs(): Promise<void> {
+    23→  return new Promise((resolve, reject) => {
+    24→    if (window.dashjs) return resolve();
+    25→    const existing = document.querySelector('script[src*="dash.mediaplayer"]') as HTMLScriptElement | null;
+    26→    if (existing) {
+    27→      existing.addEventListener("load", () => resolve());
+    28→      existing.addEventListener("error", () => reject(new Error("dash.js load error")));
+    29→      return;
+    30→    }
+    31→    const script = document.createElement("script");
+    32→    script.src = "https://cdn.jsdelivr.net/npm/dashjs@4.7.4/dist/dash.mediaplayer.min.js";
+    33→    script.async = true;
+    34→    script.onload = () => resolve();
+    35→    script.onerror = () => reject(new Error("Failed to load dash.js"));
+    36→    document.head.appendChild(script);
+    37→  });
+    38→}
+    39→
+    40→function DashPlayer({
+    41→  url,
+    42→  subtitleTracks,
+    43→  onEnded,
+    44→  autoplay = true,
+    45→}: {
+    46→  url: string;
+    47→  subtitleTracks?: Array<{ url: string; label: string; lang?: string }>;
+    48→  onEnded?: () => void;
+    49→  autoplay?: boolean;
+    50→}) {
+    51→  const videoRef = useRef<HTMLVideoElement>(null);
+    52→  const playerRef = useRef<any>(null);
+    53→  const [error, setError] = useState<string | null>(null);
+    54→  const [loading, setLoading] = useState(true);
+    55→
+    56→  useEffect(() => {
+    57→    let cancelled = false;
+    58→
+    59→    async function init() {
+    60→      try {
+    61→        await loadDashJs();
+    62→        if (cancelled || !videoRef.current) return;
+    63→
+    64→        const video = videoRef.current;
+    65→        const player = window.dashjs.MediaPlayer().create();
+    66→        player.initialize(video, url, autoplay);
+    67→        player.updateSettings({
+    68→          streaming: {
+    69→            buffer: {
+    70→              fastSwitchEnabled: true,
+    71→              bufferTimeAtTopQuality: 30,
+    72→              bufferTimeAtTopQualityLongForm: 60,
+    73→            },
+    74→          },
+    75→        });
+    76→        playerRef.current = player;
+    77→        setLoading(false);
+    78→      } catch (e: any) {
+    79→        if (!cancelled) {
+    80→          setError(e?.message || "Failed to load DASH player");
+    81→          setLoading(false);
+    82→        }
+    83→      }
+    84→    }
+    85→
+    86→    init();
+    87→
+    88→    return () => {
+    89→      cancelled = true;
+    90→      if (playerRef.current) {
+    91→        try { playerRef.current.reset(); } catch {}
+    92→        playerRef.current = null;
+    93→      }
+    94→    };
+    95→  }, [url, autoplay]);
+    96→
+    97→  return (
+    98→    <div className="absolute inset-0 w-full h-full bg-black">
+    99→      {loading && (
+   100→        <div className="absolute inset-0 flex items-center justify-center">
+   101→          <div className="ltv-spinner ltv-spinner-lg" />
+   102→        </div>
+   103→      )}
+   104→      {error && (
+   105→        <div className="absolute inset-0 flex items-center justify-center">
+   106→          <div className="text-center space-y-2">
+   107→            <p className="text-rose-400 text-sm">{error}</p>
+   108→            <button onClick={() => window.location.reload()} className="text-xs text-white/60 hover:text-white">
+   109→              Reload
+   110→            </button>
+   111→          </div>
+   112→        </div>
+   113→      )}
+   114→      <video
+   115→        ref={videoRef}
+   116→        className="w-full h-full"
+   117→        controls
+   118→        onEnded={onEnded}
+   119→        crossOrigin="anonymous"
+   120→      />
+   121→      {subtitleTracks && subtitleTracks.length > 0 && (
+   122→        <div className="absolute bottom-14 right-4 z-10 flex gap-1">
+   123→          {subtitleTracks.slice(0, 5).map((s) => (
+   124→            <button
+   125→              key={s.lang || s.label}
+   126→              onClick={() => {
+   127→                const video = videoRef.current;
+   128→                if (!video) return;
+   129→                // Remove existing <track> elements from the DOM (not TextTrackList entries)
+   130→                const existingTracks = video.querySelectorAll("track");
+   131→                existingTracks.forEach(t => t.remove());
+   132→                const track = document.createElement("track");
+   133→                track.kind = "subtitles";
+   134→                track.label = s.label;
+   135→                track.srclang = s.lang || "en";
+   136→                track.src = s.url;
+   137→                track.default = true;
+   138→                video.appendChild(track);
+   139→              }}
+   140→              className="px-2 py-1 text-[10px] font-bold bg-black/60 text-white/70 hover:bg-white/20 hover:text-white rounded transition-colors"
+   141→            >
+   142→              {s.lang || s.label}
+   143→            </button>
+   144→          ))}
+   145→        </div>
+   146→      )}
+   147→    </div>
+   148→  );
+   149→}
+   150→
+   151→// ============================================================
+   152→// WATCH PAGE — Redesigned layout
+   153→// Player → Title/Nav → Tabs (Episodes/Info/Relations) → Servers
+   154→// ============================================================
+   155→
+   156→interface WatchPageProps {
+   157→  animeId: string;
+   158→  episodeNum: number;
+   159→}
+   160→
+   161→interface StreamData {
+   162→  video_link: string;
+   163→  source_type: "hls" | "embed" | "mp4" | "dash";
+   164→  hls_sources: Array<{
+   165→    url: string;
+   166→    quality: string;
+   167→    label: string;
+   168→    isM3U8: boolean;
+   169→    width?: number;
+   170→    height?: number;
+   171→  }>;
+   172→  embed_sources: Array<{
+   173→    url: string;
+   174→    quality: string;
+   175→    label: string;
+   176→    type: string;
+   177→  }>;
+   178→  subtitle_tracks: Array<{
+   179→    url: string;
+   180→    label: string;
+   181→    kind: "subtitles";
+   182→  }>;
+   183→  intro: { start: number; end: number } | null;
+   184→  outro: { start: number; end: number } | null;
+   185→  provider: string;
+   186→  available_qualities: string[];
+   187→  tried_providers?: string[];
+   188→  all_providers?: string[];
+   189→  _fallback?: boolean;
+   190→}
+   191→
+   192→interface EpisodeItem {
+   193→  number: number;
+   194→  title: string;
+   195→  filler: boolean;
+   196→  id: string;
+   197→  thumbnail?: string;
+   198→  description?: string;
+   199→  airDate?: string;
+   200→}
+   201→
+   202→interface ProviderEpisodes {
+   203→  meta: { title: string };
+   204→  episodes: {
+   205→    sub: EpisodeItem[];
+   206→    dub: EpisodeItem[];
+   207→  };
+   208→}
+   209→
+   210→interface RelationAnime {
+   211→  id: number;
+   212→  title: { english?: string; romaji?: string; native?: string };
+   213→  coverImage?: { extraLarge?: string; large?: string; medium?: string };
+   214→  relationType?: string;
+   215→  type?: string;
+   216→  format?: string;
+   217→  episodes?: number;
+   218→  status?: string;
+   219→  averageScore?: number;
+   220→}
+   221→
+   222→type ContentTab = "info" | "relations";
+   223→type EpisodeSortOrder = "asc" | "desc";
+   224→
+   225→// ── Embed Player with auto-fallback on 410/dead links ──
+   226→// If the embed source returns a dead page (410 Gone, etc.), shows a "switch server" overlay
+   227→function EmbedPlayerWithFallback({
+   228→  src,
+   229→  animeTitle,
+   230→  episodeNum,
+   231→  provider,
+   232→  providersForCurrentEp,
+   233→  failedProviders,
+   234→  onProviderFailed,
+   235→  onProviderSelect,
+   236→  getProviderDisplayName,
+   237→}: {
+   238→  src: string;
+   239→  animeTitle: string;
+   240→  episodeNum: number;
+   241→  provider: string;
+   242→  providersForCurrentEp: string[];
+   243→  failedProviders: Set<string>;
+   244→  onProviderFailed: (p: string) => void;
+   245→  onProviderSelect: (p: string) => void;
+   246→  getProviderDisplayName: (p: string) => string;
+   247→}) {
+   248→  const iframeRef = useRef<HTMLIFrameElement>(null);
+   249→  const [embedFailed, setEmbedFailed] = useState(false);
+   250→  const [showServerOverlay, setShowServerOverlay] = useState(false);
+   251→
+   252→  // Detect iframe load failure — embed sources often return 410 Gone
+   253→  useEffect(() => {
+   254→    const timer = setTimeout(() => {
+   255→      // After 8 seconds, if iframe loaded but content might be dead,
+   256→      // show the switch server button as a floating hint
+   257→      setShowServerOverlay(true);
+   258→    }, 8000);
+   259→    return () => clearTimeout(timer);
+   260→  }, [src]);
+   261→
+   262→  const handleIframeLoad = useCallback(() => {
+   263→    // We can't read iframe content due to cross-origin, but we can
+   264→    // check if the URL might be a dead embed by doing a HEAD request
+   265→    try {
+   266→      fetch(src, { method: "HEAD", mode: "no-cors" }).catch(() => {});
+   267→    } catch {}
+   268→  }, [src]);
+   269→
+   270→  const handleEmbedError = useCallback(() => {
+   271→    setEmbedFailed(true);
+   272→    onProviderFailed(provider);
+   273→  }, [provider, onProviderFailed]);
+   274→
+   275→  const otherProviders = providersForCurrentEp.filter(
+   276→    p => p !== provider && !failedProviders.has(p)
+   277→  );
+   278→
+   279→  if (embedFailed) {
+   280→    return (
+   281→      <div className="absolute inset-0 flex items-center justify-center bg-black z-20">
+   282→        <div className="text-center space-y-4 max-w-sm px-6">
+   283→          <div className="w-12 h-12 rounded-xl bg-[#ffffff]/10 border border-[#ffffff]/20 flex items-center justify-center mx-auto">
+   284→            <svg className="w-6 h-6 text-[#ffffff]/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+   285→              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   286→            </svg>
+   287→          </div>
+   288→          <p className="text-white/75 text-sm">This embed source is unavailable (410 Gone)</p>
+   289→          {otherProviders.length > 0 ? (
+   290→            <div className="flex flex-wrap gap-2 justify-center">
+   291→              {otherProviders.map(p => (
+   292→                <button
+   293→                  key={p}
+   294→                  onClick={() => onProviderSelect(p)}
+   295→                  className="px-3 py-1.5 rounded-lg bg-[#ffffff] text-black text-xs font-bold hover:bg-white/90 transition-colors"
+   296→                >
+   297→                  Try {getProviderDisplayName(p)}
+   298→                </button>
+   299→              ))}
+   300→            </div>
+   301→          ) : (
+   302→            <button
+   303→              onClick={() => window.location.reload()}
+   304→              className="px-5 py-2 rounded-lg bg-[#ffffff] text-black text-sm font-bold hover:bg-white/90 transition-colors"
+   305→            >
+   306→              Refresh Page
+   307→            </button>
+   308→          )}
+   309→        </div>
+   310→      </div>
+   311→    );
+   312→  }
+   313→
+   314→  return (
+   315→    <div className="absolute inset-0">
+   316→      <iframe
+   317→        ref={iframeRef}
+   318→        src={src}
+   319→        className="w-full h-full border-0"
+   320→        allowFullScreen
+   321→        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+   322→        referrerPolicy="no-referrer-when-downgrade"
+   323→        title={`${animeTitle} - Episode ${episodeNum}`}
+   324→        onLoad={handleIframeLoad}
+   325→        onError={handleEmbedError}
+   326→      />
+   327→      {/* Floating "embed dead?" overlay — shows after 8s so user can switch servers */}
+   328→      {showServerOverlay && otherProviders.length > 0 && (
+   329→        <div className="absolute top-3 right-3 z-30">
+   330→          <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md rounded-lg border border-white/[0.08] px-3 py-2 shadow-xl">
+   331→            <span className="text-[10px] text-white/55">Embed not working?</span>
+   332→            {otherProviders.slice(0, 3).map(p => (
+   333→              <button
+   334→                key={p}
+   335→                onClick={() => onProviderSelect(p)}
+   336→                className="px-2.5 py-1 rounded-md bg-[#ffffff] text-black text-[10px] font-bold hover:bg-white/90 transition-colors"
+   337→              >
+   338→                {getProviderDisplayName(p)}
+   339→              </button>
+   340→            ))}
+   341→            <button
+   342→              onClick={() => setShowServerOverlay(false)}
+   343→              className="p-1 text-white/40 hover:text-white transition-colors"
+   344→            >
+   345→              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+   346→                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+   347→              </svg>
+   348→            </button>
+   349→          </div>
+   350→        </div>
+   351→      )}
+   352→    </div>
+   353→  );
+   354→}
+   355→
+   356→const PROVIDER_PRIORITY = [
+   357→  "zenith", "kiwi", "ax-mimi", "ax-wave", "ax-shiro", "ax-yuki", "ax-zen", "ax-beep",
+   358→  "bee", "miku", "zoro", "arc", "jet",
+   359→];
+   360→
+   361→export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
+   362→  const navigate = useAppStore(s => s.navigate);
+   363→  const addToHistory = useAppStore(s => s.addToHistory);
+   364→  const updateHistoryProgress = useAppStore(s => s.updateHistoryProgress);
+   365→  // Player defaults come from Settings > Player and write back there, so the
+   366→  // in-player toggles and the Settings page stay in sync.
+   367→  const prefs = useAppStore(s => s.prefs);
+   368→  const setPref = useAppStore(s => s.setPref);
+   369→
+   370→  // ── AniList ID ──
+   371→  const parsedId = (() => {
+   372→    const cleanId = animeId.replace(/^miruro_/, "").replace(/^mal_/, "");
+   373→    if (/^\d+$/.test(cleanId)) return parseInt(cleanId);
+   374→    return null;
+   375→  })();
+   376→  const [anilistId, setAnilistId] = useState<number | null>(parsedId);
+   377→
+   378→  // ── Stream State ──
+   379→  const [streamData, setStreamData] = useState<StreamData | null>(null);
+   380→  const [playerReady, setPlayerReady] = useState(false);
+   381→  const [hasShownLoadingScreen, setHasShownLoadingScreen] = useState(false);
+   382→  const [activeProvider, setActiveProvider] = useState("kiwi");
+   383→  /**
+   384→   * Translation mode — 3-way toggle like AniDap/Anistream:
+   385→   *   "sub"     → Soft sub (subtitles as separate VTT track)
+   386→   *   "hardsub" → Hard sub (subtitles burned into video)
+   387→   *   "dub"     → English dub audio
+   388→   *
+   389→   * For backwards compatibility with the existing code that uses "sub"|"dub",
+   390→   * "sub" and "hardsub" both map to type="sub" servers (just filtered by
+   391→   * the `hardsub` flag on each server).
+   392→   */
+   393→  const [translation, setTranslation] = useState<"sub" | "hardsub" | "dub" | "hindi">("sub");
+   394→  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+   395→  const [failedProviders, setFailedProviders] = useState<Set<string>>(new Set());
+   396→  const [dubAvailable, setDubAvailable] = useState(false);
+   397→  const [hardsubAvailable, setHardsubAvailable] = useState(false);
+   398→  const [softsubAvailable, setSoftsubAvailable] = useState(false);
+   399→  const [hindiAvailable, setHindiAvailable] = useState(false);
+   400→  const [streamLoading, setStreamLoading] = useState(true);
+   401→  const [streamError, setStreamError] = useState<string | null>(null);
+   402→
+   403→  // ── Server List (Animex + AniVault + AniVexa + Senshi + AniDap + AniLight + Kyren — ALL verified) ──
+   404→  interface ServerEntry {
+   405→    id: string;
+   406→    name: string;
+   407→    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap" | "anilight" | "kyren" | "anikage" | "mioanime" | "anixtv" | "anistream" | "anikuro" | "anipm" | "animeheaven" | "aniwaves" | "anidb" | "anikoto" | "anineko" | "allmanga" | "animo4" | "animostream" | "anibd" | "watchanimeworld";
+   408→    provider: string;
+   409→    type: "sub" | "dub";
+   410→    quality?: string;
+   411→    streamUrl?: string;
+   412→    isM3U8?: boolean;
+   413→    isMP4?: boolean;
+   414→    isEmbed?: boolean;
+   415→    /** Embed hosts that allow framing and ignore Referer — skip the worker proxy */
+   416→    noProxy?: boolean;
+   417→    /** Whether to route through /api/embed/proxy for CF-protected embed sources */
+   418→    useEmbedProxy?: boolean;
+   419→    /** DASH manifest (.mpd) — needs dash.js instead of hls.js */
+   420→    isDASH?: boolean;
+   421→    /** Whether subtitles are burned into the video (hard sub) vs soft sub */
+   422→    hardsub?: boolean;
+   423→    /** AniDap/AniLight streams include WebVTT subtitle tracks + intro/outro chapters */
+   424→    subtitleTracks?: Array<{ url: string; lang: string; label: string }>;
+   425→    intro?: { start: number; end: number } | null;
+   426→    outro?: { start: number; end: number } | null;
+   427→  }
+   428→  /**
+   429→   * Servers from `incoming` that aren't already in `prev` — deduped WITHIN the
+   430→   * batch as well as against it.
+   431→   *
+   432→   * Filtering only against `prev` was not enough: providers can return the same
+   433→   * id twice in a single response (anichi was measured returning 5 servers with
+   434→   * 4 unique ids), and both copies passed the filter. React then rendered two
+   435→   * <button key={o.id}> siblings with the same key, which it warns about and
+   436→   * which can duplicate or drop entries.
+   437→   */
+   438→  const dedupeNew = useCallback((prev: ServerEntry[], incoming: ServerEntry[]): ServerEntry[] => {
+   439→    const seen = new Set(prev.map(s => s.id));
+   440→    const out: ServerEntry[] = [];
+   441→    for (const s of incoming) {
+   442→      if (!s?.id || seen.has(s.id)) continue;
+   443→      seen.add(s.id);
+   444→      out.push(s);
+   445→    }
+   446→    return out;
+   447→  }, []);
+   448→
+   449→  const [serverList, setServerList] = useState<ServerEntry[]>([]);
+   450→  const [selectedServer, setSelectedServer] = useState<string>(""); // server id
+   451→
+   452→  // ── Anime Data ──
+   453→  const [episodeList, setEpisodeList] = useState<EpisodeItem[]>([]);
+   454→  const [animeTitle, setAnimeTitle] = useState("");
+   455→  const [animeImage, setAnimeImage] = useState("");
+   456→  const [animeDescription, setAnimeDescription] = useState("");
+   457→  const [animeStatus, setAnimeStatus] = useState("");
+   458→  const [animeType, setAnimeType] = useState("");
+   459→  const [animeSeason, setAnimeSeason] = useState("");
+   460→  const [animeEpisodes, setAnimeEpisodes] = useState<number | null>(null);
+   461→  const [animeDuration, setAnimeDuration] = useState<number | null>(null);
+   462→  const [animeStudios, setAnimeStudios] = useState<string[]>([]);
+   463→  const [animeGenres, setAnimeGenres] = useState<string[]>([]);
+   464→  const [animeScore, setAnimeScore] = useState<number | null>(null);
+   465→  const [animeNextAiring, setAnimeNextAiring] = useState<{ episode: number; airingAt: number } | null>(null);
+   466→  // Skip times — PERSISTENT across provider switches.
+   467→  // PRIMARY: AniSkip (community DB — most reliable, well-tested)
+   468→  // BACKUP: AniKage (works for ALL anime including new ones, but times
+   469→  //         are sometimes misaligned with non-AniKage streams)
+   470→  // The instant-servers API returns AniKage intro/outro on every server
+   471→  // entry, but we ALSO fetch from AniSkip separately and PREFER it because
+   472→  // AniKage times are sometimes off (wrong episode cut, recap offset, etc).
+   473→  const [aniskipData, setAniskipData] = useState<{ intro: { start: number; end: number } | null; outro: { start: number; end: number } | null }>({ intro: null, outro: null });
+   474→  // AniKage skip times stored separately so we can prefer AniSkip when both exist.
+   475→  const [anikageData, setAnikageData] = useState<{ intro: { start: number; end: number } | null; outro: { start: number; end: number } | null }>({ intro: null, outro: null });
+   476→  // Effective skip times: AniSkip wins, AniKage fallback.
+   477→  // Both are validated again here as defense-in-depth — even if a provider
+   478→  // slips {start: 0, end: 0} through, the validator catches it before
+   479→  // it reaches the player. This prevents the "outro button shows at anime
+   480→  // start" bug where bad outro data (start=0) made the button appear
+   481→  // immediately when the video loaded.
+   482→  const effectiveSkip = useMemo(() => ({
+   483→    intro: validateSkipTime(aniskipData.intro || anikageData.intro || null, "intro"),
+   484→    outro: validateSkipTime(aniskipData.outro || anikageData.outro || null, "outro"),
+   485→  }), [aniskipData, anikageData]);
+   486→
+   487→  // ── Providers Map ──
+   488→  const [providersMap, setProvidersMap] = useState<Record<string, ProviderEpisodes>>({});
+   489→
+   490→  // ── UI State ──
+   491→  const [activeTab, setActiveTab] = useState<ContentTab>("info");
+   492→  const [epSortOrder, setEpSortOrder] = useState<EpisodeSortOrder>("asc");
+   493→  const [epSearch, setEpSearch] = useState("");
+   494→  const [synopsisExpanded, setSynopsisExpanded] = useState(false);
+   495→  const autoNext = prefs.autoNext;
+   496→  const setAutoNext = (v: boolean) => setPref("autoNext", v);
+   497→  const [showShortcuts, setShowShortcuts] = useState(false);
+   498→  const [jumpToEp, setJumpToEp] = useState("");
+   499→  const [countdown, setCountdown] = useState("");
+   500→
+   501→  // ── Player Control Bar State (CinemaOS-style) ──
+   502→  const autoPlay = prefs.autoplay;
+   503→  const setAutoPlay = (v: boolean) => setPref("autoplay", v);
+   504→  const autoSkip = prefs.autoSkip;
+   505→  const setAutoSkip = (v: boolean) => setPref("autoSkip", v);
+   506→  const skipFiller = prefs.skipFillers;
+   507→  const setSkipFiller = (v: boolean) => setPref("skipFillers", v);
+   508→  const [flipLayout, setFlipLayout] = useState(false);
+   509→  const [lightsOff, setLightsOff] = useState(false);
+   510→
+   511→  // ── Relations & Recommendations ──
+   512→  const [relations, setRelations] = useState<RelationAnime[]>([]);
+   513→  const [recommendations, setRecommendations] = useState<RelationAnime[]>([]);
+   514→  const [animeTitleRomaji, setAnimeTitleRomaji] = useState("");
+   515→
+   516→  // ── Callbacks (declared BEFORE effects that reference them) ──
+   517→
+   518→  const switchEpisode = useCallback((epNum: number) => {
+   519→    navigate({ page: "watch", id: animeId, episode: epNum, title: animeTitle, image: animeImage });
+   520→  }, [navigate, animeId, animeTitle, animeImage]);
+   521→
+   522→  // ── Scraper fallback state (now used as a simple retry token) ──
+   523→  const [scraperFallbackToken, setScraperFallbackToken] = useState(0);
+   524→  const [scraperSitesTried, setScraperSitesTried] = useState<string[]>([]);
+   525→
+   526→  const handleProviderFailed = useCallback((_provider: string) => {
+   527→    // Simple retry — re-fetch from Miruro direct
+   528→    // (miruro-direct tries all 12 providers internally, so a retry may pick a different one)
+   529→    setStreamError("Stream failed. Retrying...");
+   530→    setStreamLoading(true);
+   531→    setScraperFallbackToken(t => t + 1);
+   532→  }, []);
+   533→
+   534→  // ── Scraper retry effect: fires when handleProviderFailed triggers ──
+   535→  useEffect(() => {
+   536→    if (!scraperFallbackToken || !anilistId) return;
+   537→    let cancelled = false;
+   538→
+   539→    async function retryStream() {
+   540→      try {
+   541→        // Map 3-way translation mode to the 2-way type the miruro-direct API expects
+   542→        const apiType = translation === "dub" ? "dub" : "sub";
+   543→        const res = await fetch(
+   544→          `/api/anime/scraper/miruro-direct/${anilistId}/${episodeNum}?type=${apiType}`
+   545→        );
+   546→        if (cancelled) return;
+   547→        if (res.ok) {
+   548→          const data = await res.json();
+   549→          if (data.url) {
+   550→            const streamData: StreamData = {
+   551→              video_link: data.url,
+   552→              source_type: data.sourceType === "mp4" ? "mp4" : "hls",
+   553→              hls_sources: [{
+   554→                url: data.url,
+   555→                quality: data.quality || "Auto",
+   556→                label: `Miruro ${data.provider} ${data.quality || ""}`.trim(),
+   557→                isM3U8: data.isM3U8 ?? true,
+   558→              }],
+   559→              embed_sources: [],
+   560→              subtitle_tracks: (data.subtitles || []).map((s: any) => ({
+   561→                url: s.url,
+   562→                label: s.language || s.lang || "English",
+   563→                kind: "subtitles" as const,
+   564→              })),
+   565→              intro: data.intro || null,
+   566→              outro: data.outro || null,
+   567→              provider: data.provider,
+   568→              available_qualities: [data.quality || "Auto"],
+   569→              tried_providers: data.triedProviders,
+   570→              all_providers: data.triedProviders,
+   571→            };
+   572→            setStreamData(streamData);
+   573→            setStreamLoading(false);
+   574→            setStreamError(null);
+   575→            return;
+   576→          }
+   577→        }
+   578→        if (!cancelled) {
+   579→          setStreamError("No stream available from Miruro. Try another episode.");
+   580→          setStreamLoading(false);
+   581→        }
+   582→      } catch {
+   583→        if (!cancelled) {
+   584→          setStreamError("Failed to load stream. Try refreshing the page.");
+   585→          setStreamLoading(false);
+   586→        }
+   587→      }
+   588→    }
+   589→
+   590→    retryStream();
+   591→    return () => { cancelled = true; };
+   592→  }, [scraperFallbackToken, anilistId, episodeNum, translation]);
+   593→
+   594→  const handleProviderSelect = useCallback((provider: string) => {
+   595→    if (provider === activeProvider) return;
+   596→    setActiveProvider(provider);
+   597→    setFailedProviders(new Set());
+   598→    setStreamError(null);
+   599→  }, [activeProvider]);
+   600→
+   601→  const handleTranslationChange = useCallback((t: "sub" | "hardsub" | "dub" | "hindi") => {
+   602→    if (t === translation) return;
+   603→    setTranslation(t);
+   604→    setFailedProviders(new Set());
+   605→    setStreamError(null);
+   606→
+   607→    // Auto-select the best server for the new translation mode.
+   608→    // This way the user doesn't have to manually pick a server when switching.
+   609→    setSelectedServer(prev => {
+   610→      if (!serverList || serverList.length === 0) return prev;
+   611→
+   612→      let best: ServerEntry | undefined;
+   613→
+   614→      if (t === "hindi") {
+   615→        // Hindi: prefer AnixTV hindi_1, then animostream (also Hindi dub),
+   616→        // then any anixtv server (TryEmbed etc. with hindi dub via audio track)
+   617→        best = serverList.find(s => s.source === "anixtv" && s.provider === "hindi_1")
+   618→            || serverList.find(s => s.source === "animostream")
+   619→            || serverList.find(s => s.source === "anixtv");
+   620→      } else if (t === "dub") {
+   621→        // Dub: find dub server (not anixtv hindi_1, not animostream which is Hindi-only)
+   622→        best = serverList.find(s => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+   623→            || serverList.find(s => s.type === "dub");
+   624→      } else if (t === "hardsub") {
+   625→        // Hardsub: prefer 4animo, then true hardsub servers
+   626→        best = serverList.find(s => s.source === "animo4" && s.type === "sub")
+   627→            || serverList.find(s => s.type === "sub" && s.hardsub === true)
+   628→            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+   629→            || serverList.find(s => s.type === "sub");
+   630→      } else {
+   631→        // Sub (default): find softsub server, prefer mimi.
+   632→        // Exclude AnixTV + AnimoStream (Hindi-only sources).
+   633→        best = serverList.find(s => s.id === "animex:mimi:sub")
+   634→            || serverList.find(s => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+   635→            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+   636→            || serverList.find(s => s.type === "sub");
+   637→      }
+   638→
+   639→      if (best) {
+   640→        setStreamError(null);
+   641→        return best.id;
+   642→      }
+   643→      // No server found for this mode
+   644→      if (t === "hindi") {
+   645→        setStreamError("We don't have Hindi dub for this anime. Try Sub or Dub instead.");
+   646→      } else {
+   647→        setStreamError(`No ${t} servers available for this episode. Try another mode.`);
+   648→      }
+   649→      return prev;
+   650→    });
+   651→  }, [translation, serverList]);
+   652→
+   653→  const handleVideoEnded = useCallback(() => {
+   654→    if (autoNext) {
+   655→      const nextEpNum = episodeNum + 1;
+   656→      if (episodeList.some(ep => ep.number === nextEpNum)) {
+   657→        switchEpisode(nextEpNum);
+   658→      }
+   659→    }
+   660→  }, [autoNext, episodeNum, episodeList, switchEpisode]);
+   661→
+   662→
+   663→
+   664→  // ── Load anime info ──
+   665→  useEffect(() => {
+   666→    let cancelled = false;
+   667→    async function loadInfo() {
+   668→      try {
+   669→        const res = await fetch(`/api/anime/info?id=${encodeURIComponent(animeId)}`);
+   670→        if (cancelled) return;
+   671→        if (res.ok) {
+   672→          const data = await res.json();
+   673→          const info = data.anilistInfo;
+   674→
+   675→          if (info) {
+   676→            setAnimeTitle(
+   677→              info.title?.english || info.title?.romaji || ""
+   678→            );
+   679→            if (info.title?.romaji && info.title.romaji !== (info.title.english || "")) {
+   680→              setAnimeTitleRomaji(info.title.romaji);
+   681→            }
+   682→            setAnimeImage(
+   683→              info.coverImage?.extraLarge || info.coverImage?.large || ""
+   684→            );
+   685→            setAnimeDescription(
+   686→              info.description?.replace(/<[^>]*>/g, "") || ""
+   687→            );
+   688→            if (info.id && !anilistId) setAnilistId(info.id);
+   689→            if (info.status) setAnimeStatus(info.status);
+   690→            if (info.format) setAnimeType(info.format);
+   691→            if (info.season && info.seasonYear) setAnimeSeason(`${info.season} ${info.seasonYear}`);
+   692→            if (info.episodes) setAnimeEpisodes(info.episodes);
+   693→            if (info.duration) setAnimeDuration(info.duration);
+   694→            if (info.averageScore) setAnimeScore(info.averageScore);
+   695→            if (info.genres) setAnimeGenres(info.genres);
+   696→            if (info.studios?.nodes) {
+   697→              setAnimeStudios(
+   698→                info.studios.nodes
+   699→                  .filter((s: any) => s.isAnimationStudio)
+   700→                  .map((s: any) => s.name)
+   701→              );
+   702→            } else if (Array.isArray(info.studios) && info.studios[0]?.name) {
+   703→              setAnimeStudios(
+   704→                info.studios
+   705→                  .filter((s: any) => s.isAnimationStudio)
+   706→                  .map((s: any) => s.name)
+   707→              );
+   708→            }
+   709→            if (info.nextAiringEpisode) setAnimeNextAiring(info.nextAiringEpisode);
+   710→            if (data.nextAiringEpisode) setAnimeNextAiring(data.nextAiringEpisode);
+   711→
+   712→            // Relations
+   713→            if (info.relations) {
+   714→              const relsRaw = Array.isArray(info.relations) && info.relations[0]?.relationType
+   715→                ? info.relations
+   716→                : (info.relations?.edges || []);
+   717→              if (relsRaw.length > 0) {
+   718→                setRelations(relsRaw.map((edge: any) => {
+   719→                  const node = edge.node || edge;
+   720→                  return {
+   721→                    relationType: edge.relationType,
+   722→                    id: node.id,
+   723→                    title: node.title,
+   724→                    coverImage: node.coverImage,
+   725→                    type: node.type,
+   726→                    format: node.format,
+   727→                    episodes: node.episodes,
+   728→                    status: node.status,
+   729→                  };
+   730→                }));
+   731→              }
+   732→            }
+   733→
+   734→            // Recommendations (both AniList edge shape and pre-flattened shape)
+   735→            const recsRaw = Array.isArray(info.recommendations)
+   736→              ? info.recommendations
+   737→              : (info.recommendations?.nodes || []);
+   738→            if (recsRaw.length > 0) {
+   739→              setRecommendations(
+   740→                recsRaw
+   741→                  .map((r: any) => r.mediaRecommendation || r)
+   742→                  .filter((m: any) => m && m.id)
+   743→                  .map((m: any) => ({
+   744→                    id: m.id,
+   745→                    title: m.title,
+   746→                    coverImage: m.coverImage,
+   747→                    type: m.type,
+   748→                    format: m.format,
+   749→                    episodes: m.episodes,
+   750→                    status: m.status,
+   751→                    averageScore: m.averageScore,
+   752→                  }))
+   753→              );
+   754→            }
+   755→          }
+   756→        }
+   757→      } catch { /* ignore */ }
+   758→    }
+   759→    loadInfo();
+   760→    return () => { cancelled = true; };
+   761→  }, [animeId, anilistId]);
+   762→
+   763→  // ── Load episodes ──
+   764→  // PRIMARY: AniList (always works, has episode count + streamingEpisodes with thumbnails)
+   765→  // THUMBNAIL FALLBACK: Lunar scraper (real per-episode scene stills on fetch.flixcloud.cc)
+   766→  // TITLE FALLBACK: Animex scraper (real episode titles)
+   767→  // PROVIDER IDS: Miruro direct (for streaming provider IDs only)
+   768→  // The /api/anime/episodes endpoint is NOT used — it returns broken AllAnime thumbnails
+   769→  useEffect(() => {
+   770→    if (!anilistId) return;
+   771→    let cancelled = false;
+   772→    let episodesLoaded = false;
+   773→
+   774→    async function loadEpisodes() {
+   775→      try {
+   776→        // ── STEP 1: AniList ONLY (FAST — shows episodes immediately) ──
+   777→        // AniList gives episode COUNT via Media.episodes (finished) or
+   778→        //   nextAiringEpisode.episode-1 (ongoing — how many have shipped)
+   779→        // We fetch Lunar + Animex enrichment data in the BACKGROUND (Step 2)
+   780→        // so episodes show instantly without waiting for 3 API calls.
+   781→        const alRes = await Promise.race([
+   782→          fetch("https://graphql.anilist.co", {
+   783→            method: "POST",
+   784→            headers: { "Content-Type": "application/json" },
+   785→            body: JSON.stringify({
+   786→              query: `query($id: Int){ Media(id: $id, type: ANIME){ episodes format nextAiringEpisode { episode airingAt } streamingEpisodes { title thumbnail url site } airingSchedule(perPage: 1000){ nodes { episode airingAt } } } }`,
+   787→              variables: { id: anilistId },
+   788→            }),
+   789→          }),
+   790→          new Promise<Response | null>(resolve => setTimeout(() => resolve(null), 5000)),
+   791→        ]);
+   792→        if (cancelled) return;
+   793→
+   794→        // Parse episode-info response (empty for now — will be filled in background)
+   795→        const epInfoMap: Record<number, { title?: string; description?: string; airDate?: string; thumbnail?: string }> = {};
+   796→
+   797→        // Parse AniList response
+   798→        let totalEps = 0;
+   799→        let alEps: any[] = [];
+   800→        let isMovie = false;
+   801→        const dateMap = new Map<number, string>(); // episode number → formatted date
+   802→        if (alRes?.ok) {
+   803→          try {
+   804→            const alData = await alRes.json();
+   805→            const media = alData?.data?.Media;
+   806→            isMovie = media?.format === "MOVIE";
+   807→            if (media?.episodes && media.episodes > 0) {
+   808→              totalEps = media.episodes;
+   809→            } else if (media?.nextAiringEpisode && media.nextAiringEpisode.episode > 1) {
+   810→              totalEps = media.nextAiringEpisode.episode - 1;
+   811→            }
+   812→            // For movies, streamingEpisodes is often WRONG (returns TV episode data)
+   813→            if (!isMovie && media?.streamingEpisodes) {
+   814→              alEps = media.streamingEpisodes;
+   815→              if (!totalEps && alEps.length > 0) {
+   816→                totalEps = alEps.length;
+   817→              }
+   818→            }
+   819→            // Parse airingSchedule for episode air dates
+   820→            const schedNodes = media?.airingSchedule?.nodes || [];
+   821→            for (const node of schedNodes) {
+   822→              if (node.episode && node.airingAt) {
+   823→                const d = new Date(node.airingAt * 1000);
+   824→                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+   825→                dateMap.set(node.episode, `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`);
+   826→              }
+   827→            }
+   828→          } catch { /* parse error */ }
+   829→        }
+   830→
+   831→        // ── Lunar + Animex enrichment happens in BACKGROUND (Step 2) ──
+   832→        // For now, use empty maps — episodes show instantly from AniList data.
+   833→        // Lunar thumbnails + Animex titles will be merged in later.
+   834→        const lunarByNum = new Map<number, any>();
+   835→        const animexByNum = new Map<number, any>();
+   836→
+   837→        // Fetch Lunar + Animex in background (don't block episode display)
+   838→        (async () => {
+   839→          try {
+   840→            const [lunarRes, animexRes] = await Promise.allSettled([
+   841→              fetch(`/api/anime/scraper/episodes/lunar/${anilistId}`).then(r => r.ok ? r.json() : null),
+   842→              fetch(`/api/anime/scraper/episodes/animex/${anilistId}`).then(r => r.ok ? r.json() : null),
+   843→            ]);
+   844→            if (cancelled) return;
+   845→
+   846→            const lunarEps = lunarRes.status === 'fulfilled' && lunarRes.value?.episodes ? lunarRes.value.episodes : [];
+   847→            const animexEps = animexRes.status === 'fulfilled' && animexRes.value?.episodes ? animexRes.value.episodes : [];
+   848→
+   849→            if (lunarEps.length === 0 && animexEps.length === 0) return;
+   850→
+   851→            // Merge enrichment data into existing episode list
+   852→            setEpisodeList(prev => {
+   853→              if (prev.length === 0) return prev;
+   854→              const updated = [...prev];
+   855→              for (const ep of lunarEps) {
+   856→                const num = Number(ep.number);
+   857→                const idx = updated.findIndex(e => e.number === num);
+   858→                if (idx >= 0 && ep.thumbnail && !updated[idx].thumbnail) {
+   859→                  updated[idx] = { ...updated[idx], thumbnail: ep.thumbnail };
+   860→                }
+   861→              }
+   862→              for (const ep of animexEps) {
+   863→                const num = Number(ep.number);
+   864→                const idx = updated.findIndex(e => e.number === num);
+   865→                if (idx >= 0 && ep.title && updated[idx].title === `Episode ${num}`) {
+   866→                  updated[idx] = { ...updated[idx], title: ep.title };
+   867→                }
+   868→              }
+   869→              return updated;
+   870→            });
+   871→          } catch { /* background enrichment failed — episodes still work */ }
+   872→        })();
+   873→
+   874→        if (alEps.length > 0 || totalEps > 0) {
+   875→          const maxFromScrapers = 0; // scrapers loaded in background
+   876→          // For movies, ALWAYS trust AniList's episode count (scrapers return wrong data)
+   877→          // For TV series: if AniList Media.episodes is set, it's AUTHORITATIVE.
+   878→          // Don't use streamingEpisodes.length — it can return wrong data
+   879→          // (e.g. Ramparts of Ice has 14 eps but streamingEpisodes returns 24)
+   880→          const finalTotal = isMovie && totalEps > 0
+   881→            ? totalEps
+   882→            : (totalEps > 0 ? totalEps : Math.max(maxFromScrapers || 0, alEps.length || 0));
+   883→
+   884→          const all = new Map<number, EpisodeItem>();
+   885→
+   886→          // 1) AniList streamingEpisodes (newest-first → reverse to ep 1 first)
+   887→          const alEpsReversed = [...alEps].reverse();
+   888→          alEpsReversed.forEach((ep: any, i: number) => {
+   889→            const num = i + 1;
+   890→            const info = epInfoMap[num];
+   891→            all.set(num, {
+   892→              number: num,
+   893→              title: info?.title || ep.title || `Episode ${num}`,
+   894→              filler: false,
+   895→              id: String(num),
+   896→              thumbnail: ep.thumbnail || info?.thumbnail || null,
+   897→              description: info?.description || undefined,
+   898→              airDate: info?.airDate || dateMap.get(num) || undefined,
+   899→            });
+   900→          });
+   901→
+   902→          // 2) Fill remaining episodes using Lunar thumbnails + Animex titles
+   903→          if (finalTotal > 0) {
+   904→            for (let i = 1; i <= finalTotal; i++) {
+   905→              if (!all.has(i)) {
+   906→                const lunarEp = lunarByNum.get(i);
+   907→                const animexEp = animexByNum.get(i);
+   908→                const title = animexEp?.title || lunarEp?.title || `Episode ${i}`;
+   909→                // Lunar thumbnails on fetch.flixcloud.cc work directly in browsers
+   910→                // (Cloudflare only blocks data center IPs, not residential browsers).
+   911→                // Do NOT proxy through /api/image-proxy — Vercel's IP gets 403.
+   912→                const thumb = lunarEp?.thumbnail || null;
+   913→                all.set(i, {
+   914→                  number: i,
+   915→                  title,
+   916→                  filler: false,
+   917→                  id: String(i),
+   918→                  thumbnail: thumb,
+   919→                  description: epInfoMap[i]?.description || undefined,
+   920→                  airDate: epInfoMap[i]?.airDate || dateMap.get(i) || undefined,
+   921→                });
+   922→              }
+   923→            }
+   924→          }
+   925→
+   926→          // 3) For episodes that came from AniList streamingEpisodes but Animex has a better title, merge it
+   927→          setEpisodeList(prev => {
+   928→            const merged = Array.from(all.values()).map(ep => {
+   929→              const animexEp = animexByNum.get(ep.number);
+   930→              // Only override title if AniList title is generic ("Episode N") and Animex has real one
+   931→              if (animexEp?.title && animexEp.title !== `Episode ${ep.number}` &&
+   932→                  (!ep.title || ep.title === `Episode ${ep.number}`)) {
+   933→                return { ...ep, title: animexEp.title };
+   934→              }
+   935→              return ep;
+   936→            }).sort((a, b) => a.number - b.number);
+   937→            return merged;
+   938→          });
+   939→
+   940→          if (!cancelled && all.size > 0) {
+   941→            episodesLoaded = true;
+   942→          }
+   943→        }
+   944→      } catch { /* AniList failed */ }
+   945→
+   946→      // ── STEP 1.5: Fetch episode descriptions from api.ani.zip (TVDB) ──
+   947→      // api.ani.zip has episode-specific descriptions, titles, and thumbnails
+   948→      // from TVDB — much richer than AniList's streamingEpisodes.
+   949→      // Also used to filter out UNRELEASED episodes (airDate in the future).
+   950→      if (!cancelled && episodesLoaded) {
+   951→        fetch(`https://api.ani.zip/mappings?anilist_id=${anilistId}`)
+   952→          .then(r => r.ok ? r.json() : null)
+   953→          .then(data => {
+   954→            if (cancelled || !data?.episodes) return;
+   955→            const now = Date.now();
+   956→            setEpisodeList(prev => {
+   957→              const updated = prev.map(ep => {
+   958→                const info = data.episodes[String(ep.number)] || data.episodes[ep.number];
+   959→                if (!info) return ep;
+   960→                return {
+   961→                  ...ep,
+   962→                  description: info.overview || ep.description,
+   963→                  airDate: info.airDate || info.airdate || ep.airDate,
+   964→                  title: info.title?.en || info.title?.["x-jat"] || ep.title,
+   965→                  thumbnail: info.image || ep.thumbnail,
+   966→                };
+   967→              });
+   968→              // Filter out unreleased episodes (airDate in the future)
+   969→              return updated.filter(ep => {
+   970→                if (!ep.airDate) return true; // keep if no air date
+   971→                const airTime = new Date(ep.airDate).getTime();
+   972→                if (isNaN(airTime)) return true; // keep if can't parse
+   973→                return airTime <= now; // keep only if already aired
+   974→              });
+   975→            });
+   976→          })
+   977→          .catch(() => {});
+   978→      }
+   979→
+   980→      // ── STEP 2: Miruro direct — for streaming provider IDs only ──
+   981→      try {
+   982→        const miruroRes = await fetch(`/api/anime/miruro-direct/episodes/${anilistId}`);
+   983→        if (cancelled) return;
+   984→        if (miruroRes.ok) {
+   985→          const data = await miruroRes.json();
+   986→          const subEps = data.sub || [];
+   987→          const dubEps = data.dub || [];
+   988→
+   989→          // If episodes never loaded, use miruro as fallback
+   990→          if (!episodesLoaded && subEps.length > 0) {
+   991→            const all = new Map<number, EpisodeItem>();
+   992→            for (const ep of subEps) {
+   993→              all.set(Number(ep.number), {
+   994→                number: Number(ep.number),
+   995→                title: ep.title || `Episode ${ep.number}`,
+   996→                filler: !!ep.isFiller || !!ep.filler,
+   997→                id: ep.id || ep.slug || String(ep.number),
+   998→                thumbnail: ep.thumbnail || ep.image || null,
+   999→              });
+  1000→            }
+  1001→            for (const ep of dubEps) {
+  1002→              const num = Number(ep.number);
+  1003→              if (!all.has(num)) {
+  1004→                all.set(num, {
+  1005→                  number: num,
+  1006→                  title: ep.title || `Episode ${ep.number}`,
+  1007→                  filler: !!ep.isFiller || !!ep.filler,
+  1008→                  id: ep.id || ep.slug || String(ep.number),
+  1009→                  thumbnail: ep.thumbnail || ep.image || null,
+  1010→                });
+  1011→              }
+  1012→            }
+  1013→            const episodes = Array.from(all.values()).sort((a, b) => a.number - b.number);
+  1014→            if (episodes.length > 0 && !cancelled) {
+  1015→              setEpisodeList(episodes);
+  1016→              episodesLoaded = true;
+  1017→            }
+  1018→          }
+  1019→
+  1020→          // Always merge miruro provider IDs for streaming
+  1021→          if (episodesLoaded) {
+  1022→            setEpisodeList(prev => prev.map(ep => {
+  1023→              const miruroEp = subEps.find((m: any) => Number(m.number) === ep.number);
+  1024→              if (miruroEp && (ep.id === String(ep.number) || !ep.id.includes(':'))) {
+  1025→                return { ...ep, id: miruroEp.id || miruroEp.slug || ep.id };
+  1026→              }
+  1027→              return ep;
+  1028→            }));
+  1029→          }
+  1030→
+  1031→          if (data.providers?.length) {
+  1032→            setAvailableProviders(data.providers);
+  1033→          }
+  1034→          if (data.defaultProvider) {
+  1035→            setActiveProvider(data.defaultProvider);
+  1036→          }
+  1037→          setDubAvailable(dubEps.length > 0);
+  1038→        }
+  1039→      } catch { /* miruro failed */ }
+  1040→    }
+  1041→    loadEpisodes();
+  1042→    return () => { cancelled = true; };
+  1043→  }, [anilistId]);
+  1044→
+  1045→  // Reset loading screen when anime changes (different anilistId = new anime)
+  1046→  // so the cinematic loading shows once per anime, not per episode
+  1047→  useEffect(() => {
+  1048→    setHasShownLoadingScreen(false);
+  1049→  }, [anilistId]);
+  1050→
+  1051→  // ── Fetch AniKoto + AniNeko.to servers when the anime title is available ──
+  1052→  // These providers need the title to search for the anime on their site.
+  1053→  // They have their own dedicated endpoints (separate from instant-servers)
+  1054→  // so they don't block or get blocked by other providers.
+  1055→  // Called in parallel when animeTitle changes from "" to the real title.
+  1056→  useEffect(() => {
+  1057→    if (!anilistId || !animeTitle) return;
+  1058→    let cancelled = false;
+  1059→
+  1060→    // Fetch AniKoto servers (direct m3u8 + subtitles + skip times)
+  1061→    fetch(`/api/anime/anichi-servers/${anilistId}/${episodeNum}?title=${encodeURIComponent(animeTitle)}`)
+  1062→      .then(r => r.ok ? r.json() : null)
+  1063→      .then(data => {
+  1064→        if (cancelled || !data?.servers?.length) return;
+  1065→        setServerList(prev => {
+  1066→          const newServers = dedupeNew(prev, data.servers);
+  1067→          if (newServers.length === 0) return prev;
+  1068→          console.log(`[WatchPage] AniKoto: added ${newServers.length} servers`);
+  1069→          return [...prev, ...newServers];
+  1070→        });
+  1071→      })
+  1072→      .catch(() => { /* best-effort */ });
+  1073→
+  1074→    // Fetch AniNeko.to servers (direct m3u8 + soft sub subtitles)
+  1075→    fetch(`/api/anime/anineko-to-servers/${anilistId}/${episodeNum}?title=${encodeURIComponent(animeTitle)}`)
+  1076→      .then(r => r.ok ? r.json() : null)
+  1077→      .then(data => {
+  1078→        if (cancelled || !data?.servers?.length) return;
+  1079→        setServerList(prev => {
+  1080→          const newServers = dedupeNew(prev, data.servers);
+  1081→          if (newServers.length === 0) return prev;
+  1082→          console.log(`[WatchPage] AniNeko.to: added ${newServers.length} servers`);
+  1083→          return [...prev, ...newServers];
+  1084→        });
+  1085→      })
+  1086→      .catch(() => { /* best-effort */ });
+  1087→
+  1088→    return () => { cancelled = true; };
+  1089→  }, [anilistId, episodeNum, animeTitle]);
+  1090→
+  1091→  // ── AnixTV Hindi dub (standalone, fast) ──
+  1092→  // Deliberately NOT waiting on animeTitle: the endpoint resolves the title
+  1093→  // itself, and Hindi used to be the one mode that never arrived because it was
+  1094→  // stuck behind the 17-provider /api/anime/servers fan-out.
+  1095→  useEffect(() => {
+  1096→    if (!anilistId) return;
+  1097→    let cancelled = false;
+  1098→
+  1099→    fetch(`/api/anime/anixtv-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
+  1100→      .then(r => r.ok ? r.json() : null)
+  1101→      .then(data => {
+  1102→        if (cancelled || !data?.servers?.length) return;
+  1103→        setServerList(prev => {
+  1104→          const newServers = dedupeNew(prev, data.servers);
+  1105→          if (newServers.length === 0) return prev;
+  1106→          console.log(`[WatchPage] AnixTV Hindi: added ${newServers.length} server(s), season ${data.season}`);
+  1107→          setHindiAvailable(true);
+  1108→          return [...prev, ...newServers];
+  1109→        });
+  1110→      })
+  1111→      .catch(() => { /* best-effort */ });
+  1112→
+  1113→    // AnimoStream Hindi dub — the fallback when AnixTV has nothing. Only
+  1114→    // carries ~250 titles, so an empty result is normal, not an error.
+  1115→    fetch(`/api/anime/animostream-hindi/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
+  1116→      .then(r => r.ok ? r.json() : null)
+  1117→      .then(data => {
+  1118→        if (cancelled || !data?.servers?.length) return;
+  1119→        setServerList(prev => {
+  1120→          const newServers = dedupeNew(prev, data.servers);
+  1121→          if (newServers.length === 0) return prev;
+  1122→          console.log(`[WatchPage] AnimoStream Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
+  1123→          setHindiAvailable(true);
+  1124→          return [...prev, ...newServers];
+  1125→        });
+  1126→      })
+  1127→      .catch(() => { /* best-effort */ });
+  1128→
+  1129→    // WatchAnimeWorld.top Hindi dub — multi-audio Indian dub site.
+  1130→    // Resolves m3u8 via Zephyrix Fire HLS Player API or offers embed fallback.
+  1131→    fetch(`/api/anime/watchanimeworld-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
+  1132→      .then(r => r.ok ? r.json() : null)
+  1133→      .then(data => {
+  1134→        if (cancelled || !data?.servers?.length) return;
+  1135→        setServerList(prev => {
+  1136→          const newServers = dedupeNew(prev, data.servers);
+  1137→          if (newServers.length === 0) return prev;
+  1138→          console.log(`[WatchPage] WatchAnimeWorld Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
+  1139→          setHindiAvailable(true);
+  1140→          return [...prev, ...newServers];
+  1141→        });
+  1142→      })
+  1143→      .catch(() => { /* best-effort */ });
+  1144→
+  1145→    return () => { cancelled = true; };
+  1146→  }, [anilistId, episodeNum, animeTitle]);
+  1147→
+  1148→  // NOTE: The old fetchStream effect that called /api/anime/scraper/miruro-direct
+  1149→  // has been REMOVED. Stream loading is now handled by the server selector
+  1150→  // effect below (line ~575) which uses the verified streamUrl from /api/anime/servers.
+  1151→  // The old effect was competing with the new one and overriding the stream data.
+  1152→
+  1153→  // ── Fetch VERIFIED server list (all streams checked in parallel) ──
+  1154→  // Takes ~4s but every server shown WILL play. No dead servers.
+  1155→  // Each server includes a ready-to-play streamUrl — switching is instant.
+  1156→  useEffect(() => {
+  1157→    if (!anilistId) return;
+  1158→    let cancelled = false;
+  1159→    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of server state before re-fetching
+  1160→    setServerList([]);
+  1161→    setSelectedServer("");
+  1162→    setStreamLoading(true);
+  1163→    setStreamError(null);
+  1164→    setStreamData(null);
+  1165→    // Only show loading screen on FIRST visit (not episode changes)
+  1166→    // The loading screen is a one-time cinematic intro per anime
+  1167→    if (!hasShownLoadingScreen) {
+  1168→      setPlayerReady(false);
+  1169→      setHasShownLoadingScreen(true);
+  1170→    }
+  1171→
+  1172→    // Safety timeout: if no servers arrive within 120s, show error.
+  1173→    // Increased from 30s — some scraping providers (AniDap, AniPm, Luna,
+  1174→    // AniKage, AnimoStream) can take 30-60s on cold starts. Killing them
+  1175→    // early means only the fast servers arrive and the user sees fewer
+  1176→    // options. Let them take as long as they need.
+  1177→    const safetyTimeout = setTimeout(() => {
+  1178→      if (cancelled) return;
+  1179→      setServerList(prev => {
+  1180→        if (prev.length > 0) {
+  1181→          setStreamLoading(false);
+  1182→          return prev;
+  1183→        }
+  1184→        setStreamLoading(false);
+  1185→        setStreamError("Servers are taking too long to load. Try refreshing the page.");
+  1186→        return [];
+  1187→      });
+  1188→    }, 120000);
+  1189→
+  1190→    // ── Fetch INSTANT servers FIRST (AniDB, AniKoto, AniNeko) ──
+  1191→    // These are reliable providers that don't dead-link. They resolve
+  1192→    // in ~2-3 seconds and are auto-selected as the default.
+  1193→    // AniDB is priority 0 — always the first server shown.
+  1194→    const animeTitleForInstant = animeTitle || animeTitleRomaji || "";
+  1195→    fetch(`/api/anime/instant-servers/${anilistId}/${episodeNum}${animeTitleForInstant ? `?title=${encodeURIComponent(animeTitleForInstant)}` : ""}`)
+  1196→      .then(r => r.ok ? r.json() : null)
+  1197→      .then(data => {
+  1198→        if (cancelled || !data?.servers?.length) return;
+  1199→        setServerList(prev => {
+  1200→          const newServers = dedupeNew(prev, data.servers);
+  1201→          return [...prev, ...newServers];
+  1202→        });
+  1203→        // Auto-select the FIRST available server instantly.
+  1204→        // The user wants playback to start ASAP — don't wait for mimi specifically.
+  1205→        // Just grab the first server in the list (already sorted by priority:
+  1206→        // priority 0 mimi, 1 anidb, 2 mimi-dub, ...) and load it immediately.
+  1207→        // Only auto-selects if no server is selected yet.
+  1208→        setSelectedServer(prev => {
+  1209→          if (prev) return prev; // don't override if already selected
+  1210→          if (data.servers.length > 0) {
+  1211→            setStreamLoading(false);
+  1212→            // Pick the first non-embed sub server (best playback experience)
+  1213→            const firstSub = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
+  1214→            const pick = firstSub || data.servers[0];
+  1215→            console.log(`[WatchPage] Instant-auto-selected: ${pick.id} (from ${data.servers.length} servers)`);
+  1216→            return pick.id;
+  1217→          }
+  1218→          return prev;
+  1219→        });
+  1220→      })
+  1221→      .catch(() => { /* instant servers are best-effort */ });
+  1222→
+  1223→    // ── Fetch MIRURO V3 servers (api.luffytv.online) ──
+  1224→    // These are on a SEPARATE route from instant-servers.
+  1225→    // They merge in alongside the other providers.
+  1226→    fetch(`/api/anime/miruro-v3/servers/${anilistId}/${episodeNum}?sub=1&dub=1`)
+  1227→      .then(r => r.ok ? r.json() : null)
+  1228→      .then(data => {
+  1229→        if (cancelled || !data?.servers?.length) return;
+  1230→        setServerList(prev => {
+  1231→          const newServers = dedupeNew(prev, data.servers);
+  1232→          if (newServers.length === 0) return prev;
+  1233→          console.log(`[WatchPage] Miruro V3: added ${newServers.length} servers`);
+  1234→          const combined = [...prev, ...newServers];
+  1235→          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+  1236→          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+  1237→          return combined;
+  1238→        });
+  1239→      })
+  1240→      .catch(() => { /* miruro v3 is best-effort */ });
+  1241→
+  1242→    // The slow half (animex, anivault, animepahe, animeonsen, reanime,
+  1243→    // 4animo, anibd) runs as its own request so it gets a full serverless
+  1244→    // budget instead of being cut short to fit alongside the fast providers.
+  1245→    // It simply merges in whenever it lands — nothing is dropped for being slow.
+  1246→    fetch(`/api/anime/servers/${anilistId}/${episodeNum}?group=slow`)
+  1247→      .then(r => r.ok ? r.json() : null)
+  1248→      .then(data => {
+  1249→        if (cancelled || !data?.servers?.length) return;
+  1250→        setServerList(prev => {
+  1251→          const newServers = dedupeNew(prev, data.servers);
+  1252→          if (newServers.length === 0) return prev;
+  1253→          console.log(`[WatchPage] Slow providers: added ${newServers.length} servers`);
+  1254→          const combined = [...prev, ...newServers];
+  1255→          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+  1256→          setHardsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4")));
+  1257→          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
+  1258→          return combined;
+  1259→        });
+  1260→      })
+  1261→      .catch(() => { /* best-effort — the fast half already populated the list */ });
+  1262→
+  1263→    fetch(`/api/anime/servers/${anilistId}/${episodeNum}?group=fast`)
+  1264→      .then(r => r.ok ? r.json() : null)
+  1265→      .then(data => {
+  1266→        if (cancelled) return;
+  1267→        if (!data?.servers?.length) {
+  1268→          // Don't overwrite if animex servers already loaded (they arrive via separate fetch)
+  1269→          setServerList(prev => {
+  1270→            if (prev.length > 0) {
+  1271→              setStreamLoading(false);
+  1272→              return prev;
+  1273→            }
+  1274→            setStreamLoading(false);
+  1275→            setStreamError("No servers available for this episode.");
+  1276→            return [];
+  1277→          });
+  1278→          return;
+  1279→        }
+  1280→        // MERGE with existing servers (animex may have arrived first via separate fetch).
+  1281→        // Don't overwrite — append new servers that don't already exist.
+  1282→        setServerList(prev => {
+  1283→          const newServers = dedupeNew(prev, data.servers);
+  1284→          const combined = [...prev, ...newServers];
+  1285→          // Update availability flags based on the combined list
+  1286→          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1287→          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
+  1288→          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1289→          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld");
+  1290→          setDubAvailable(hasDub);
+  1291→          setHardsubAvailable(hasHardsub);
+  1292→          setSoftsubAvailable(hasSoftsub);
+  1293→          setHindiAvailable(hasHindi);
+  1294→          return combined;
+  1295→        });
+  1296→
+  1297→        // Auto-select first server matching current translation mode.
+  1298→        // DON'T override if a server is already selected (instant servers
+  1299→        // like AniDB may have already been auto-selected).
+  1300→        // Translation modes: "sub" (soft sub preferred, falls back to hardsub),
+  1301→        // "hardsub", "dub" (English dub), "hindi" (Hindi dub from AnixTV).
+  1302→        setSelectedServer(prevSelected => {
+  1303→          if (prevSelected) return prevSelected; // don't override instant-server selection
+  1304→
+  1305→          let firstMatch: ServerEntry | undefined;
+  1306→          if (translation === "hindi") {
+  1307→            // Prefer AnixTV Hindi 1, then AnimoStream, then any anixtv
+  1308→            firstMatch = data.servers.find((s: ServerEntry) => s.source === "anixtv" && s.provider === "hindi_1")
+  1309→              || data.servers.find((s: ServerEntry) => s.source === "animostream")
+  1310→              || data.servers.find((s: ServerEntry) => s.source === "anixtv");
+  1311→          } else if (translation === "dub") {
+  1312→            firstMatch = data.servers.find((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1313→          } else if (translation === "hardsub") {
+  1314→            // Hardsub: prefer 4animo, then true hardsub servers
+  1315→            firstMatch = data.servers.find((s: ServerEntry) => s.source === "animo4" && s.type === "sub")
+  1316→              || data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub === true);
+  1317→          } else {
+  1318→            // "sub" → soft sub preferred, fall back to any sub (hardsub ok)
+  1319→            // Exclude AnixTV + AnimoStream (Hindi-only sources)
+  1320→            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+  1321→                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+  1322→                      || data.servers.find((s: ServerEntry) => s.type === "sub");
+  1323→          }
+  1324→
+  1325→          // If first match doesn't exist (e.g. user picked "hardsub" but only
+  1326→          // soft sub is available), fall back to whatever's first available
+  1327→          // in priority order: soft sub → hard sub → dub
+  1328→          if (!firstMatch) {
+  1329→            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+  1330→                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+  1331→                      || data.servers.find((s: ServerEntry) => s.type === "sub")
+  1332→                      || data.servers.find((s: ServerEntry) => s.type === "dub")
+  1333→                      || data.servers[0];
+  1334→            // Update translation to match what we actually picked
+  1335→            if (firstMatch) {
+  1336→              if (firstMatch.type === "dub") setTranslation("dub");
+  1337→              else if (firstMatch.hardsub === true) setTranslation("hardsub");
+  1338→              else setTranslation("sub");
+  1339→            }
+  1340→          }
+  1341→
+  1342→          if (firstMatch) {
+  1343→            return firstMatch.id;
+  1344→          } else if (data.servers[0]) {
+  1345→            return data.servers[0].id;
+  1346→          }
+  1347→          return prevSelected;
+  1348→        });
+  1349→      })
+  1350→      .catch(() => {
+  1351→        if (!cancelled) {
+  1352→          setStreamLoading(false);
+  1353→          setStreamError("Failed to load servers.");
+  1354→        }
+  1355→      });
+  1356→
+  1357→    // ── Fetch Animex servers SEPARATELY (doesn't block the main list) ──
+  1358→    // Animex fetches from pp.animex.one in batches — takes longer than other
+  1359→    // sources. This runs in parallel and appends servers when ready.
+  1360→    fetch(`/api/anime/animex-servers/${anilistId}/${episodeNum}`)
+  1361→      .then(r => r.ok ? r.json() : null)
+  1362→      .then(animexData => {
+  1363→        if (cancelled || !animexData?.servers?.length) return;
+  1364→        // Append Animex servers to the existing server list
+  1365→        setServerList(prev => {
+  1366→          // Avoid duplicates — only add servers whose IDs don't already exist
+  1367→          const newServers = dedupeNew(prev, animexData.servers);
+  1368→          const combined = [...prev, ...newServers];
+  1369→          // Update availability flags
+  1370→          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1371→          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
+  1372→          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1373→          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld");
+  1374→          setDubAvailable(hasDub);
+  1375→          setHardsubAvailable(hasHardsub);
+  1376→          setSoftsubAvailable(hasSoftsub);
+  1377→          setHindiAvailable(hasHindi);
+  1378→          console.log(`[WatchPage] Animex servers loaded: +${newServers.length} (total: ${combined.length})`);
+  1379→          return combined;
+  1380→        });
+  1381→      })
+  1382→      .catch(() => {
+  1383→        // Animex failed silently — other servers are still available
+  1384→        console.log("[WatchPage] Animex servers failed to load (non-critical)");
+  1385→      });
+  1386→
+  1387→    // ── Fetch AniDap servers SEPARATELY (13+ providers, batched — slow) ──
+  1388→    fetch(`/api/anime/anidap-servers/${anilistId}/${episodeNum}`)
+  1389→      .then(r => r.ok ? r.json() : null)
+  1390→      .then(anidapData => {
+  1391→        if (cancelled || !anidapData?.servers?.length) return;
+  1392→        setServerList(prev => {
+  1393→          const newServers = dedupeNew(prev, anidapData.servers);
+  1394→          const combined = [...prev, ...newServers];
+  1395→          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1396→          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
+  1397→          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1398→          setDubAvailable(hasDub);
+  1399→          setHardsubAvailable(hasHardsub);
+  1400→          setSoftsubAvailable(hasSoftsub);
+  1401→          console.log(`[WatchPage] AniDap servers loaded: +${newServers.length} (total: ${combined.length})`);
+  1402→          return combined;
+  1403→        });
+  1404→      })
+  1405→      .catch(() => console.log("[WatchPage] AniDap servers failed to load (non-critical)"));
+  1406→
+  1407→    // ── Fetch AniKuro servers SEPARATELY (11 providers via proxy.anikuro.ru) ──
+  1408→    fetch(`/api/anime/anikuro-servers/${anilistId}/${episodeNum}`)
+  1409→      .then(r => r.ok ? r.json() : null)
+  1410→      .then(anikuroData => {
+  1411→        if (cancelled || !anikuroData?.servers?.length) return;
+  1412→        setServerList(prev => {
+  1413→          const newServers = dedupeNew(prev, anikuroData.servers);
+  1414→          const combined = [...prev, ...newServers];
+  1415→          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
+  1416→          setDubAvailable(hasDub);
+  1417→          console.log(`[WatchPage] AniKuro servers loaded: +${newServers.length} (total: ${combined.length})`);
+  1418→          return combined;
+  1419→        });
+  1420→      })
+  1421→      .catch(() => console.log("[WatchPage] AniKuro servers failed to load (non-critical)"));
+  1422→
+  1423→    // REMOVED: Animetsu and Miruro stream providers.
+  1424→    // Miruro's episodes endpoint returns HTTP 403 so it produced no streams;
+  1425→    // it is still used for anime metadata on the detail page, which is
+  1426→    // untouched. Animex keeps its own dedicated fetch below.
+  1427→
+  1428→    return () => { cancelled = true; clearTimeout(safetyTimeout); };
+  1429→  }, [anilistId, episodeNum]);
+  1430→
+  1431→  // ── Fetch skip times (PERSISTENT across provider switches) ──
+  1432→  // PRIMARY: AniSkip (community DB — most reliable, well-tested)
+  1433→  // BACKUP: AniKage (works for ALL anime including new ones, but times
+  1434→  //         are sometimes misaligned with non-AniKage streams)
+  1435→  //
+  1436→  // Both sources are fetched in parallel and stored separately. The
+  1437→  // effective skip time (aniskipData.intro || anikageData.intro) is
+  1438→  // computed via `effectiveSkip` useMemo above. AniSkip WINS when both
+  1439→  // are available — this fixes the "outro time is messed up" issue
+  1440→  // where AniKage times were being applied to streams from other
+  1441→  // providers (which may have different intro/outro positions).
+  1442→  useEffect(() => {
+  1443→    if (!anilistId || !episodeNum) return;
+  1444→    let cancelled = false;
+  1445→    setAniskipData({ intro: null, outro: null }); // reset on episode change
+  1446→    setAnikageData({ intro: null, outro: null });
+  1447→
+  1448→    // Fetch AniSkip (PRIMARY — covers old/popular anime, very reliable)
+  1449→    // URL format: types[]=op&types[]=ed&types[]=mixed-op&types[]=mixed-ed&types[]=recap
+  1450→    // (the API expects types[] syntax — using `types=` without brackets
+  1451→    // gets parsed as a single value by some backends and only `recap` survives)
+  1452→    fetch(`https://api.aniskip.com/v2/skip-times/${anilistId}/${episodeNum}?types[]=op&types[]=ed&types[]=mixed-op&types[]=mixed-ed&types[]=recap&episodeLength=0`)
+  1453→      .then(r => r.ok ? r.json() : null)
+  1454→      .then(data => {
+  1455→        if (cancelled || !data?.found || !data?.results || !Array.isArray(data.results)) return;
+  1456→        const intro = data.results.find((r: any) => r.skipType === "op" || r.skipType === "mixed-op");
+  1457→        const outro = data.results.find((r: any) => r.skipType === "ed" || r.skipType === "mixed-ed");
+  1458→        if (cancelled) return;
+  1459→        setAniskipData({
+  1460→          intro: intro ? { start: intro.interval.startTime, end: intro.interval.endTime } : null,
+  1461→          outro: outro ? { start: outro.interval.startTime, end: outro.interval.endTime } : null,
+  1462→        });
+  1463→        console.log(`[WatchPage] AniSkip: intro=${intro ? `${intro.interval.startTime}-${intro.interval.endTime}` : "no"} outro=${outro ? `${outro.interval.startTime}-${outro.interval.endTime}` : "no"}`);
+  1464→      })
+  1465→      .catch(() => {});
+  1466→
+  1467→    // Fetch AniKage skip times (BACKUP — works for ALL anime, applied to every instant server)
+  1468→    fetch(`/api/anime/instant-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
+  1469→      .then(r => r.ok ? r.json() : null)
+  1470→      .then(data => {
+  1471→        if (cancelled || !data?.servers?.length) return;
+  1472→        // Find the first server with intro/outro (these come from AniKage in
+  1473→        // the instant-servers route — see lines 259-264 of that route).
+  1474→        const serverWithSkip = data.servers.find((s: any) => s.intro || s.outro);
+  1475→        if (serverWithSkip) {
+  1476→          setAnikageData({
+  1477→            intro: serverWithSkip.intro || null,
+  1478→            outro: serverWithSkip.outro || null,
+  1479→          });
+  1480→          console.log(`[WatchPage] AniKage: intro=${serverWithSkip.intro ? `${serverWithSkip.intro.start}-${serverWithSkip.intro.end}` : "no"} outro=${serverWithSkip.outro ? `${serverWithSkip.outro.start}-${serverWithSkip.outro.end}` : "no"}`);
+  1481→        }
+  1482→      })
+  1483→      .catch(() => {});
+  1484→
+  1485→    return () => { cancelled = true; };
+  1486→  }, [anilistId, episodeNum, animeTitle]);
+  1487→
+  1488→  // ── Play stream from selected server (INSTANT — no second API call) ──
+  1489→  // The streamUrl is already verified and included in the server list.
+  1490→  // Switching servers is instant — just set the stream data.
+  1491→  useEffect(() => {
+  1492→    if (!selectedServer) return;
+  1493→    const server = serverList.find(s => s.id === selectedServer);
+  1494→    if (!server) return;
+  1495→
+  1496→    // The streamUrl is already in the server object — use it directly
+  1497→    const streamUrl = (server as any).streamUrl;
+  1498→    if (!streamUrl) {
+  1499→      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional error state when selected server has no stream
+  1500→      setStreamError(`${server.name} has no stream URL.`);
+  1501→      setStreamLoading(false);
+  1502→      return;
+  1503→    }
+  1504→
+  1505→    const quality = (server as any).quality || "Auto";
+  1506→    const isM3U8 = (server as any).isM3U8 !== false;
+  1507→    const isMP4 = (server as any).isMP4 === true;
+  1508→    const isEmbed = (server as any).isEmbed === true;
+  1509→    const isDASH = (server as any).isDASH === true;
+  1510→
+  1511→    // For embed servers (AniNeko, AniKoto, etc.), the embed URL often includes
+  1512→    // subtitle params (e.g. ?sub=, ?caption_1=, ?c1_file=) that tell the embed
+  1513→    // player to render its OWN subtitles — which have ugly styling (big black
+  1514→    // box, oversized text) that we can't override (cross-origin iframe).
+  1515→    // Strip these params so the embed doesn't render subs. The subtitleTracks
+  1516→    // are still passed below for our own HLS player overlay (non-embed servers).
+  1517→    //
+  1518→    // For embed servers (AnixTV, AniWaves, etc.): load the URL directly in an iframe.
+  1519→    // Hindi embed servers (AnixTV, AnimoStream) use /api/embed/proxy which:
+  1520→    //   1. Fetches the page server-side (bypasses CF bot protection via worker)
+  1521→    //   2. Strips sandbox/iframe detection scripts
+  1522→    //   3. Injects anti-sandbox overrides (window.self===window.top, etc.)
+  1523→    //   4. Rewrites relative URLs and injects fill CSS
+  1524→    //   5. Serves with X-Frame-Options: ALLOWALL
+  1525→    // This is the same approach as the reference Vercel app (luffytv2) and is
+  1526→    // far more robust than the raw CF Worker proxy which only sets headers.
+  1527→    // Other embed servers use the CF Worker proxy directly (no anti-sandbox needed).
+  1528→    // Servers that set `noProxy` are known-frameable hosts that ignore Referer —
+  1529→    // sending those through the worker only adds a hop and a point of failure.
+  1530→    const noProxy = (server as any).noProxy === true;
+  1531→    const useEmbedProxy = (server as any).useEmbedProxy === true;
+  1532→    const isHindiEmbedSource = (server as any).source === "anixtv" || (server as any).source === "animostream" || (server as any).source === "watchanimeworld";
+  1533→    let finalStreamUrl = streamUrl;
+  1534→    if (isEmbed) {
+  1535→      try {
+  1536→        const u = new URL(streamUrl);
+  1537→        // Remove subtitle params so embed doesn't render its own ugly subs
+  1538→        ["sub", "subtitle", "captions", "caption_1", "caption_2", "c1_file", "c2_file", "c1_label", "c2_label", "sub_1", "sub_2", "sub_label"].forEach(p => u.searchParams.delete(p));
+  1539→        if (noProxy) {
+  1540→          finalStreamUrl = u.toString();
+  1541→        } else if (useEmbedProxy || isHindiEmbedSource) {
+  1542→          // Route through /api/embed/proxy — our anti-sandbox embed proxy.
+  1543→          // This fetches server-side, strips frame-busting, injects overrides,
+  1544→          // and serves with ALLOWALL. For CF-protected sites like anixtv.in,
+  1545→          // the proxy internally routes through the CF Worker to bypass bot protection.
+  1546→          finalStreamUrl = `/api/embed/proxy?url=${encodeURIComponent(u.toString())}&ref=${encodeURIComponent(u.origin + "/")}`;
+  1547→        } else {
+  1548→          // Route through our Cloudflare Worker proxy — it sends the correct
+  1549→          // Referer/Origin and serves the page with X-Frame-Options: ALLOWALL
+  1550→          // so our iframe can load it.
+  1551→          const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+  1552→          finalStreamUrl = `${WORKER_BASE}/proxy?url=${encodeURIComponent(u.toString())}&ref=${encodeURIComponent(u.origin + "/")}`;
+  1553→        }
+  1554→      } catch { /* if URL parsing fails, use original */ }
+  1555→    }
+  1556→
+  1557→    // Skip times priority (PERSISTENT across provider switches):
+  1558→    // 1. AniSkip (community DB, fetched separately — most reliable)
+  1559→    // 2. AniKage (from instant-servers, baked into every server entry)
+  1560→    // 3. Server's own intro/outro (same as #2 — already on every instant server)
+  1561→    //
+  1562→    // AniSkip WINS over AniKage because AniKage times are sometimes misaligned
+  1563→    // with streams from other providers (different recaps, different cuts).
+  1564→    // All values are validated — bad data (start=0, swapped intro/outro,
+  1565→    // too-short intervals) is filtered out before reaching the player.
+  1566→    const subtitleTracks = (server as ServerEntry).subtitleTracks || [];
+  1567→    const serverIntro = validateSkipTime((server as ServerEntry).intro ?? null, "intro");
+  1568→    const serverOutro = validateSkipTime((server as ServerEntry).outro ?? null, "outro");
+  1569→    const intro = effectiveSkip.intro ?? serverIntro ?? null;
+  1570→    const outro = effectiveSkip.outro ?? serverOutro ?? null;
+  1571→
+  1572→    const newStreamData: StreamData = {
+  1573→      video_link: finalStreamUrl,
+  1574→      source_type: isEmbed ? "embed" : (isDASH ? "dash" : (isMP4 ? "mp4" : "hls")),
+  1575→      hls_sources: [{
+  1576→        url: finalStreamUrl,
+  1577→        quality,
+  1578→        label: `${server.name} ${quality}`.trim(),
+  1579→        isM3U8,
+  1580→      }],
+  1581→      embed_sources: [],
+  1582→      subtitle_tracks: subtitleTracks.map(t => ({
+  1583→        url: t.url,
+  1584→        label: t.label || t.lang || "English",
+  1585→        kind: "subtitles" as const,
+  1586→      })),
+  1587→      intro,
+  1588→      outro,
+  1589→      provider: `${server.source}:${server.provider}`,
+  1590→      available_qualities: [quality],
+  1591→    };
+  1592→
+  1593→    console.log(`[WatchPage] Playing via ${server.source}:${server.provider} (${quality}) — subs=${subtitleTracks.length} intro=${intro ? `${intro.start}-${intro.end}` : "no"} outro=${outro ? `${outro.start}-${outro.end}` : "no"}`);
+  1594→    setStreamData(newStreamData);
+  1595→    setStreamLoading(false);
+  1596→    setStreamError(null);
+  1597→
+  1598→    // ── Dismiss the full-page loading screen the MOMENT we have a stream URL.
+  1599→    // Don't wait for the video's `onCanPlay` event — that can take 5-10s while
+  1600→    // the HLS manifest downloads and the first segment buffers. The user wants
+  1601→    // the loading screen gone the instant ANY server is ready, with the player
+  1602→    // showing its own internal buffering spinner inside the video frame.
+  1603→    // (The `onCanPlay` callback below is still wired up as a backup for any
+  1604→    // edge case where this path didn't fire.)
+  1605→    setPlayerReady(true);
+  1606→
+  1607→    // ── Save to history (Continue Watching) ──
+  1608→    // Adds this episode to the history store so it appears in the
+  1609→    // "Continue Watching" section on the home page. Progress is 0 on
+  1610→    // initial load — the progress update effect below keeps it in sync.
+  1611→    if (animeTitle && animeId) {
+  1612→      addToHistory({
+  1613→        animeId,
+  1614→        animeName: animeTitle,
+  1615→        thumbnail: animeImage || undefined,
+  1616→        episodeNum,
+  1617→        progress: 0,
+  1618→        duration: 0,
+  1619→      });
+  1620→    }
+  1621→  }, [selectedServer, serverList, effectiveSkip]);
+  1622→
+  1623→  // ── Track playback progress for Continue Watching ──
+  1624→  // Listens to the video element's timeupdate event and saves progress
+  1625→  // to the history store every 10 seconds (throttled to avoid spamming).
+  1626→  useEffect(() => {
+  1627→    if (!animeId || !episodeNum) return;
+  1628→    let lastSave = 0;
+  1629→    const handleTimeUpdate = () => {
+  1630→      const video = document.querySelector("video");
+  1631→      if (!video) return;
+  1632→      const now = Date.now();
+  1633→      // Throttle: save at most every 10 seconds
+  1634→      if (now - lastSave < 10000) return;
+  1635→      lastSave = now;
+  1636→      const progress = video.duration > 0 ? (video.currentTime / video.duration) * 100 : 0;
+  1637→      updateHistoryProgress(animeId, episodeNum, progress, video.duration || 0);
+  1638→    };
+  1639→    // Poll for the video element every 2 seconds (it may not exist yet
+  1640→    // when this effect first runs — the player loads asynchronously)
+  1641→    const pollInterval = setInterval(() => {
+  1642→      const video = document.querySelector("video");
+  1643→      if (video) {
+  1644→        video.addEventListener("timeupdate", handleTimeUpdate);
+  1645→        clearInterval(pollInterval);
+  1646→      }
+  1647→    }, 2000);
+  1648→    return () => {
+  1649→      clearInterval(pollInterval);
+  1650→      const video = document.querySelector("video");
+  1651→      if (video) video.removeEventListener("timeupdate", handleTimeUpdate);
+  1652→    };
+  1653→  }, [animeId, episodeNum, updateHistoryProgress]);
+  1654→
+  1655→  // ── Next airing countdown ──
+  1656→  useEffect(() => {
+  1657→    if (!animeNextAiring) return;
+  1658→    function update() {
+  1659→      const now = Math.floor(Date.now() / 1000);
+  1660→      const diff = (animeNextAiring as { episode: number; airingAt: number }).airingAt - now;
+  1661→      if (diff <= 0) { setCountdown(""); return; }
+  1662→      const d = Math.floor(diff / 86400);
+  1663→      const h = Math.floor((diff % 86400) / 3600);
+  1664→      const m = Math.floor((diff % 3600) / 60);
+  1665→      const s = diff % 60;
+  1666→      setCountdown(`${d}d ${h}h ${m}m ${s}s`);
+  1667→    }
+  1668→    update();
+  1669→    const interval = setInterval(update, 1000);
+  1670→    return () => clearInterval(interval);
+  1671→  }, [animeNextAiring]);
+  1672→
+  1673→  // ── Keyboard shortcuts ──
+  1674→  useEffect(() => {
+  1675→    function handleKey(e: KeyboardEvent) {
+  1676→      const target = e.target as HTMLElement;
+  1677→      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+  1678→
+  1679→      if (e.key === "?" && !e.ctrlKey && !e.metaKey) {
+  1680→        e.preventDefault();
+  1681→        setShowShortcuts(prev => !prev);
+  1682→      }
+  1683→      if (e.key === "Escape") setShowShortcuts(false);
+  1684→
+  1685→      if (e.key === "n" && !e.ctrlKey && !e.metaKey) {
+  1686→        const nextEpNum = episodeNum + 1;
+  1687→        if (episodeList.some(ep => ep.number === nextEpNum)) {
+  1688→          switchEpisode(nextEpNum);
+  1689→        }
+  1690→      }
+  1691→      if (e.key === "p" && !e.ctrlKey && !e.metaKey) {
+  1692→        if (episodeNum > 1) switchEpisode(episodeNum - 1);
+  1693→      }
+  1694→    }
+  1695→    window.addEventListener("keydown", handleKey);
+  1696→    return () => window.removeEventListener("keydown", handleKey);
+  1697→  }, [episodeNum, episodeList, switchEpisode]);
+  1698→
+  1699→  // ── Computed ──
+  1700→  const prevEp = episodeNum > 1 ? episodeNum - 1 : null;
+  1701→  const nextEp = episodeList.some(e => e.number === episodeNum + 1) ? episodeNum + 1 : null;
+  1702→
+  1703→  const searchLower = epSearch.toLowerCase();
+  1704→  const filteredEps = episodeList
+  1705→    .filter(ep => !epSearch || String(ep.number).includes(searchLower) || (ep.title || "").toLowerCase().includes(searchLower))
+  1706→    .sort((a, b) => epSortOrder === "asc" ? a.number - b.number : b.number - a.number);
+  1707→
+  1708→  const statusLabel = (s: string) => {
+  1709→    if (s === "RELEASING") return "Airing";
+  1710→    if (s === "FINISHED") return "Complete";
+  1711→    if (s === "NOT_YET_RELEASED") return "Upcoming";
+  1712→    return s;
+  1713→  };
+  1714→
+  1715→  const statusColor = (s: string) => {
+  1716→    if (s === "RELEASING") return "text-[#10B981]";
+  1717→    if (s === "FINISHED") return "text-[#6366F1]";
+  1718→    if (s === "NOT_YET_RELEASED") return "text-[#F59E0B]";
+  1719→    return "text-[#64748B]";
+  1720→  };
+  1721→
+  1722→  // ── Get providers that have current episode ──
+  1723→  const providersForCurrentEp = availableProviders.filter(p => {
+  1724→    const pData = providersMap[p];
+  1725→    if (!pData?.episodes) return false;
+  1726→    const eps = translation === "dub" ? pData.episodes.dub : pData.episodes.sub;
+  1727→    return eps.some(e => e.number === episodeNum);
+  1728→  });
+  1729→
+  1730→  // ── Sub/Dub episode counts (for CC / mic chips like Miruro) ──
+  1731→  const subCount = episodeList.length;
+  1732→  const dubCount = Object.values(providersMap).reduce(
+  1733→    (max, p) => Math.max(max, p?.episodes?.dub?.length || 0), 0
+  1734→  );
+  1735→
+  1736→  // ── RENDER — use new WatchPageShell ──
+  1737→  return (
+  1738→    <>
+  1739→      {/* Full-page loading overlay removed — clicking an episode goes straight
+  1740→          to the player, which shows its own in-frame buffering spinner while
+  1741→          the stream resolves. No blocking intro screen. */}
+  1742→      <WatchPageShell
+  1743→      streamLoading={streamLoading}
+  1744→      streamError={streamError}
+  1745→      streamData={streamData}
+  1746→      activeProvider={activeProvider}
+  1747→      animeTitle={animeTitle}
+  1748→      episodeNum={episodeNum}
+  1749→      animeEpisodes={animeEpisodes}
+  1750→      animeDuration={animeDuration}
+  1751→      animeStatus={animeStatus}
+  1752→      animeImage={animeImage}
+  1753→      animeDescription={animeDescription}
+  1754→      animeScore={animeScore}
+  1755→      animeType={animeType}
+  1756→      animeSeason={animeSeason}
+  1757→      animeStudios={animeStudios}
+  1758→      animeGenres={animeGenres}
+  1759→      animeNextAiring={animeNextAiring}
+  1760→      countdown={countdown}
+  1761→      translation={translation}
+  1762→      softsubAvailable={softsubAvailable}
+  1763→      hardsubAvailable={hardsubAvailable}
+  1764→      dubAvailable={dubAvailable}
+  1765→      handleTranslationChange={handleTranslationChange}
+  1766→      serverList={serverList}
+  1767→      selectedServer={selectedServer}
+  1768→      setSelectedServer={setSelectedServer}
+  1769→      setStreamError={setStreamError}
+  1770→      setStreamLoading={setStreamLoading}
+  1771→      getProviderDisplayName={getProviderDisplayName}
+  1772→      episodeList={episodeList}
+  1773→      filteredEps={filteredEps}
+  1774→      epSearch={epSearch}
+  1775→      setEpSearch={setEpSearch}
+  1776→      switchEpisode={switchEpisode}
+  1777→      prevEp={prevEp}
+  1778→      nextEp={nextEp}
+  1779→      autoPlay={autoPlay}
+  1780→      setAutoPlay={setAutoPlay}
+  1781→      autoSkip={autoSkip}
+  1782→      setAutoSkip={setAutoSkip}
+  1783→      autoNext={autoNext}
+  1784→      setAutoNext={setAutoNext}
+  1785→      skipFiller={skipFiller}
+  1786→      setSkipFiller={setSkipFiller}
+  1787→      navigate={navigate}
+  1788→      relations={relations}
+  1789→      recommendations={recommendations}
+  1790→      animeTitleRomaji={animeTitleRomaji}
+  1791→      subCount={subCount}
+  1792→      dubCount={dubCount}
+  1793→      HLSPlayerNew={HLSPlayerNew}
+  1794→      EmbedPlayerWithFallback={EmbedPlayerWithFallback}
+  1795→      DashPlayer={DashPlayer}
+  1796→      proxifyM3u8={proxifyM3u8}
+  1797→      proxify={proxify}
+  1798→      AnimeComments={AnimeComments}
+  1799→      WatchPageExtras={WatchPageExtras}
+  1800→      handleVideoEnded={handleVideoEnded}
+  1801→      handleProviderFailed={handleProviderFailed}
+  1802→      handleProviderSelect={handleProviderSelect}
+  1803→      failedProviders={failedProviders}
+  1804→      providersForCurrentEp={providersForCurrentEp}
+  1805→      setScraperFallbackToken={setScraperFallbackToken}
+  1806→      showShortcuts={showShortcuts}
+  1807→      setShowShortcuts={setShowShortcuts}
+  1808→      lightsOff={lightsOff}
+  1809→      setLightsOff={setLightsOff}
+  1810→      synopsisExpanded={synopsisExpanded}
+  1811→      setSynopsisExpanded={setSynopsisExpanded}
+  1812→      animeId={animeId}
+  1813→      playerReady={playerReady}
+  1814→      onCanPlay={() => setPlayerReady(true)}
+  1815→      animeBackdrop={animeImage || undefined}
+  1816→    />
+  1817→    </>
+  1818→  );
+  1819→}
+  1820→
