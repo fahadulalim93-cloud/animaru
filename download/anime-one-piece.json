@@ -1,0 +1,98 @@
+{
+  "scraped_at": 1788676868,
+  "source": "gogoanime",
+  "total_anime": 1,
+  "anime": [
+    {
+      "source": "gogoanime",
+      "id": "one-piece",
+      "slug": "one-piece",
+      "title": "One Piece",
+      "url": "https://gogoanime.fi/category/one-piece",
+      "episodes_list": [
+        {
+          "episode": 1168,
+          "session": "1168",
+          "title": "One Piece Episode 1168 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1168-english-subbed/",
+          "providers": [
+            {
+              "url": "https://www.blogger.com/video.g?token=AD6v5dxZgMykiXdD2fRCnae0QF3hifqmv0-hZx98hdZhG142hMBPEd-NDrqCihrrdq2qy5DmjWUAS6P2rOlghZkI_c2R_x4kSKnNqQ9o1hNosNWSaAyUIR_6e56gSkEd1Maef5eqgqSI",
+              "label": "Blogger",
+              "type": "iframe"
+            }
+          ]
+        },
+        {
+          "episode": 1169,
+          "session": "1169",
+          "title": "One Piece Episode 1169 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1169-english-subbed/",
+          "providers": [
+            {
+              "url": "https://www.blogger.com/video.g?token=AD6v5dxEaPivEuIdB5n3pdtFM6Hp0yrCY76VTq_3vIVp2Gz9ktr6Zaycq4dh8XQT8rLpH89rbc0Y5brHa0HzkAZIjilUYl9aW4iQrMHweCBCRGLz7h11R-UJ92dOFsDOxs0TUNTFHJ0",
+              "label": "Blogger",
+              "type": "iframe"
+            }
+          ]
+        },
+        {
+          "episode": 1170,
+          "session": "1170",
+          "title": "One Piece Episode 1170 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1170-english-subbed/",
+          "providers": [
+            {
+              "url": "https://www.blogger.com/video.g?token=AD6v5dy5lHZ5t9-Us3kJlIhh6YUOc-ylpfK9TUm0Y4FEW8G9q2CfblyPJ83muPY16CHnJTMeyC_7A9VPRKaHYeSJUjg9uBdtlCSQNGN06cI_41PqBTYZwbaCcBXCgrgvAPkIptcuSfk",
+              "label": "Blogger",
+              "type": "iframe"
+            }
+          ]
+        },
+        {
+          "episode": 1171,
+          "session": "1171",
+          "title": "One Piece Episode 1171 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1171-english-subbed/"
+        },
+        {
+          "episode": 1172,
+          "session": "1172",
+          "title": "One Piece Episode 1172 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1172-english-subbed/"
+        },
+        {
+          "episode": 1173,
+          "session": "1173",
+          "title": "One Piece Episode 1173 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1173-english-subbed/"
+        },
+        {
+          "episode": 1174,
+          "session": "1174",
+          "title": "One Piece Episode 1174 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1174-english-subbed/"
+        },
+        {
+          "episode": 1175,
+          "session": "1175",
+          "title": "One Piece Episode 1175 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1175-english-subbed/"
+        },
+        {
+          "episode": 1176,
+          "session": "1176",
+          "title": "One Piece Episode 1176 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1176-english-subbed/"
+        },
+        {
+          "episode": 1177,
+          "session": "1177",
+          "title": "One Piece Episode 1177 English Subbed",
+          "url": "https://gogoanime.fi/one-piece-episode-1177-english-subbed/"
+        }
+      ],
+      "total_episodes_available": 10
+    }
+  ]
+}
