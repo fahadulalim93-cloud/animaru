@@ -1,0 +1,84 @@
+{
+  "anidap": {
+    "name": "anidap",
+    "url": "https://anidap.lol/",
+    "screenshots": [
+      "/home/z/my-project/download/watch-together/anidap-1-home.png",
+      "/home/z/my-project/download/watch-together/anidap-2-scrolled.png"
+    ],
+    "ws_connections": [],
+    "webrtc_ice": [],
+    "socketio_endpoints": [],
+    "api_calls": [
+      {
+        "method": "GET",
+        "url": "https://auth.anidap.lol/api/user"
+      }
+    ],
+    "sync_keywords": [
+      "sync",
+      "playback"
+    ],
+    "final_url": "https://anidap.lol/",
+    "title": "Watch Anime Online Free with English Sub/Dub in HD on Anidap"
+  },
+  "w2g": {
+    "name": "w2g",
+    "url": "https://w2g.tv/",
+    "screenshots": [
+      "/home/z/my-project/download/watch-together/w2g-1-home.png",
+      "/home/z/my-project/download/watch-together/w2g-2-scrolled.png"
+    ],
+    "ws_connections": [],
+    "webrtc_ice": [],
+    "socketio_endpoints": [],
+    "api_calls": [
+      {
+        "method": "GET",
+        "url": "https://w2g.tv/"
+      },
+      {
+        "method": "GET",
+        "url": "https://cmp.inmobi.com/choice/k-tuB1ymPLz7H/w2g.tv/choice.js?tag_version=V3"
+      },
+      {
+        "method": "GET",
+        "url": "https://w2g.tv/en/"
+      },
+      {
+        "method": "GET",
+        "url": "https://cmp.inmobi.com/choice/k-tuB1ymPLz7H/w2g.tv/choice.js?tag_version=V3"
+      },
+      {
+        "method": "GET",
+        "url": "https://w2g.tv/locales/en.yml.b417ca84.json"
+      },
+      {
+        "method": "GET",
+        "url": "https://w2g-api.w2g.tv/users/current_user.json"
+      },
+      {
+        "method": "GET",
+        "url": "https://cmp.inmobi.com/us-mspa/v1/purposes-national-en.json"
+      },
+      {
+        "method": "GET",
+        "url": "https://rec.watch2gether.com/api/site/tracking-config/760db2d42bdb"
+      },
+      {
+        "method": "POST",
+        "url": "https://rec.watch2gether.com/api/track"
+      }
+    ],
+    "sync_keywords": [
+      "watch together",
+      "party",
+      "room",
+      "sync",
+      "host",
+      "invite"
+    ],
+    "final_url": "https://w2g.tv/en/",
+    "title": "Watch2Gether - Watch Videos together"
+  }
+}

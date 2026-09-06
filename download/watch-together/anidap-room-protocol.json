@@ -1,0 +1,104 @@
+{
+  "room_id": "fjNV4S",
+  "ws_events": [
+    {
+      "type": "close",
+      "ts": 1788693433.4053245
+    },
+    {
+      "type": "recv",
+      "data": "{\"t\":\"host_changed\",\"d\":\"You are now the host! You can control video playback.\",\"ts\":\"2026-09-06T11:17:08.425179337Z\"}",
+      "ts": 1788693433.4360042
+    },
+    {
+      "type": "recv",
+      "data": "{\"t\":\"host\",\"u\":{\"username\":\"Guest9204\",\"avatar_image\":\"/assets/user.png\",\"is_authenticated\":false},\"d\":{\"username\":\"Guest9204\",\"avatar_image\":\"/assets/user.png\",\"is_authenticated\":false},\"ts\":\"2026-09-06T11:17:08.425153665Z\"}",
+      "ts": 1788693433.4383984
+    },
+    {
+      "type": "recv",
+      "data": "{\"t\":\"chat\",\"u\":{\"username\":\"System\",\"is_authenticated\":false},\"d\":\"Guest9204 joined the room\",\"ts\":\"2026-09-06T11:17:08.425206576Z\"}",
+      "ts": 1788693433.4385417
+    },
+    {
+      "type": "sent",
+      "data": "{\"t\":\"sync\",\"d\":{\"time\":0,\"playing\":false},\"ts\":\"2026-09-06T11:17:18.628Z\"}",
+      "ts": 1788693439.3165839
+    },
+    {
+      "type": "sent",
+      "data": "{\"t\":\"sync\",\"d\":{\"time\":0,\"playing\":false},\"ts\":\"2026-09-06T11:17:28.628Z\"}",
+      "ts": 1788693465.1205418
+    },
+    {
+      "type": "sent",
+      "data": "{\"t\":\"sync\",\"d\":{\"time\":0,\"playing\":false},\"ts\":\"2026-09-06T11:17:38.628Z\"}",
+      "ts": 1788693465.1206415
+    },
+    {
+      "type": "sent",
+      "data": "{\"t\":\"sync\",\"d\":{\"time\":0,\"playing\":true},\"ts\":\"2026-09-06T11:17:47.318Z\"}",
+      "ts": 1788693470.2501516
+    },
+    {
+      "type": "sent",
+      "data": "{\"t\":\"sync\",\"d\":{\"time\":1.209776,\"playing\":true},\"ts\":\"2026-09-06T11:17:48.628Z\"}",
+      "ts": 1788693470.2503946
+    },
+    {
+      "type": "sent",
+      "data": "{\"t\":\"ping\",\"d\":{\"timestamp\":1788693473609},\"ts\":\"2026-09-06T11:17:53.609Z\"}",
+      "ts": 1788693475.2780077
+    },
+    {
+      "type": "recv",
+      "data": "{\"t\":\"pong\",\"d\":{\"server_time\":1788693473},\"ts\":\"2026-09-06T11:17:53.796749467Z\"}",
+      "ts": 1788693475.2781553
+    }
+  ],
+  "api_calls": [
+    {
+      "method": "GET",
+      "url": "https://anidap.lol/w2g/room/fjNV4S"
+    },
+    {
+      "method": "GET",
+      "url": "https://anidap.lol/assets/sync-B7XPTBd1.js"
+    },
+    {
+      "method": "GET",
+      "url": "https://chad.anidap.lol/rest/api/sources?id=high-school-dxd-new-iutdn&epNum=3&type=sub&providerId=maze"
+    },
+    {
+      "method": "GET",
+      "url": "https://ws.anidap.lol/api/v1/room/fjNV4S"
+    },
+    {
+      "method": "GET",
+      "url": "https://chad.anidap.lol/rest/api/episodes?id=high-school-dxd-new-iutdn"
+    },
+    {
+      "method": "GET",
+      "url": "https://chad.anidap.lol/rest/api/servers?id=high-school-dxd-new-iutdn&epNum=3"
+    },
+    {
+      "method": "GET",
+      "url": "https://auth.anidap.lol/api/user"
+    },
+    {
+      "method": "GET",
+      "url": "https://ws.anidap.lol/api/v1/room/fjNV4S"
+    },
+    {
+      "method": "GET",
+      "url": "https://chad.anidap.lol/rest/api/sources?id=high-school-dxd-new-iutdn&epNum=3&type=sub&providerId=beep"
+    },
+    {
+      "method": "GET",
+      "url": "https://ws.anidap.lol/api/v1/room/fjNV4S/users"
+    }
+  ],
+  "webrtc_ice": [
+    "turn:a};this.D=this.U};Da.prototype["
+  ]
+}

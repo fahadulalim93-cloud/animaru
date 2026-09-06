@@ -1,0 +1,85 @@
+{
+  "ws_events": [],
+  "api_calls": [
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    },
+    {
+      "method": "GET",
+      "url": "https://w2g.tv/rooms/new"
+    }
+  ]
+}
