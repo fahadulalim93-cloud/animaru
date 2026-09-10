@@ -1,0 +1,52 @@
+[
+  {
+    "n": 1,
+    "status": 206,
+    "kind": "MPEG-TS segment (.ts) - 210372 bytes",
+    "content_type": "video/mp2t",
+    "content_range": "bytes 0-8192/210372",
+    "cache_control": "public, max-age=86400, immutable",
+    "cors": "*",
+    "body_preview": null
+  },
+  {
+    "n": 2,
+    "status": 206,
+    "kind": "MPEG-TS segment (.ts) - 332948 bytes",
+    "content_type": "video/mp2t",
+    "content_range": "bytes 0-8192/332948",
+    "cache_control": "public, max-age=86400, immutable",
+    "cors": "*",
+    "body_preview": null
+  },
+  {
+    "n": 3,
+    "status": 403,
+    "kind": "CF-blocked after 5 attempts"
+  },
+  {
+    "n": 4,
+    "status": 403,
+    "kind": "CF-blocked after 5 attempts"
+  },
+  {
+    "n": 5,
+    "status": 206,
+    "kind": "MPEG-TS segment (.ts) - 823816 bytes",
+    "content_type": "video/mp2t",
+    "content_range": "bytes 0-8192/823816",
+    "cache_control": "public, max-age=86400, immutable",
+    "cors": "*",
+    "body_preview": null
+  },
+  {
+    "n": 6,
+    "status": 206,
+    "kind": "MPEG-TS segment (.ts) - 818364 bytes",
+    "content_type": "video/mp2t",
+    "content_range": "bytes 0-8192/818364",
+    "cache_control": "public, max-age=86400, immutable",
+    "cors": "*",
+    "body_preview": null
+  }
+]
