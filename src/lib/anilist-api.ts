@@ -1,64 +1,26 @@
 // AniList GraphQL API Client
 // Provides anime metadata, episodes info, recommendations, characters
 // No API key needed — public GraphQL endpoint
+//
+// ALL queries go through anilist-cache.ts cachedQuery() for:
+//   - LRU cache (2,000 entries, 2h TTL) — instant repeat responses
+//   - Request dedup — concurrent identical queries share one fetch
+//   - CF Worker /al fallback — global edge cache bypasses rate limits
+//   - Retry with exponential backoff (3 attempts)
 
-const ANILIST_API = "https://graphql.anilist.co";
-
-const HEADERS = {
-  "Content-Type": "application/json",
-  Accept: "application/json",
-};
+import { cachedQuery } from "./anilist-cache";
 
 /**
- * AniList GraphQL query with retry logic + rate limit handling.
- * AniList returns 429 (rate limited) or 500 (error 1101) when too many
- * requests come from the same IP (Vercel's shared IPs get rate-limited often).
- *
- * Strategy:
- *   1. Try the request
- *   2. If 429 or 500: wait 1s, retry (up to 3 times)
- *   3. If still failing: return null (caller handles fallback)
+ * AniList GraphQL query — now fully cached + deduped.
+ * Delegates to cachedQuery() which handles retry, rate limiting, and caching.
+ * No more direct fetch() to graphql.anilist.co from this module.
  */
 async function anilistQuery(query: string, variables?: Record<string, unknown>) {
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 1000;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetch(ANILIST_API, {
-        method: "POST",
-        headers: HEADERS,
-        body: JSON.stringify({ query, variables }),
-        next: { revalidate: 3600 },
-      });
-
-      // Rate limited or server error — retry after delay
-      if (res.status === 429 || res.status >= 500) {
-        if (attempt < MAX_RETRIES - 1) {
-          await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
-          continue;
-        }
-        return null;
-      }
-
-      if (!res.ok) return null;
-
-      const json = await res.json();
-      if (json.errors) {
-        // GraphQL errors are usually not transient — don't retry
-        return null;
-      }
-      return json.data;
-    } catch (err) {
-      // Network error — retry
-      if (attempt < MAX_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
-        continue;
-      }
-      return null;
-    }
-  }
-  return null;
+  return cachedQuery(query, variables, {
+    ttl: 2 * 60 * 60 * 1000,  // 2 hours — metadata rarely changes
+    timeoutMs: 5000,            // 5s per attempt (3 attempts = 15s max)
+    revalidate: 3600,           // Next.js ISR 1h
+  });
 }
 
 // ============================================================
@@ -340,6 +302,26 @@ export async function searchAnime(query: string, page = 1, perPage = 20): Promis
   }
 }
 
+/** SQLite fallback for list queries (trending/popular/topRated/season).
+ *  When AniList is down, reads from the 20K SQLite anime DB sorted by
+ *  popularity/score. Returns AniList-formatted media objects.
+ */
+async function sqliteFallback(sortField: string, limit: number): Promise<AniListMedia[]> {
+  try {
+    const { getTrendingFromSqlite, getPopularFromSqlite, getTopRatedFromSqlite } = await import("./anime-db-sqlite");
+    let results: any[] = [];
+    if (sortField === "trending") results = getTrendingFromSqlite(limit);
+    else if (sortField === "popularity") results = getPopularFromSqlite(limit);
+    else if (sortField === "averageScore") results = getTopRatedFromSqlite(limit);
+    if (results.length > 0) {
+      console.log(`[anilist-api] SQLite fallback: ${results.length} anime (sort=${sortField})`);
+    }
+    return results as AniListMedia[];
+  } catch {
+    return [];
+  }
+}
+
 /** Get trending anime */
 export async function getTrending(page = 1, perPage = 20): Promise<AniListMedia[]> {
   const query = `
@@ -358,9 +340,12 @@ export async function getTrending(page = 1, perPage = 20): Promise<AniListMedia[
   `;
   try {
     const data = await anilistQuery(query, { page, perPage });
-    return data?.Page?.media || [];
+    const result = data?.Page?.media || [];
+    if (result.length > 0) return result;
+    // AniList returned empty (API down) — fallback to SQLite DB
+    return await sqliteFallback("trending", perPage);
   } catch {
-    return [];
+    return await sqliteFallback("trending", perPage);
   }
 }
 
@@ -382,9 +367,11 @@ export async function getPopular(page = 1, perPage = 20): Promise<AniListMedia[]
   `;
   try {
     const data = await anilistQuery(query, { page, perPage });
-    return data?.Page?.media || [];
+    const result = data?.Page?.media || [];
+    if (result.length > 0) return result;
+    return await sqliteFallback("popularity", perPage);
   } catch {
-    return [];
+    return await sqliteFallback("popularity", perPage);
   }
 }
 
@@ -406,9 +393,11 @@ export async function getTopRated(page = 1, perPage = 20): Promise<AniListMedia[
   `;
   try {
     const data = await anilistQuery(query, { page, perPage });
-    return data?.Page?.media || [];
+    const result = data?.Page?.media || [];
+    if (result.length > 0) return result;
+    return await sqliteFallback("averageScore", perPage);
   } catch {
-    return [];
+    return await sqliteFallback("averageScore", perPage);
   }
 }
 
@@ -430,9 +419,25 @@ export async function getSeasonAnime(season: string, year: number, page = 1, per
   `;
   try {
     const data = await anilistQuery(query, { season: season.toUpperCase(), seasonYear: year, page, perPage });
-    return data?.Page?.media || [];
+    const result = data?.Page?.media || [];
+    if (result.length > 0) return result;
+    // AniList down — fall back to SQLite season filter
+    try {
+      const { getBySeasonFromSqlite } = await import("./anime-db-sqlite");
+      const sqliteResults = getBySeasonFromSqlite(season, year, perPage);
+      if (sqliteResults.length > 0) {
+        console.log(`[anilist-api] SQLite season fallback: ${sqliteResults.length} anime (${season} ${year})`);
+        return sqliteResults as AniListMedia[];
+      }
+    } catch {}
+    return await sqliteFallback("popularity", perPage);
   } catch {
-    return [];
+    try {
+      const { getBySeasonFromSqlite } = await import("./anime-db-sqlite");
+      const sqliteResults = getBySeasonFromSqlite(season, year, perPage);
+      if (sqliteResults.length > 0) return sqliteResults as AniListMedia[];
+    } catch {}
+    return await sqliteFallback("popularity", perPage);
   }
 }
 

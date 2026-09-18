@@ -54,7 +54,7 @@ function isMangaballTranslationId(id: string | undefined | null): id is string {
   return !!id && /^[0-9a-f]{24}$/i.test(id);
 }
 function isCrossProviderMergeId(id: string | undefined | null): id is string {
-  return !!id && id.startsWith("at:");
+  return !!id && String(id).startsWith("at:");
 }
 function isAtsuShortId(id: string | undefined | null): id is string {
   return !!id &&

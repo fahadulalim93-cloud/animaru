@@ -5,44 +5,177 @@ import { useAppStore, parsePath, parseHash, getSectionNavLinks } from "@/compone
 import { extractAniListTokenFromHash, fetchAniListViewerAndList } from "@/lib/anilist-auth";
 import { extractMalCodeFromSearch, consumeStoredVerifier, exchangeMalCode } from "@/lib/mal-auth";
 import { checkAccountStatus } from "@/lib/auth-local";
+import dynamic from "next/dynamic";
+
+// ── PERFORMANCE: Lazy-load ALL page components ──
+// Previously these were static imports, meaning EVERY page load downloaded
+// the JS for ALL 30+ pages (bookmarks, manga, novels, scraper, etc.) even
+// if the user only visited the homepage. This caused a 1.1MB JS bundle.
+// Now each page is code-split and loaded on demand.
+
+// ── Core components (always needed — keep static) ──
+import { W2GModal } from "@/components/w2g/w2g-modal";
 import SidebarNav from "@/components/anime/sidebar-nav";
-import SearchPage from "@/components/anime/search-page";
-import AnimeDetailPage from "@/components/anime/anime-detail";
-import WatchPage from "@/components/anime/watch-page";
-import BookmarksPage from "@/components/anime/bookmarks-page";
-import WatchlistPage from "@/components/anime/watchlist-page";
-import HistoryPage from "@/components/anime/history-page";
-import AnimeSectionPage from "@/components/anime/anime-section-page";
-import DiscoverPage from "@/components/anime/discover-page";
-import MangaPage from "@/components/anime/manga-page";
-import MangaDetailPage from "@/components/anime/manga-detail";
-import MangaReader from "@/components/anime/manga-reader";
-import ContactPage from "@/components/anime/contact-page";
-import DonatePage from "@/components/anime/donate-page";
-import UpdatesPage from "@/components/anime/updates-page";
-import CryptoDonatePage from "@/components/anime/crypto-donate-page";
-import GuidePage from "@/components/anime/guide-page";
-import NovelPage from "@/components/anime/novel-page";
-import NovelDetailPage from "@/components/anime/novel-detail-page";
-import NovelReaderPage from "@/components/anime/novel-reader-page";
-import SignInPage from "@/components/anime/signin-page";
-import SignUpPage from "@/components/anime/signup-page";
-import AuthModal from "@/components/anime/auth-modal";
-import ConnectListModal from "@/components/anime/connect-list-modal";
-import EditListModal from "@/components/anime/edit-list-modal";
-import ProfilePage from "@/components/anime/profile-page";
-import LeaderboardPage from "@/components/anime/leaderboard-page";
-import ModPanel from "@/components/anime/mod-panel";
 import { trackPageview } from "@/lib/analytics";
-import ScraperPage from "@/components/anime/scraper-page";
-import ScraperAnimePage from "@/components/anime/scraper-anime-page";
-import ScraperWatchPage from "@/components/anime/scraper-watch-page";
-import MusicPage from "@/components/anime/music-page";
-import TorrentPage from "@/components/anime/torrent-page";
-import DownloadPage from "@/components/anime/download-page";
-import LandingPage from "@/components/anime/landing-page";
-import HubPage from "@/components/anime/hub-page";
-import DiscordPopup from "@/components/anime/discord-popup";
+
+// ── Page components (lazy loaded) ──
+const SearchPage = dynamic(() => import("@/components/anime/search-page"));
+const AnimeDetailPage = dynamic(() => import("@/components/anime/anime-detail"));
+const WatchPage = dynamic(() => import("@/components/anime/watch-page"), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+    </div>
+  ),
+});
+const BookmarksPage = dynamic(() => import("@/components/anime/bookmarks-page"));
+const WatchlistPage = dynamic(() => import("@/components/anime/watchlist-page"));
+const HistoryPage = dynamic(() => import("@/components/anime/history-page"));
+const AnimeSectionPage = dynamic(() => import("@/components/anime/anime-section-page"));
+const DiscoverPage = dynamic(() => import("@/components/anime/discover-page"));
+const MangaPage = dynamic(() => import("@/components/anime/manga-page"));
+const MangaDetailPage = dynamic(() => import("@/components/anime/manga-detail"));
+const MangaReader = dynamic(() => import("@/components/anime/manga-reader"), { ssr: false });
+const ContactPage = dynamic(() => import("@/components/anime/contact-page"));
+const DonatePage = dynamic(() => import("@/components/anime/donate-page"));
+const UpdatesPage = dynamic(() => import("@/components/anime/updates-page"));
+const CryptoDonatePage = dynamic(() => import("@/components/anime/crypto-donate-page"));
+const GuidePage = dynamic(() => import("@/components/anime/guide-page"));
+const NovelPage = dynamic(() => import("@/components/anime/novel-page"));
+const NovelDetailPage = dynamic(() => import("@/components/anime/novel-detail-page"));
+const NovelReaderPage = dynamic(() => import("@/components/anime/novel-reader-page"), { ssr: false });
+const SignInPage = dynamic(() => import("@/components/anime/signin-page"));
+const SignUpPage = dynamic(() => import("@/components/anime/signup-page"));
+const AuthModal = dynamic(() => import("@/components/anime/auth-modal"));
+const ConnectListModal = dynamic(() => import("@/components/anime/connect-list-modal"));
+const EditListModal = dynamic(() => import("@/components/anime/edit-list-modal"));
+const ProfilePage = dynamic(() => import("@/components/anime/profile-page"));
+const LeaderboardPage = dynamic(() => import("@/components/anime/leaderboard-page"));
+const ModPanel = dynamic(() => import("@/components/anime/mod-panel"));
+const ScraperPage = dynamic(() => import("@/components/anime/scraper-page"));
+const ScraperAnimePage = dynamic(() => import("@/components/anime/scraper-anime-page"));
+const ScraperWatchPage = dynamic(() => import("@/components/anime/scraper-watch-page"));
+const MusicPage = dynamic(() => import("@/components/anime/music-page"));
+const TorrentPage = dynamic(() => import("@/components/anime/torrent-page"));
+const DownloadPage = dynamic(() => import("@/components/anime/download-page"));
+const LandingPage = dynamic(() => import("@/components/anime/landing-page"));
+const HubPage = dynamic(() => import("@/components/anime/hub-page"));
+
+// ── Lightweight loading placeholder for lazy pages ──
+const PageLoading = () => (
+  <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+    <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+  </div>
+);
+
+// ── Auth error toast ──
+function AuthErrorToast() {
+  const authError = useAppStore((s) => s.authError);
+  const setAuthError = useAppStore((s) => s.setAuthError);
+  useEffect(() => {
+    if (!authError) return;
+    const t = setTimeout(() => setAuthError(null), 10000);
+    return () => clearTimeout(t);
+  }, [authError, setAuthError]);
+  if (!authError) return null;
+  return (
+    <div className="fixed bottom-4 right-4 z-[300] max-w-sm rounded-xl border border-red-500/40 bg-[#0a0a0a] p-4 shadow-2xl">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-red-500/15 flex items-center justify-center shrink-0">
+          <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold text-red-400 mb-0.5">Sign-in failed</p>
+          <p className="text-xs text-zinc-300 break-words leading-relaxed">{authError}</p>
+        </div>
+        <button
+          onClick={() => setAuthError(null)}
+          className="text-zinc-500 hover:text-white shrink-0"
+          aria-label="Dismiss"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Auth notice toast (info / success) ──
+// Shows "Connecting to AniList..." (amber) while we fetch the user's
+// profile after the OAuth redirect, then "Successfully connected!"
+// (green) when the profile lands. Auto-dismisses after 4s for success,
+// 6s for info. Renders a fixed toast at the bottom of the screen.
+function AuthNoticeToast() {
+  const authNotice = useAppStore((s) => s.authNotice);
+  const setAuthNotice = useAppStore((s) => s.setAuthNotice);
+  useEffect(() => {
+    if (!authNotice) return;
+    const t = setTimeout(() => setAuthNotice(null), authNotice.type === "success" ? 4000 : 6000);
+    return () => clearTimeout(t);
+  }, [authNotice, setAuthNotice]);
+  if (!authNotice) return null;
+  const isSuccess = authNotice.type === "success";
+  // Statically-constructed Tailwind classes (Tailwind purges dynamic
+  // template-string classes at build time, so we list them explicitly).
+  const styles = isSuccess
+    ? {
+        border: "border-green-500/40",
+        badge: "bg-green-500/15",
+        text: "text-green-400",
+        title: "Connected!",
+      }
+    : {
+        border: "border-amber-500/40",
+        badge: "bg-amber-500/15",
+        text: "text-amber-400",
+        title: "Connecting...",
+      };
+  return (
+    <div className={`fixed bottom-4 right-4 z-[300] max-w-sm rounded-xl border ${styles.border} bg-[#0a0a0a] p-4 shadow-2xl`}>
+      <div className="flex items-start gap-3">
+        <div className={`w-8 h-8 rounded-full ${styles.badge} flex items-center justify-center shrink-0`}>
+          {isSuccess ? (
+            <svg className={`w-4 h-4 ${styles.text}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          ) : (
+            <svg className={`w-4 h-4 ${styles.text} animate-spin`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs font-bold ${styles.text} mb-0.5`}>{styles.title}</p>
+          <p className="text-xs text-zinc-300 break-words leading-relaxed">{authNotice.message}</p>
+        </div>
+        <button
+          onClick={() => setAuthNotice(null)}
+          className="text-zinc-500 hover:text-white shrink-0"
+          aria-label="Dismiss"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── WatchPage with ssr: false ──
+// The watch page has hydration mismatches (typeof window, localStorage,
+// new Date, Math.random, etc.) that cause React error #418.
+// This error ABORTS hydration → useEffect hooks don't run → HLS player
+// never attaches → video stays black/Buffering forever.
+// ssr: false ensures the watch page only renders on the client.
+// (WatchPage is now defined at the top with the other dynamic imports)
 
 // Features route renders the cinematic landing page (which contains the
 // feature sections) — the legacy marketing HomePage is fully retired.
@@ -100,7 +233,15 @@ export default function MainPageClient() {
         if (verifier) {
           exchangeMalCode(malCode, verifier)
             .then(({ viewer, accessToken }) => useAppStore.getState().setMalAuth(accessToken, viewer))
-            .catch(() => { /* code was invalid/expired */ });
+            .catch((err) => {
+              // err.message contains the server's error string, which now
+              // includes MAL's actual error (e.g. "invalid_client: Client
+              // authentication failed") plus a hint pointing to MAL_CLIENT_SECRET.
+              const msg = err?.message || "MyAnimeList sign-in failed. Please try again.";
+              useAppStore.getState().setAuthError(msg);
+            });
+        } else {
+          useAppStore.getState().setAuthError("MyAnimeList sign-in failed — the login session expired. Please try again.");
         }
         return;
       }
@@ -108,9 +249,59 @@ export default function MainPageClient() {
       const anilistToken = extractAniListTokenFromHash(window.location.hash);
       if (anilistToken) {
         history.replaceState(null, "", window.location.pathname);
+        // Show "Connecting to AniList..." immediately so the user knows
+        // something is happening — the profile fetch can take 1-3 seconds.
+        useAppStore.getState().setAuthNotice({ type: "info", message: "Connecting to your AniList account..." });
         fetchAniListViewerAndList(anilistToken.token)
-          .then(({ viewer, entries }) => useAppStore.getState().setAnilistAuth(anilistToken.token, viewer, entries))
-          .catch(() => { /* token was invalid/expired */ });
+          .then(async ({ viewer, entries }) => {
+            // Store the AniList token + entries for list sync (existing flow)
+            useAppStore.getState().setAnilistAuth(anilistToken.token, viewer, entries);
+
+            // ── NEW: also log the user into LuffyTV via the find-or-create
+            // endpoint. This creates a real User row in the DB (matched by
+            // anilistId) and sets a session cookie — so the user is fully
+            // logged in, not just "connected". They can now comment, track
+            // progress, use W2G with their username, etc.
+            try {
+              const loginRes = await fetch("/api/auth/anilist/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  anilistId: viewer.id,
+                  name: viewer.name,
+                  avatar: viewer.avatar,
+                }),
+              });
+              const loginData = await loginRes.json();
+              if (loginRes.ok && loginData.ok && loginData.user) {
+                // setUser logs them into the LuffyTV store (replaces any
+                // existing user — AniList OAuth wins over localStorage).
+                useAppStore.getState().setUser(loginData.user);
+                useAppStore.getState().setAuthNotice({
+                  type: "success",
+                  message: `Signed in as ${loginData.user.username} — welcome to LuffyTV!`,
+                });
+              } else {
+                // Find-or-create failed — still consider the AniList connect
+                // a success (they can sync their list), but show a softer
+                // message.
+                useAppStore.getState().setAuthNotice({
+                  type: "success",
+                  message: `Connected as ${viewer.name} — your AniList list is now synced.`,
+                });
+              }
+            } catch {
+              // Network error on the find-or-create call — AniList connect
+              // still succeeded, just without a LuffyTV account.
+              useAppStore.getState().setAuthNotice({
+                type: "success",
+                message: `Connected as ${viewer.name} — your AniList list is now synced.`,
+              });
+            }
+          })
+          .catch(() => {
+            useAppStore.getState().setAuthError("AniList sign-in failed — the access token was rejected. Please try again.");
+          });
         return;
       }
       // Parse the current pathname into route + subPage
@@ -149,6 +340,30 @@ export default function MainPageClient() {
     check();
     const id = setInterval(check, 5 * 60 * 1000);
     return () => clearInterval(id);
+  }, []);
+
+  // ── Auto-login on mount: if a server-side session cookie exists, fetch
+  // the user from /api/users/me and populate the store. This is what makes
+  // login persist across page refresh, incognito windows (after the user
+  // logs in once on that browser), and different browsers on the same device.
+  // Without this, only localStorage-based users were being loaded, which
+  // didn't work in incognito or other browsers.
+  useEffect(() => {
+    // If localStorage already has a user (legacy auth-local flow), don't
+    // override — let the user keep their existing session. Only fetch from
+    // server if no user is loaded yet.
+    if (useAppStore.getState().user) return;
+    let cancelled = false;
+    fetch("/api/users/me", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return;
+        if (data?.ok && data.user) {
+          useAppStore.getState().setUser(data.user);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   // ── Hash-based #signin / #signup → redirect to home + open auth modal ──
@@ -217,7 +432,7 @@ export default function MainPageClient() {
       case "discover": return <DiscoverPage />;
       case "search": return <SearchPage initialQuery={route.query} />;
       case "anime": return <AnimeDetailPage animeId={route.id} />;
-      case "watch": return <WatchPage animeId={route.id} episodeNum={route.episode} />;
+      case "watch": return <WatchPage animeId={route.id} episodeNum={route.episode} language={route.language} />;
       // Retired sections — old bookmarks / shared links for Movies, TV Shows,
       // Live, WatchNow, and the legacy per-genre page all land on the anime
       // section home. parseHash already redirected the hash to { page: "home" }.
@@ -269,6 +484,8 @@ export default function MainPageClient() {
     <>
       {/* Grain Overlay */}
       <div className="grain-overlay" />
+      <AuthErrorToast />
+      <AuthNoticeToast />
 
       {/* Shiroko-style left sidebar + floating transparent topbar — shown on all
           app pages (incl. watch); excludes standalone/auth/novel/manga-reader. */}
@@ -349,7 +566,7 @@ export default function MainPageClient() {
                     <span className="text-xs font-bold text-white/60">EN</span>
                   </div>
                   {/* Discord */}
-                  <a href="https://discord.gg/GEVes3uhtM" target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors" title="Join Discord">
+                  <a href="https://discord.gg/SdFB3HxDH5" target="_blank" rel="noopener noreferrer" className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors" title="Join Discord">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z" /></svg>
                   </a>
                   <span className="flex items-center gap-1.5 text-xs text-white/30 cursor-default">
@@ -383,9 +600,34 @@ export default function MainPageClient() {
       <AuthModal />
       <ConnectListModal />
       <EditListModal />
-
-      {/* Discord join popup — shows once on first visit */}
-      <DiscordPopup />
+      <W2GModalGlobal />
     </>
   );
+}
+
+// ── W2G Modal wrapper — mounted at app root, listens for 'w2g:open' event ──
+function W2GModalGlobal() {
+  const [animeInfo, setAnimeInfo] = useState<{ animeId: number; episodeNum: number; animeTitle: string; animeImage: string | null } | null>(null);
+  const [openKey, setOpenKey] = useState(0);
+
+  useEffect(() => {
+    const handler = () => {
+      const pathParts = window.location.pathname.split("/");
+      const watchIdx = pathParts.indexOf("watch");
+      const animeId = watchIdx >= 0 ? parseInt(pathParts[watchIdx + 1] || "0") : 0;
+      const episodeNum = watchIdx >= 0 ? parseInt(pathParts[watchIdx + 2] || "1") : 1;
+      setAnimeInfo({
+        animeId,
+        episodeNum,
+        animeTitle: document.title.split(" — ")[0] || `Anime ${animeId}`,
+        animeImage: null,
+      });
+      setOpenKey(k => k + 1);
+    };
+    window.addEventListener("w2g:open", handler);
+    return () => window.removeEventListener("w2g:open", handler);
+  }, []);
+
+  if (!animeInfo || openKey === 0) return null;
+  return <W2GModal key={openKey} {...animeInfo} />;
 }

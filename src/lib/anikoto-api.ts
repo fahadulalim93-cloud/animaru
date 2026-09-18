@@ -1,15 +1,17 @@
 /**
- * AnikotoAPI Client
- *
+ * AniKotoAPI Client — REWRITTEN 2026-08-12
+ * ====================================================
  * API for browsing recent anime with sub/dub info and megaplay embed URLs.
  * Base URL: https://anikotoapi.site/
  * Rate limit: 60 requests per 120 seconds per IP
  *
- * Discovered from the megaplay.buzz ecosystem — this API powers
- * the anikototv.to anime catalog.
+ * NO MORE CURL — Node fetch works fine for anikotoapi.site
+ * (it's not Cloudflare-protected like the main site)
  */
 
 const ANIKOTO_API = "https://anikotoapi.site";
+
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0";
 
 // ---- Types ----
 
@@ -69,7 +71,7 @@ export interface AnikotoSeriesResult {
 
 // ---- In-memory rate limiter ----
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 2100; // ~28 requests per minute (well under 60/120s limit)
+const MIN_REQUEST_INTERVAL = 2100;
 
 async function rateLimitedFetch(
   url: string,
@@ -86,14 +88,12 @@ async function rateLimitedFetch(
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
-
   try {
     const res = await fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+        "User-Agent": UA,
         Accept: "application/json",
         ...(options?.headers || {}),
       },

@@ -46,8 +46,8 @@ export default function DubWatchPage({
   contentType?: "series" | "movie";
 }) {
   const { navigate } = useAppStore();
-  const isMiruro = animeId.startsWith("miruro_");
-  const isToonStream = animeId.startsWith("toonstream-");
+  const isMiruro = String(animeId).startsWith("miruro_");
+  const isToonStream = String(animeId).startsWith("toonstream-");
   const toonStreamSlug = isToonStream ? animeId.replace(/^toonstream-(?:series|movie)-/, "") : "";
   const toonStreamType = isToonStream ? (animeId.includes("-movie-") ? "movie" : "series") : contentType;
   const [info, setInfo] = useState<DubAnimeInfo | null>(null);

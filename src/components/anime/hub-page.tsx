@@ -191,7 +191,7 @@ export default function HubPage() {
           <button onClick={() => navigate({ page: "contact" })}>Contact</button>
           <button onClick={() => navigate({ page: "bookmarks" })}>Bookmarks</button>
           <button onClick={() => navigate({ page: "history" })}>History</button>
-          <a href="https://discord.gg/GEVes3uhtM" target="_blank" rel="noopener noreferrer">Discord</a>
+          <a href="https://discord.gg/SdFB3HxDH5" target="_blank" rel="noopener noreferrer">Discord</a>
         </footer>
       </main>
     </div>

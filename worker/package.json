@@ -1,0 +1,9 @@
+{
+  "name": "luffytv-proxy-worker",
+  "version": "3.0.0",
+  "type": "module",
+  "main": "luffytv-proxy.js",
+  "scripts": {
+    "start": "node luffytv-proxy.js"
+  }
+}

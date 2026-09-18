@@ -8,6 +8,8 @@ import {
   type HindiAnimeListItem,
 } from "@/lib/hindi-anime-db";
 import { anikotoRecentAnime } from "@/lib/anikoto-api";
+import { blakiteSearchHindi, blakiteGetHindiItems, blakiteGetItem } from "@/lib/blakite-api";
+import { desidubSearch, desidubGetAnimeInfo, desidubGetEpisodeServers, desidubFindByTitle } from "@/lib/desidubanime-api";
 
 export async function GET(request: Request) {
   try {
@@ -172,12 +174,146 @@ export async function GET(request: Request) {
         });
       }
 
+      // ── Blakite: Search Hindi catalog from blakiteapi.xyz ──
+      case "blakite-search": {
+        const q = searchParams.get("q") || "";
+        if (!q.trim()) {
+          return NextResponse.json({ success: true, data: { results: [], query: q } });
+        }
+        const results = await blakiteSearchHindi(q);
+        return NextResponse.json({
+          success: true,
+          data: {
+            results: results.map((r) => ({
+              id: r.id,
+              title: r.title,
+              language: r.language,
+              type: r.type,
+              status: r.status,
+              poster: r.poster,
+              genres: r.genres,
+            })),
+            query: q,
+            total: results.length,
+          },
+        });
+      }
+
+      // ── Blakite: Browse all Hindi items ──
+      case "blakite-browse": {
+        const items = await blakiteGetHindiItems();
+        const page = parseInt(searchParams.get("page") || "1");
+        const limit = 30;
+        const start = (page - 1) * limit;
+        const paginated = items.slice(start, start + limit);
+        const totalPages = Math.ceil(items.length / limit);
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            results: paginated.map((r) => ({
+              id: r.id,
+              title: r.title,
+              language: r.language,
+              type: r.type,
+              status: r.status,
+              poster: r.poster,
+              genres: r.genres,
+            })),
+            page,
+            totalPages,
+            total: items.length,
+          },
+        });
+      }
+
+      // ── Blakite: Get item info ──
+      case "blakite-info": {
+        const blakiteId = searchParams.get("blakiteId") || "";
+        if (!blakiteId) {
+          return NextResponse.json({ success: false, error: "Missing blakiteId" }, { status: 400 });
+        }
+        const item = await blakiteGetItem(blakiteId);
+        if (!item) {
+          return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+        }
+        return NextResponse.json({ success: true, data: item });
+      }
+
+      // ── DesiDubAnime: Search ──
+      case "desidub-search": {
+        const q = searchParams.get("q") || "";
+        if (!q.trim()) {
+          return NextResponse.json({ success: true, data: { results: [], query: q } });
+        }
+        const results = await desidubSearch(q);
+        return NextResponse.json({
+          success: true,
+          data: {
+            results: results.map((r) => ({
+              id: r.id,
+              title: r.title,
+              slug: r.slug,
+              poster: r.poster,
+              type: r.type,
+              status: r.status,
+              language: r.language,
+              genres: r.genres,
+              totalEpisodes: r.totalEpisodes,
+            })),
+            query: q,
+            total: results.length,
+          },
+        });
+      }
+
+      // ── DesiDubAnime: Get anime info + episodes ──
+      case "desidub-info": {
+        const slug = searchParams.get("slug") || "";
+        if (!slug) {
+          return NextResponse.json({ success: false, error: "Missing slug" }, { status: 400 });
+        }
+        const info = await desidubGetAnimeInfo(slug);
+        if (!info) {
+          return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+        }
+        return NextResponse.json({ success: true, data: info });
+      }
+
+      // ── DesiDubAnime: Get episode servers (including Server 4 self-host) ──
+      case "desidub-servers": {
+        const slug = searchParams.get("slug") || "";
+        const ep = parseInt(searchParams.get("ep") || "1");
+        if (!slug) {
+          return NextResponse.json({ success: false, error: "Missing slug" }, { status: 400 });
+        }
+        const servers = await desidubGetEpisodeServers(slug, ep);
+        return NextResponse.json({
+          success: true,
+          data: {
+            slug,
+            episode: ep,
+            servers: servers.map((s) => ({
+              name: s.name,
+              url: s.url,
+              isSelfHost: s.isSelfHost,
+              isM3U8: s.isM3U8,
+              isMP4: s.isMP4,
+              isEmbed: s.isEmbed,
+              language: s.language,
+            })),
+            total: servers.length,
+            hasSelfHost: servers.some((s) => s.isSelfHost),
+          },
+        });
+      }
+
       default:
         return NextResponse.json(
           {
             success: false,
             error:
-              "Invalid action. Use: browse, search, info, stream, recent, full-index",
+              "Invalid action. Use: browse, search, info, stream, recent, full-index, blakite-search, blakite-browse, blakite-info, desidub-search, desidub-info, desidub-servers",
           },
           { status: 400 }
         );

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -186,4 +186,242 @@ model KvHll {
   member String
   @@id([key, member])
   @@index([key])
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Admin Panel — PostgreSQL-native models
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Regular user accounts — powers signup/login, comments, XP, progress, profile
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Regular site users (signup/login) — separate from AdminUser.
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  email         String?  @unique
+  passwordHash  String
+  name          String?
+
+  // ── OAuth provider IDs (for "Continue with X" login) ──
+  // When a user signs in via AniList OAuth, we find-or-create a User row
+  // matching this anilistId. Null for users who signed up with a password.
+  anilistId     Int?     @unique
+  googleId      String?  @unique
+
+  // Avatar / profile customization
+  avatar        String?
+  avatarColor   String?
+  avatarEmoji   String?
+  avatarImage   String?
+  avatarFrame   String?
+  banner        String?
+  bannerImage   String?
+  accentColor   String?
+  tagline       String?
+  bio           String?
+  favorites     String   @default("[]") // JSON array of anime IDs
+
+  // XP / progression
+  xp            Int      @default(0)
+  level         Int      @default(1)
+  watchCount    Int      @default(0)
+  episodeCount  Int      @default(0)
+  commentCount  Int      @default(0)
+  bookmarkCount Int      @default(0)
+
+  active        Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions      UserSession[]
+  progress      UserProgress[]
+
+  @@index([createdAt])
+  @@index([xp(sort: Desc)])
+  @@index([level])
+}
+
+/// Server-side user sessions (HTTP-only cookie tokens).
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  ip        String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Per-user per-anime watch progress.
+model UserProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  animeId         String
+  animeName       String
+  episodesWatched Int      @default(0)
+  lastEpisodeNum  Float    @default(0)
+  lastProgress    Float    @default(0) // 0–100 %
+  xpEarned        Int      @default(0)
+  watchTime       Int      @default(0) // seconds
+  lastWatchedAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId])
+  @@index([userId])
+  @@index([lastWatchedAt(sort: Desc)])
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Site visitor tracking — one row per (visitor fingerprint, day)
+// Used for "Views Today / This Week / This Month" stat cards on admin Overview.
+// ══════════════════════════════════════════════════════════════════════════════
+
+model SiteVisitor {
+  id         String   @id @default(cuid())
+  visitorKey String                   // hashed IP+UA fingerprint
+  date       String                   // "YYYY-MM-DD"
+  userId     String?                  // null = anonymous
+  page       String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@unique([visitorKey, date])
+  @@index([date])
+  @@index([userId])
+}
+
+/// Admin users with bcrypt-hashed passwords and role-based access.
+model AdminUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  displayName  String?
+  avatarUrl    String?
+  role         String   @default("admin") // "owner" | "admin" | "mod"
+  active       Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs    AuditLog[]
+  sessions     AdminSession[]
+}
+
+/// Immutable audit trail for all admin/mod actions.
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?
+  actorUsername  String
+  action         String   // ban | unban | suspend | unsuspend | promote | demote | warn | edit_comment | delete_comment | create_announcement | delete_announcement | cache_purge | settings_change | login | logout
+  targetType     String?  // "user" | "comment" | "announcement" | "cache" | "settings"
+  targetId       String?
+  details        String?  // JSON blob with action-specific context
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  actor          AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorUsername])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+}
+
+/// Server-side sessions with HTTP-only cookie tokens.
+model AdminSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  ip        String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Progressive AniList response cache.
+/// Every successful AniList GraphQL response is saved here automatically.
+/// Over time, this DB grows to cover every anime users have ever queried —
+/// eliminating AniList API dependencies for popular content.
+///
+/// Cache key = stable hash of (query + variables) — same as in-memory LRU.
+/// Response is the full AniList GraphQL `data` payload as JSON.
+///
+/// Lookup order in anilist-cache.ts:
+///   1. In-memory LRU (instant)
+///   2. PostgreSQL AniListCache (5-15ms — what this model powers)
+///   3. AniList API (200-1000ms — also saved here for next time)
+///   4. Embedded JSON DB (instant fallback for offline)
+model AniListCache {
+  id        String   @id @default(cuid())
+  /// Stable cache key = hash of normalized query + sorted variables
+  cacheKey  String   @unique
+  /// The AniList ID this entry is about (extracted from variables.id when present).
+  /// Null for non-Media queries (Page, trending, search, etc).
+  anilistId Int?
+  /// Operation type — derived from the query (Media, Page, Studio, etc).
+  operation String?
+  /// Full AniList GraphQL `data` payload as JSON string
+  response  Json
+  /// Where the data came from: 'anilist' | 'embedded-db-backfill'
+  source    String   @default("anilist")
+  /// Hit count — how many times this entry has been served from cache
+  hits      Int      @default(0)
+  /// Error count — if response was an error, count it (we still cache to avoid retry storms)
+  errorCount Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([anilistId])
+  @@index([operation])
+  @@index([updatedAt(sort: Desc)])
+  @@index([hits(sort: Desc)])
+}
+
+// ─── Watch Together (W2G) — synced watch parties with voice chat ──────────────
+model WatchTogetherRoom {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  visibility    String
+  animeId       Int
+  episodeNum    Int
+  animeTitle    String
+  animeImage    String?
+  hostUsername  String
+  state         Json
+  createdAt     DateTime  @default(now())
+  lastActivity  DateTime  @default(now())
+  closedAt      DateTime?
+  members       WatchTogetherMember[]
+  @@index([visibility, closedAt])
+  @@index([hostUsername])
+  @@index([lastActivity])
+}
+model WatchTogetherMember {
+  id        String   @id @default(cuid())
+  roomId    String
+  username  String
+  isHost    Boolean  @default(false)
+  muted     Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  room      WatchTogetherRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  @@unique([roomId, username])
+  @@index([roomId])
 }

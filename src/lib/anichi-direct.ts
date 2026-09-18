@@ -78,7 +78,38 @@ async function anichiFetch(url: string, options: RequestInit = {}): Promise<Resp
     headers["Referer"] = `${ANICHI_BASE}/`;
     headers["X-Requested-With"] = "XMLHttpRequest";
   }
-  // Add 10s timeout to prevent dead server hangs
+
+  // Use curl to bypass Cloudflare bot_detection on VPS IPs
+  try {
+    const { execFile } = await import("node:child_process");
+    const args = ["-s", "--max-time", "8", "-L"];
+    for (const [k, v] of Object.entries(headers)) args.push("-H", `${k}: ${v}`);
+    const method = (options.method || "GET").toUpperCase();
+    if (method === "POST" && options.body) {
+      const body = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
+      args.push("-X", "POST", "-d", body);
+    }
+    args.push(url);
+
+    const result = await new Promise<string>((resolve, reject) => {
+      execFile("curl", args, { timeout: 10000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+        if (err) reject(err);
+        else resolve(stdout);
+      });
+    });
+
+    // Return Response-like object with raw HTML/JSON text
+    const isJson = result.trimStart().startsWith("{") || result.trimStart().startsWith("[");
+    const resp: any = {
+      ok: true, status: 200, statusText: "OK",
+      headers: new Headers({ "content-type": isJson ? "application/json" : "text/html" }),
+      async json() { return JSON.parse(result); },
+      async text() { return result; },
+    };
+    return resp as Response;
+  } catch { /* curl failed, fall back to Node fetch */ }
+
+  // Fallback: Node fetch with timeout
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {

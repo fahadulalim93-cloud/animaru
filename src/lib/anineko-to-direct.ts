@@ -1,8 +1,8 @@
 /**
  * AniNeko.to scraper — returns streams WITH subtitles + skip times
  *
- * Site structure:
- *   - Search: /browser?keyword={kw} → returns anime cards with /watch/{slug}
+ * Site structure (UPDATED 2026-09):
+ *   - Search: /browse?keyword={kw}  (was /browser?keyword= — old URL still 200 but ignores filter)
  *   - Episode page: /watch/{slug}/ep-{n} → has all servers in HTML directly
  *
  * Server HTML structure (per episode page):
@@ -75,13 +75,14 @@ async function aninekoFetch(url: string): Promise<string | null> {
  */
 export async function searchAnineko(title: string): Promise<string | null> {
   try {
-    const url = `${ANINEKO_BASE}/browser?keyword=${encodeURIComponent(title)}`;
+    const url = `${ANINEKO_BASE}/browse?keyword=${encodeURIComponent(title)}`;
     const html = await aninekoFetch(url);
     if (!html) return null;
 
     // Collect ALL /watch/{slug} matches (not episode URLs)
     const slugs: string[] = [];
     const seen = new Set<string>();
+    // Match /watch/{slug} but NOT /watch/{slug}/ep-{n} (episode URLs)
     const matches = html.matchAll(/href="\/watch\/([a-z0-9-]+)"/gi);
     for (const m of matches) {
       const slug = m[1];
@@ -240,51 +241,96 @@ export async function resolveAninekoStreams(
 }
 
 /**
- * Extract the direct m3u8 URL from an AniNeko embed page.
+ * Decode Dean Edwards packed JavaScript from otakuhg.site / otakuvid.online.
  *
- * AniNeko uses these embed CDNs:
- *   - vivibebe.site  → m3u8 is directly in the HTML: /public/stream/{hash}/master.m3u8
- *   - otakuhg.site   → obfuscated JS (returns null — can't extract)
- *   - otakuvid.online → obfuscated JS (returns null — can't extract)
- *   - playmogo.com   → obfuscated JS (returns null — can't extract)
- *   - bibiemb.xyz    → similar to vivibebe (try same approach)
+ * These embeds contain an eval(function(p,a,c,k,e,d){...}) packer that
+ * decodes to JWPlayer setup code with a `links` object containing the
+ * REAL m3u8 URL (hls2, hls3, hls4 keys).
  *
- * For obfuscated CDNs, we return null and the server is skipped (not shown
- * in the list). This is better than showing a broken embed.
+ * The decoded JS looks like:
+ *   var links={"hls2":"https://...master.m3u8?t=...","hls4":"/stream/.../master.m3u8"};
+ *
+ * We extract the hls2 URL (it's absolute and works directly with no extra
+ * referer needed — otakuhg.site's CDN returns Access-Control-Allow-Origin: *).
  */
+async function extractM3u8FromPackedJS(embedUrl: string): Promise<string | null> {
+  try {
+    const embedRes = await fetch(embedUrl, {
+      headers: {
+        "User-Agent": UA,
+        Referer: ANINEKO_BASE + "/",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!embedRes.ok) return null;
+    const html = await embedRes.text();
+
+    // Find the eval packer block
+    const packerMatch = html.match(/eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\('([\s\S]*?)',(\d+),(\d+),'([\s\S]*?)'\.split\('\|'\)\)\)/);
+    if (!packerMatch) return null;
+
+    const pStr = packerMatch[1];
+    const a = parseInt(packerMatch[2], 10);
+    let c = parseInt(packerMatch[3], 10);
+    const k = packerMatch[4].split('|');
+
+    // Decode the packer
+    let decoded = pStr;
+    while (c--) {
+      if (k[c]) {
+        decoded = decoded.replace(new RegExp('\\b' + c.toString(a) + '\\b', 'g'), k[c]);
+      }
+    }
+
+    // Extract the `links` object — find all m3u8 URLs inside `links={...}`
+    // Look for hls2 (absolute URL with query string)
+    const linksMatch = decoded.match(/links\s*=\s*\{[\s\S]*?\}/);
+    if (linksMatch) {
+      const linksObj = linksMatch[0];
+      // Prefer hls2 (most reliable — direct CDN URL)
+      const hls2Match = linksObj.match(/"hls2"\s*:\s*"(https?:\/\/[^"]+\.m3u8[^"]*)"/i);
+      if (hls2Match) return hls2Match[1];
+      // Fallback: any https m3u8 URL
+      const anyM3u8 = linksObj.match(/"(https?:\/\/[^"]+\.m3u8[^"]*)"/i);
+      if (anyM3u8) return anyM3u8[1];
+    }
+
+    // Last resort: any m3u8 URL in decoded JS
+    const anyM3u8 = decoded.match(/https?:\/\/[^"'\s,;)]+\.m3u8[^"'\s,;)]*/);
+    if (anyM3u8) return anyM3u8[0];
+
+    return null;
+  } catch {
+    return null;
+  }
+}
 async function extractM3u8FromAninekoEmbed(embedUrl: string): Promise<string | null> {
   try {
     const parsed = new URL(embedUrl);
     const hostname = parsed.hostname;
     const path = parsed.pathname;
 
-    // vivibebe.site / bibiemb.xyz — m3u8 is directly in the HTML
-    if (hostname.includes("vivibebe") || hostname.includes("bibiemb") ||
-        hostname.includes("vibeplayer")) {
-      const embedRes = await fetch(embedUrl, {
-        headers: {
-          "User-Agent": UA,
-          Referer: ANINEKO_BASE + "/",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-        redirect: "follow",
-      });
-      if (!embedRes.ok) return null;
-      const html = await embedRes.text();
-
-      // Pattern: const src = "https://vivibebe.site/public/stream/{hash}/master.m3u8";
-      const m3u8Match = html.match(/(?:src|file|source)\s*=\s*["'](https?:\/\/[^"']+\.m3u8)["']/i);
-      if (m3u8Match) return m3u8Match[1];
-
-      // Fallback: construct from the hash in the path
-      const hashMatch = path.match(/\/([a-f0-9]{16,})/i);
-      if (hashMatch) {
-        return `https://${hostname}/public/stream/${hashMatch[1]}/master.m3u8`;
-      }
+    // vivibebe.site — SKIP! The m3u8 served by vivibebe.site contains
+    // AD segments only (p16-ad-sg.ibyteimg.com), not real anime video.
+    if (hostname.includes("vivibebe")) {
+      return null;
     }
 
-    // otakuhg / otakuvid / playmogo — obfuscated JS, can't extract m3u8
-    // Return null so the server is skipped (not shown as broken embed)
+    // bibiemb.xyz — SKIP! The m3u8 worker (morning-credit-3bcc.vibevibe.workers.dev)
+    // currently returns Backblaze 403 "account_trouble" — broken upstream.
+    if (hostname.includes("bibiemb") || hostname.includes("vibeplayer")) {
+      return null;
+    }
+
+    // otakuhg.site / otakuvid.online — Dean Edwards packed JS containing the
+    // REAL m3u8 URL inside a `links` object. Decode and extract.
+    if (hostname.includes("otakuhg") || hostname.includes("otakuvid") || hostname.includes("earnvids") || hostname.includes("streamhg")) {
+      return await extractM3u8FromPackedJS(embedUrl);
+    }
+
+    // playmogo.com (DoodStream) — Cloudflare challenge protected, skip
     return null;
   } catch {
     return null;

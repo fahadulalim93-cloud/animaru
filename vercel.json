@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "node scripts/generate-frames.mjs && (prisma generate || true) && next build",
+  "buildCommand": "node scripts/generate-frames.mjs && (prisma generate || true) && (npx prisma migrate deploy || true) && next build",
   "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".next"
 }

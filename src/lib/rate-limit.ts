@@ -30,11 +30,12 @@ export const RATE_LIMITS = {
   search: { limit: 30, windowMs: 60_000 },
   /** Stream/server endpoints — the watch page fires 5-10 parallel calls per
    *  episode load (instant-servers, miruro-v3, anixtv-servers, embed-servers, etc.)
-   *  plus additional calls when switching audio/server/episode. 40/min allows
-   *  normal browsing while still throttling rapid-fire scrapers. */
-  stream: { limit: 40, windowMs: 60_000 },
+   *  plus additional calls when switching audio/server/episode. 80/min allows
+   *  normal browsing while still throttling rapid-fire scrapers.
+   *  VPS FIX: Increased from 40 to 80 — one page load = 5-10 API calls. */
+  stream: { limit: 80, windowMs: 60_000 },
   /** Scraper endpoints — very strict */
-  scraper: { limit: 12, windowMs: 60_000 },
+  scraper: { limit: 20, windowMs: 60_000 },
 } as const;
 
 /**
@@ -97,7 +98,9 @@ export function getRateLimitTier(pathname: string): RateLimitConfig {
     pathname.includes('/servers/') ||
     pathname.includes('/instant-servers/') ||
     pathname.includes('/miruro-v3/') ||
-    pathname.includes('/anixtv-servers/') ||
+    pathname.includes('/animesalt-servers/') ||
+    pathname.includes('/animex-servers/') ||
+    pathname.includes('/anidap-servers/') ||
     pathname.includes('/animostream-hindi/') ||
     pathname.includes('/hindi-streams/') ||
     pathname.includes('/embed-servers/') ||

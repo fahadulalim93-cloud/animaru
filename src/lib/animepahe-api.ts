@@ -30,6 +30,7 @@
 
 import { wrapM3u8Url, wrapM3u8UrlWithReferer } from "./proxy";
 import { validateSkipTime } from "./episode-metadata";
+import { getTitle } from "./anilist-cache";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -140,23 +141,9 @@ async function resolveSession(anilistId: number, title?: string): Promise<string
     return sessionCache.get(anilistId)!;
   }
 
-  // Get title from AniList if not provided
+  // Get title from AniList if not provided (via centralized cache)
   if (!title) {
-    try {
-      const res = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
-          variables: { id: anilistId },
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        title = data?.data?.Media?.title?.english || data?.data?.Media?.title?.romaji || "";
-      }
-    } catch { /* ignore */ }
+    title = (await getTitle(anilistId)) || undefined;
   }
 
   if (!title) {

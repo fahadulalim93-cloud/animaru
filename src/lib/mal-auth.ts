@@ -69,6 +69,15 @@ export async function exchangeMalCode(code: string, codeVerifier: string): Promi
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code, codeVerifier, redirectUri }),
   });
-  if (!res.ok) throw new Error(`MAL token exchange failed (${res.status})`);
+  if (!res.ok) {
+    // Surface the actual server error message (which includes the MAL
+    // "invalid_client / Client authentication failed" detail + hint).
+    let msg = `MAL token exchange failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.error) msg = data.error;
+    } catch {}
+    throw new Error(msg);
+  }
   return res.json();
 }

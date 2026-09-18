@@ -85,6 +85,7 @@ function Icon({ path, size = 18 }: { path: string; size?: number }) {
 
 const ICONS = {
   clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 3",
+  server: "M5 12h14M5 12a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2M5 20h14M5 20a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2M7 8h.01M7 16h.01",
   layers: "M12 3 2 8l10 5 10-5-10-5zM2 16l10 5 10-5M2 12l10 5 10-5",
   play: "M8 5v14l11-7L8 5z",
   film: "M4 4h16v16H4V4zM4 9h16M4 15h16M9 4v16M15 4v16",
@@ -102,6 +103,7 @@ const ICONS = {
   palette: "M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-.9.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-4.4-3.6-8-8-8z",
   info: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-4M12 8h.01",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  maximize: "M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3",
 };
 
 function BigStat({ value, suffix, label }: { value: number; suffix?: string; label: string }) {
@@ -446,9 +448,9 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user?.bannerImage) return;
     let cancelled = false;
-    fetch("https://graphql.anilist.co", {
+    fetch("/api/anilist", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: "query{Page(perPage:50){media(sort:TRENDING_DESC,type:ANIME,isAdult:false){bannerImage}}}" }),
     })
       .then((r) => r.json())
@@ -1397,7 +1399,25 @@ export default function ProfilePage() {
                     <Row icon={ICONS.chat} accent={accent} title="Title Language" desc="Switch between Japanese (romaji) and English titles for anime."><Segmented value={prefs.titleLanguage} onChange={(v) => setPref("titleLanguage", v)} accent={accent} options={[{ v: "english", label: "English" }, { v: "romaji", label: "Romaji" }]} /></Row>
                     <Row icon={ICONS.layers} accent={accent} title="Episode Thumbnails" desc="Show episode thumbnails and descriptions. Disable to display only episode numbers."><Toggle on={prefs.episodeThumbnails} onClick={() => setPref("episodeThumbnails", !prefs.episodeThumbnails)} accent={accent} /></Row>
                     <Row icon={ICONS.sliders} accent={accent} title="Episode Sort Order" desc="Ascending shows Episode 1 first. Descending shows the latest first."><Segmented value={prefs.episodeSortAsc ? "asc" : "desc"} onChange={(v) => setPref("episodeSortAsc", v === "asc")} accent={accent} options={[{ v: "asc", label: "Ascending" }, { v: "desc", label: "Descending" }]} /></Row>
-                    <Row icon={ICONS.chat} accent={accent} title="Preferred Language" desc="Sub plays Japanese audio with subtitles. Dub plays English audio when available."><Segmented value={prefs.preferredLanguage} onChange={(v) => setPref("preferredLanguage", v)} accent={accent} options={[{ v: "sub", label: "Sub" }, { v: "dub", label: "Dub" }]} /></Row>
+                    <Row icon={ICONS.chat} accent={accent} title="Preferred Language" desc="Auto-selects this audio type on every watch page. Sub = Japanese + subtitles, Dub = English audio, Hindi = Indian dub."><Segmented value={prefs.preferredLanguage} onChange={(v) => setPref("preferredLanguage", v as "sub" | "dub" | "hindi")} accent={accent} options={[{ v: "sub", label: "Sub" }, { v: "dub", label: "Dub" }, { v: "hindi", label: "Hindi" }]} /></Row>
+                    <Row icon={ICONS.server} accent={accent} title="Preferred Server" desc="Auto-select this server when available. Leave empty for auto-select (Inazuma first).">
+                      <select
+                        value={prefs.preferredServer || ""}
+                        onChange={(e) => setPref("preferredServer", e.target.value)}
+                        className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white"
+                        style={{ borderColor: `${accent}30` }}
+                      >
+                        <option value="">Auto (Inazuma first)</option>
+                        <option value="anikoto">Inazuma (AniKoto)</option>
+                        <option value="anineko">Chopper (AniNeko)</option>
+                        <option value="anidao">Dao (AniDao)</option>
+                        <option value="anibd">Reiju (AniBD)</option>
+                        <option value="anidap">AniDap</option>
+                        <option value="animex">AnimeX</option>
+                        <option value="miruro">Miruro</option>
+                        <option value="anikage">AniKage</option>
+                      </select>
+                    </Row>
                     <Row icon={ICONS.shield} accent={accent} title="NSFW Content" desc="Adult content is hidden by default. Enable to browse adult anime."><Toggle on={prefs.nsfw} onClick={() => setPref("nsfw", !prefs.nsfw)} accent={accent} /></Row>
                     <Row icon={ICONS.chat} accent={accent} title="Comments" desc="Enable or disable the comments section on anime pages."><Toggle on={prefs.comments} onClick={() => setPref("comments", !prefs.comments)} accent={accent} /></Row>
                   </div>
@@ -1411,6 +1431,7 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <Row icon={ICONS.play} accent={accent} title="Autonext" desc="Automatically play the next episode after the current one."><Toggle on={prefs.autoNext} onClick={() => setPref("autoNext", !prefs.autoNext)} accent={accent} /></Row>
                     <Row icon={ICONS.bolt} accent={accent} title="Autoskip" desc="Automatically skip detected opening and ending sequences."><Toggle on={prefs.autoSkip} onClick={() => setPref("autoSkip", !prefs.autoSkip)} accent={accent} /></Row>
+                    <Row icon={ICONS.maximize} accent={accent} title="Retain Fullscreen" desc="Stay in fullscreen when auto-playing the next episode."><Toggle on={prefs.fullscreenRetain} onClick={() => setPref("fullscreenRetain", !prefs.fullscreenRetain)} accent={accent} /></Row>
                     <Row icon={ICONS.play} accent={accent} title="Autoplay" desc="Automatically start playing the episode on page load."><Toggle on={prefs.autoplay} onClick={() => setPref("autoplay", !prefs.autoplay)} accent={accent} /></Row>
                     <Row icon={ICONS.film} accent={accent} title="Mute Audio" desc="Always mute the audio before playing."><Toggle on={prefs.muteAudio} onClick={() => setPref("muteAudio", !prefs.muteAudio)} accent={accent} /></Row>
                     <Row icon={ICONS.clock} accent={accent} title="Skip Forward" desc="Skip forward in the player by a custom interval (seconds)."><input type="number" min={5} max={90} value={prefs.skipForward} onChange={(e) => setPref("skipForward", Math.max(5, Math.min(90, +e.target.value || 85)))} className="w-18 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-sm text-center outline-none focus:border-white/25 transition-colors" /></Row>
@@ -1592,7 +1613,7 @@ export default function ProfilePage() {
                     <p className="text-white/60 text-[11px] max-w-md mx-auto leading-relaxed">LuffyTV is a free home for anime, manga and novels — one library, no ads, no paywalls.</p>
                     <p className="text-white/35 text-[10px] mt-3">Version 1.0 · Fan-made, not affiliated with any studio.</p>
                     <div className="flex items-center justify-center gap-2 mt-4">
-                      <a href="https://discord.gg/GEVes3uhtM" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-white/12 px-3 py-1.5 text-xs font-bold hover:bg-white/5 transition-colors">Discord</a>
+                      <a href="https://discord.gg/SdFB3HxDH5" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-white/12 px-3 py-1.5 text-xs font-bold hover:bg-white/5 transition-colors">Discord</a>
                       <button onClick={() => navigate({ page: "contact" })} className="rounded-lg border border-white/12 px-3 py-1.5 text-xs font-bold hover:bg-white/5 transition-colors">Contact</button>
                     </div>
                   </div>

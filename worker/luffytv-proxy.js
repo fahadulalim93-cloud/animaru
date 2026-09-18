@@ -67,6 +67,14 @@ const CDN_RULES = [
   // harmonix (miku provider)
   { test: h => h.endsWith('.harmonixwellnessgroup.store'),
     referer: 'https://allanime.uns.bio/', origin: 'https://allanime.uns.bio', secSite: 'cross-site' },
+  // ── AniNeko/AniDao CDNs (otakuhg.site / otakuvid.online packed JS) ──
+  // These CDNs need megaplay.buzz referer (tested: works from CF Worker)
+  { test: h => h.endsWith('.premilkyway.com') || h.endsWith('.dramiyos-cdn.com') ||
+               h.endsWith('.acek-cdn.com') || h.endsWith('.cdn-centaurus.com') ||
+               h.endsWith('.silvermarinaenterprises.cfd') || h.endsWith('.healthyrecipeideas.cyou') ||
+               h.endsWith('.digitalecosystem.space') || h.endsWith('.shiora.site') ||
+               h.endsWith('.norami.top'),
+    referer: 'https://megaplay.buzz/', origin: 'https://megaplay.buzz', secSite: 'cross-site' },
   // megaplay
   { test: h => h === 'megaplay.buzz' || h.endsWith('.megaplay.buzz'),
     referer: 'https://megaplay.buzz/', origin: 'https://megaplay.buzz', secSite: 'same-origin' },
@@ -100,6 +108,10 @@ const CDN_RULES = [
   // Anistream (api.anistream.one) — CF-protected
   { test: h => h === 'api.anistream.one' || h.endsWith('.anistream.one'),
     referer: 'https://anistream.one/', origin: 'https://anistream.one', secSite: 'cross-site' },
+  // AniDap (anidap.lol + chad.anidap.lol) — CF-protected front, API needs same-origin
+  { test: h => h === 'anidap.lol' || h.endsWith('.anidap.lol') ||
+               h === 'chad.anidap.lol' || h.endsWith('.chad.anidap.lol'),
+    referer: 'https://anidap.lol/', origin: 'https://anidap.lol', secSite: 'same-site' },
   // AniKuro (anikuro.ru API + proxy.anikuro.ru streams)
   { test: h => h === 'anikuro.ru' || h.endsWith('.anikuro.ru') ||
                h === 'proxy.anikuro.ru',
@@ -118,6 +130,14 @@ const CDN_RULES = [
   { test: h => h === 'reanime.to' || h.endsWith('.reanime.to'),
     referer: 'https://reanime.to/', origin: 'https://reanime.to', secSite: 'same-origin' },
 
+  // ─── Flixcloud (reanime.to / flixcloud.cc video host) ───
+  // flixcloud.cc embed pages + fetch7-9.flixcloud.cc segment CDN.
+  // Needs Referer: https://flixcloud.cc/ (the embed page origin).
+  // The m3u8 URL contains a JWT token bound to the Worker's IP, so the
+  // Worker must proxy BOTH the m3u8 and segments (same IP for token validation).
+  { test: h => h === 'flixcloud.cc' || h.endsWith('.flixcloud.cc'),
+    referer: 'https://flixcloud.cc/', origin: 'https://flixcloud.cc', secSite: 'same-origin' },
+
   // ─── Vidlink CDN (movie/TV direct streams) ───
   // stormvv.vodvidl.site, storm.vodvidl.site — Vidlink MP4/DASH streams
   // Requires Referer: https://vidlink.pro/ (returns 403 without it)
@@ -127,28 +147,26 @@ const CDN_RULES = [
   { test: h => h.endsWith('.hakunaymatata.com') || h === 'hakunaymatata.com',
     referer: 'https://vidlink.pro/', origin: 'https://vidlink.pro', secSite: 'cross-site' },
 
-  // ─── Luna-Stream CDNs (added 2026-07-13) ───
-  // seiryuu.vid-cdn.xyz — Luna AniZone HLS + ASS subtitles
+  // ─── Streaming CDNs (added 2026-07-13) ───
+  // seiryuu.vid-cdn.xyz — AniZone HLS + ASS subtitles
   // Needs anizone.to referer (returns 403 without it)
   { test: h => h.endsWith('.vid-cdn.xyz') || h === 'vid-cdn.xyz',
     referer: 'https://anizone.to/', origin: 'https://anizone.to', secSite: 'cross-site' },
-  // as-cdn21.top — Luna AnimeSalt HLS (already proxied through luna, but just in case)
-  // Also used by AnixTV (same CDN, auth params handle authorization)
-  { test: h => h.endsWith('.as-cdn21.top') || h === 'as-cdn21.top',
-    referer: 'https://animesalt.to/', origin: 'https://animesalt.to', secSite: 'cross-site' },
-  // AnixTV HLS CDN variants (as-cdn22..25.top) — need anixtv.in referer
-  { test: h => /^as-cdn2[2-5]\.top$/.test(h) || /^as-cdn2[2-5]\.top$/.test(h),
-    referer: 'https://anixtv.in/', origin: 'https://anixtv.in', secSite: 'cross-site' },
+  // as-cdn21..29.top — AnimeSalt HLS + AnixTV + WatchAnimeWorld
+  // CRITICAL: NO Origin header for as-cdn*.top — ASCDN returns 500 when Origin is present
+  // Referer: https://animesalt.cx/ (the WordPress site hosting the embed)
+  { test: h => /^as-cdn\d+\.top$/i.test(h),
+    referer: 'https://animesalt.cx/', origin: null, secSite: 'cross-site' },
   // WatchAnimeWorld / Zephyrix — play.zephyrix.top serves HLS streams
   { test: h => h === 'play.zephyrix.top' || h.endsWith('.zephyrix.top'),
     referer: 'https://watchanimeworld.top/', origin: 'https://watchanimeworld.top', secSite: 'cross-site' },
   // as-cdn17.top — WatchAnimeWorld HLS segments
   { test: h => h.endsWith('.as-cdn17.top') || h === 'as-cdn17.top',
     referer: 'https://watchanimeworld.top/', origin: 'https://watchanimeworld.top', secSite: 'cross-site' },
-  // stream.neongambit.com / stream2.neongambit.com — Luna HadFree
+  // stream.neongambit.com / stream2.neongambit.com — HadFree
   { test: h => h.endsWith('.neongambit.com') || h === 'neongambit.com',
     referer: 'https://luna-stream.me/', origin: 'https://luna-stream.me', secSite: 'cross-site' },
-  // api.anime.nexus / assets.anime.nexus — Luna AnimeNexus
+  // api.anime.nexus / assets.anime.nexus — AnimeNexus
   { test: h => h.endsWith('.anime.nexus') || h === 'anime.nexus',
     referer: 'https://anime.nexus/', origin: 'https://anime.nexus', secSite: 'same-origin' },
   // 1oe.lostproject.club — AniDap Yuki subtitle CDN
@@ -157,6 +175,23 @@ const CDN_RULES = [
   // subbl.krussdomi.com — AniDap Sora subtitle CDN
   { test: h => h.endsWith('.krussdomi.com') || h === 'krussdomi.com',
     referer: 'https://krussdomi.com/', origin: 'https://krussdomi.com', secSite: 'same-origin' },
+  // ── Megaplay CDN domains — all need megaplay.buzz referer ──
+  // cdn.imgnex.top is WAF-blocked (always 403) — rewrite to ncdn.imgnex.top
+  // ncdn.imgnex.top works with Referer: megaplay.buzz
+  { test: h => h === 'cdn.imgnex.top',
+    referer: 'https://megaplay.buzz/', origin: 'https://megaplay.buzz', secSite: 'cross-site',
+    rewriteHost: 'ncdn.imgnex.top' },
+  { test: h => h === 'ncdn.imgnex.top' || h.endsWith('.imgnex.top'),
+    referer: 'https://megaplay.buzz/', origin: 'https://megaplay.buzz', secSite: 'cross-site' },
+  // bb.akirax.buzz — segment CDN (also needs megaplay referer)
+  { test: h => h.endsWith('.akirax.buzz') || h === 'akirax.buzz',
+    referer: 'https://megaplay.buzz/', origin: 'https://megaplay.buzz', secSite: 'cross-site' },
+  // megap.shiora.site — alternative megaplay CDN
+  { test: h => h.endsWith('.shiora.site') || h === 'shiora.site',
+    referer: 'https://megaplay.buzz/', origin: 'https://megaplay.buzz', secSite: 'cross-site' },
+  // vidtube.site — Inazuma VidPlay embed CDN
+  { test: h => h === 'vidtube.site' || h.endsWith('.vidtube.site'),
+    referer: 'https://megaplay.buzz/', origin: 'https://megaplay.buzz', secSite: 'cross-site' },
 
   // Catch-all: default to miruro.tv referer (matches proxy.ts default)
   { test: h => true,
@@ -234,6 +269,34 @@ function resolveUrl(rel, base) {
   try { return new URL(rel, base).href; } catch { return rel; }
 }
 
+/* ─── PASSTHROUGH HOSTS ────────────────────────────────────────────────────
+ * CDNs that BLOCK worker IPs entirely (return 403 to Cloudflare Worker IPs).
+ * For these CDNs, we must NOT rewrite segment URLs to point back through the
+ * worker — the worker can't fetch them. Instead, leave the original URL in
+ * the m3u8 so the browser fetches directly using the user's home IP (which
+ * the CDN allows, since vivibebe.site's player works for users at home).
+ *
+ * Example: p16-ad-sg.ibyteimg.com (ByteDance/TikTok image+video CDN used by
+ * vivibebe.site — AniKai's video host). Returns 403 "domain forbidden" to
+ * worker IPs but 200 to home IPs.
+ */
+const PASSTHROUGH_HOSTS = [
+  'ibyteimg.com',          // ByteDance CDN — vivibebe.site (AniKai) segments
+  'byteimg.com',           // alias for the same ByteDance CDN
+  'bytecdntp.com',         // alternate ByteDance CDN domain
+  'bytecdntp.cn',          // CN variant
+  'ibyteimg.org',          // possible alternate TLD
+];
+
+function isPassthroughHost(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return PASSTHROUGH_HOSTS.some(h => host === h || host.endsWith('.' + h));
+  } catch {
+    return false;
+  }
+}
+
 /* ─── Rewrite M3U8: all segment/key URIs → /p/<base64url> ───────────────── */
 function rewriteM3u8(text, baseUrl, referer, workerBase) {
   const lines = text.split('\n');
@@ -243,18 +306,26 @@ function rewriteM3u8(text, baseUrl, referer, workerBase) {
     if (line.startsWith('#') && line.includes('URI="')) {
       return line.replace(/URI="([^"]+)"/g, (_, uri) => {
         const abs = resolveUrl(uri, baseUrl);
-        // Encode null referer so the worker falls back to its CDN rule table
-        // for each segment/key URL. If we encoded the m3u8's referer, segments
-        // on a different CDN would get the wrong Referer header → 403.
-        return `URI="${workerBase}/p/${encodePayload(abs, null)}"`;
+        // ── PASSTHROUGH: don't proxy URLs on CDNs that block worker IPs ──
+        // Leave the URL as-is so the browser fetches directly.
+        if (isPassthroughHost(abs)) return `URI="${abs}"`;
+        // Encode the m3u8's referer so the worker sends the same Referer
+        // for sub-playlists and segments. This is critical for CDNs like
+        // premilkyway.com that require a specific Referer (megaplay.buzz).
+        return `URI="${workerBase}/p/${encodePayload(abs, referer)}"`;
       });
     }
 
     if (line && !line.startsWith('#')) {
       const abs = resolveUrl(line, baseUrl);
-      // Encode null referer so the worker falls back to its CDN rule table
-      // for each segment URL. The m3u8 referer may be wrong for the segment CDN.
-      return `${workerBase}/p/${encodePayload(abs, null)}`;
+      // ── PASSTHROUGH: don't proxy URLs on CDNs that block worker IPs ──
+      // Leave the URL as-is so the browser fetches directly. This is required
+      // for CDNs like p16-ad-sg.ibyteimg.com (ByteDance CDN used by AniKai's
+      // vivibebe.site) which 403 any request from a Cloudflare Worker IP.
+      if (isPassthroughHost(abs)) return abs;
+      // Encode the m3u8's referer so the worker sends the same Referer
+      // for sub-playlists and segments.
+      return `${workerBase}/p/${encodePayload(abs, referer)}`;
     }
 
     return raw;
@@ -299,6 +370,13 @@ async function proxyTarget(targetUrl, refParam, request) {
     effectiveSecSite = 'cross-site';
   }
 
+  // If the rule specifies a rewriteHost (e.g., cdn.imgnex.top → ncdn.imgnex.top),
+  // rewrite the target URL to use the working CDN host.
+  if (rule && rule.rewriteHost) {
+    targetUrl = targetUrl.replace(`://${targetHost}`, `://${rule.rewriteHost}`);
+    targetHost = rule.rewriteHost;
+  }
+
   const headers = browserHeaders(effectiveReferer, effectiveOrigin, effectiveSecSite);
   const rangeHeader = request.headers.get('Range');
   if (rangeHeader) headers['Range'] = rangeHeader;
@@ -339,7 +417,10 @@ async function proxyTarget(targetUrl, refParam, request) {
 
   if (isM3u8) {
     const text = await upstreamResp.text();
-    const workerBase = WORKER_BASE || new URL(request.url).origin;
+    // Force absolute URLs — the worker serves on luffytv-proxy.ggy892767.workers.dev
+    // but hls.js runs on luffytv.live. Relative /p/{token} URLs would resolve to
+    // luffytv.live/p/{token} (wrong domain). Must use absolute worker URLs.
+    const workerBase = 'https://luffytv-proxy.ggy892767.workers.dev';
     const rewritten = rewriteM3u8(text, targetUrl, effectiveReferer, workerBase);
     return new Response(rewritten, {
       status: upstreamResp.status,
@@ -434,16 +515,16 @@ async function proxyTarget(targetUrl, refParam, request) {
   }
 
   // Binary / TS segment: stream as-is with correct content-type
-  let contentType = upstreamResp.headers.get('Content-Type') || 'application/octet-stream';
+  let binaryContentType = upstreamResp.headers.get('Content-Type') || 'application/octet-stream';
 
   const passHeaders = {
-    'Content-Type':  contentType,
+    'Content-Type':  binaryContentType,
     'Cache-Control': 'public, max-age=86400, immutable',
     ...corsHeaders(),
   };
   // For HTML responses, add X-Frame-Options: ALLOWALL so they can be
   // loaded in an iframe (needed for embed players like AnixTV).
-  if (contentType.includes('text/html')) {
+  if (binaryContentType.includes('text/html')) {
     passHeaders['X-Frame-Options'] = 'ALLOWALL';
     passHeaders['Content-Security-Policy'] = 'frame-ancestors *';
   }
@@ -455,8 +536,194 @@ async function proxyTarget(targetUrl, refParam, request) {
   return new Response(upstreamResp.body, { status: upstreamResp.status, headers: passHeaders });
 }
 
+/* ─── AniList GraphQL Cache (Cloudflare Cache API) ───────────────────────── */
+async function handleAniListCached(request, ctx) {
+  // Only accept POST with JSON body
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'POST only' }),
+      { status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
+
+  // Build cache key from the query + variables
+  // We hash the variables to get a stable, short cache key
+  const cacheKeyStr = JSON.stringify({ q: body.query, v: body.variables });
+  const cacheKeyUrl = `https://anilist-cache.luffytv.live/${hashStr(cacheKeyStr)}`;
+  const cache = caches.default;
+  const cacheKey = new Request(cacheKeyUrl);
+
+  // Check Cloudflare edge cache
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    const age = Math.round((Date.now() - parseInt(cached.headers.get('X-Cache-Ts') || '0')) / 1000);
+    console.log(`[AniList-Cache] HIT (age=${age}s) key=${cacheKeyUrl.slice(-12)}`);
+    return new Response(cached.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Cache': 'HIT',
+        'X-Cache-Age': String(age),
+        ...corsHeaders(),
+      },
+    });
+  }
+
+  // Cache MISS — fetch from AniList
+  console.log(`[AniList-Cache] MISS key=${cacheKeyUrl.slice(-12)}`);
+  let anilistResp;
+  try {
+    anilistResp = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: 'AniList fetch failed', detail: String(err) }),
+      { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
+
+  if (!anilistResp.ok) {
+    // Don't cache errors — return directly
+    const errBody = await anilistResp.text();
+    return new Response(errBody, {
+      status: anilistResp.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+
+  const respBody = await anilistResp.text();
+
+  // Store in Cloudflare edge cache (1 hour)
+  const respToCache = new Response(respBody, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      'X-Cache-Ts': String(Date.now()),
+    },
+  });
+
+  // Use waitUntil to cache in background (don't block response)
+  ctx.waitUntil(cache.put(cacheKey, respToCache));
+
+  return new Response(respBody, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cache': 'MISS',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      ...corsHeaders(),
+    },
+  });
+}
+
+/* ─── Generic API Cache (Cloudflare Cache API) ──────────────────────────── */
+async function handleApiCache(request, url, ctx) {
+  const targetUrl = url.searchParams.get('url');
+  const ttlSec = parseInt(url.searchParams.get('ttl') || '300', 10); // default 5 min
+  const ref = url.searchParams.get('ref') || '';
+
+  if (!targetUrl) {
+    return new Response(JSON.stringify({ error: 'Missing ?url=' }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
+
+  // Build cache key
+  const cacheKeyUrl = `https://api-cache.luffytv.live/${hashStr(targetUrl)}`;
+  const cache = caches.default;
+  const cacheKey = new Request(cacheKeyUrl);
+
+  // Check edge cache
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    const age = Math.round((Date.now() - parseInt(cached.headers.get('X-Cache-Ts') || '0')) / 1000);
+    console.log(`[API-Cache] HIT (age=${age}s, ttl=${ttlSec}s)`);
+    return new Response(cached.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Cache': 'HIT',
+        'X-Cache-Age': String(age),
+        ...corsHeaders(),
+      },
+    });
+  }
+
+  // Cache MISS — fetch the URL
+  console.log(`[API-Cache] MISS url=${targetUrl.slice(0, 80)}`);
+  const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' };
+  if (ref) headers['Referer'] = ref;
+
+  let upstreamResp;
+  try {
+    upstreamResp = await fetch(targetUrl, { headers });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: 'Fetch failed', detail: String(err) }),
+      { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
+
+  if (!upstreamResp.ok) {
+    const errBody = await upstreamResp.text();
+    return new Response(errBody, {
+      status: upstreamResp.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+
+  const respBody = await upstreamResp.text();
+
+  // Only cache valid JSON
+  try { JSON.parse(respBody); } catch {
+    return new Response(respBody, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'X-Cache': 'BYPASS', ...corsHeaders() },
+    });
+  }
+
+  const respToCache = new Response(respBody, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': `public, max-age=${ttlSec}, s-maxage=${ttlSec}`,
+      'X-Cache-Ts': String(Date.now()),
+    },
+  });
+
+  ctx.waitUntil(cache.put(cacheKey, respToCache));
+
+  return new Response(respBody, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Cache': 'MISS',
+      'Cache-Control': `public, max-age=${ttlSec}, s-maxage=${ttlSec}`,
+      ...corsHeaders(),
+    },
+  });
+}
+
+/* ─── Hash helper ────────────────────────────────────────────────────────── */
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
 /* ─── Main handler ───────────────────────────────────────────────────────── */
-async function handleRequest(request, env) {
+async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
 
   if (request.method === 'OPTIONS') {
@@ -466,6 +733,22 @@ async function handleRequest(request, env) {
   if (url.pathname === '/health' || url.pathname === '/') {
     return new Response(JSON.stringify({ ok: true, worker: 'luffytv-proxy v3', ts: Date.now() }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+  }
+
+  // ── /al — AniList GraphQL proxy with Cloudflare Cache API ──
+  // Caches AniList responses at the edge for 1 hour. ALL users share the cache.
+  // POST /al  body: { query, variables }  →  { data: { Media: {...} } }
+  // This eliminates AniList rate limits (one cache entry per anime, shared globally).
+  if (url.pathname === '/al') {
+    return handleAniListCached(request, ctx);
+  }
+
+  // ── /api-cache — Generic API response cache ──
+  // GET /api-cache?url=<encoded>&ttl=<seconds>
+  // Caches any JSON API response at Cloudflare's edge.
+  // Used for provider server lists (anipm, anikage, etc.)
+  if (url.pathname === '/api-cache') {
+    return handleApiCache(request, url, ctx);
   }
 
   // Primary: /p/<base64url>
@@ -500,6 +783,111 @@ async function handleRequest(request, env) {
 
 export default {
   async fetch(request, env, ctx) {
-    return handleRequest(request, env);
+    return handleRequest(request, env, ctx);
   },
 };
+
+/* ─── Node.js HTTP Server (Coolify / Docker / bare-metal) ────────────────
+ * When running OUTSIDE Cloudflare Workers (no global `caches`), this starts
+ * a real HTTP server on PORT (default 8080). This allows the same worker
+ * code to run in both Cloudflare Workers AND Docker containers.
+ *
+ * Coolify deployment:
+ *   1. Dockerfile: FROM node:20-alpine → COPY luffytv-proxy.js → node luffytv-proxy.js
+ *   2. Set PORT env var (default 8080)
+ *   3. Coolify will health-check against /health
+ * ────────────────────────────────────────────────────────────────────── */
+if (typeof caches === 'undefined') {
+  // Polyfill Cloudflare Cache API stubs (no-op for Docker)
+  globalThis.caches = {
+    default: {
+      match: async () => undefined,
+      put: async () => {},
+      delete: async () => false,
+    },
+  };
+
+  const http = await import('node:http');
+  const PORT = parseInt(process.env.PORT || '8080', 10);
+
+  // Stub ExecutionContext for waitUntil (fire-and-forget in Node)
+  class NodeCtx {
+    promises = [];
+    waitUntil(p) { this.promises.push(p.catch(() => {})); }
+  }
+
+  // Convert Node IncomingMessage → Web Request
+  function toWebRequest(req) {
+    const proto = 'http';
+    const url = new URL(req.url, `${proto}://${req.headers.host || 'localhost'}`);
+    const headers = new Headers();
+    for (const [k, v] of Object.entries(req.headers)) {
+      if (v != null) headers.set(k, Array.isArray(v) ? v.join(', ') : v);
+    }
+    // Body handling: for GET/HEAD, no body
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      return new Request(url.href, { method: req.method, headers });
+    }
+    // For POST etc, consume body as ArrayBuffer
+    return new Promise((resolve) => {
+      const chunks = [];
+      req.on('data', (c) => chunks.push(c));
+      req.on('end', () => {
+        const body = Buffer.concat(chunks);
+        resolve(new Request(url.href, {
+          method: req.method,
+          headers,
+          body: body.length ? body : undefined,
+        }));
+      });
+    });
+  }
+
+  // Convert Web Response → Node ServerResponse
+  // CRITICAL: preserve ALL headers from the Web Response, including Cache-Control
+  function sendNodeResponse(webResp, res) {
+    const headers = {};
+    webResp.headers.forEach((v, k) => { headers[k] = v; });
+
+    // ── STRIP headers that prevent CF edge caching ──────────────────────
+    // CF won't cache if these are present:
+    //   - Set-Cookie → CF never caches responses with cookies
+    //   - Vary: * → CF treats response as unique
+    delete headers['set-cookie'];
+    delete headers['Set-Cookie'];
+    if (headers['vary'] === '*' || headers['Vary'] === '*') {
+      delete headers['vary'];
+      delete headers['Vary'];
+    }
+
+    res.writeHead(webResp.status, headers);
+
+    // ── Stream response body ────────────────────────────────────────────
+    // Use arrayBuffer for compatibility (works for both m3u8 text + binary segments)
+    if (webResp.body) {
+      webResp.arrayBuffer().then((buf) => {
+        res.end(Buffer.from(buf));
+      }).catch(() => res.end());
+    } else {
+      res.end();
+    }
+  }
+
+  const server = http.createServer(async (req, res) => {
+    try {
+      const webReq = await toWebRequest(req);
+      const ctx = new NodeCtx();
+      const webResp = await handleRequest(webReq, {}, ctx);
+      sendNodeResponse(webResp, res);
+    } catch (err) {
+      console.error('[Server] Unhandled error:', err);
+      if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Internal server error' }));
+    }
+  });
+
+  server.listen(PORT, () => {
+    console.log(`[luffytv-proxy] Node.js server listening on port ${PORT}`);
+    console.log(`[luffytv-proxy] Health check: http://localhost:${PORT}/health`);
+  });
+}

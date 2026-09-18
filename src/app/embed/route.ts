@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { wrapM3u8Url, wrapStreamUrl } from "@/lib/proxy";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -14,23 +15,15 @@ export async function GET(request: NextRequest) {
   // Determine video type
   const isHls = type === "hls" || url.includes(".m3u8");
   const isCdnProxy = url.includes("cdn-eu.1ani.me");
-  const isOurProxy = url.includes("/api/stream");
-  const PROXY_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+  const isOurProxy = url.includes("/api/stream") || url.includes("/p/");
 
-  // Build the video source URL
+  // Build the video source URL — use same-domain proxy (/p/{token}) so the
+  // browser reuses the HTTP/2 connection from the page load.
   let videoSrc: string;
   if (isCdnProxy || isOurProxy) {
     videoSrc = url;
   } else if (url.startsWith("http")) {
-    // External URL — route through Cloudflare Worker if available
-    // (Worker handles Referer/Origin/CORS automatically)
-    if (PROXY_BASE) {
-      videoSrc = isHls
-        ? `${PROXY_BASE}/proxy/m3u8?url=${encodeURIComponent(url)}`
-        : `${PROXY_BASE}/proxy/raw?url=${encodeURIComponent(url)}`;
-    } else {
-      videoSrc = url;
-    }
+    videoSrc = isHls ? wrapM3u8Url(url) : wrapStreamUrl(url);
   } else {
     videoSrc = `/api/stream?url=${encodeURIComponent(url)}${referer ? `&referer=${encodeURIComponent(referer)}` : ""}`;
   }

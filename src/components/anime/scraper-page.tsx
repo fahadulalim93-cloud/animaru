@@ -99,7 +99,7 @@ export default function ScraperPage() {
                 Unified Scraper
               </h1>
               <p className="text-xs text-white/50 mt-0.5">
-                AniList metadata · Miruro + Animex + Lunar streams · Sub/Dub/Hardsub/Harddub
+                AniList metadata · Miruro + Animex streams · Sub/Dub/Hardsub/Harddub
               </p>
             </div>
           </div>

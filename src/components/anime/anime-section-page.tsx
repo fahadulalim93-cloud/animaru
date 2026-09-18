@@ -7,6 +7,8 @@ import BrowsePage from "./browse-page";
 import SchedulePage from "./schedule-page";
 import DubSubPage from "./dub-sub-page";
 import { Plus, Flame, Play } from "lucide-react";
+import DiscordWidget from "./discord-widget-inline";
+import JoinTheSquadStrip from "./join-the-squad-strip";
 
 type SubPage = "home" | "browse" | "schedule";
 
@@ -171,7 +173,7 @@ function HeroCarousel({ items, navigate }: { items: FeaturedAnime[]; navigate: (
   const title = getTitle(anime);
   const score = getScore(anime);
   const seasonStr = anime.season && anime.seasonYear ? `${anime.season} ${anime.seasonYear}` : anime.seasonYear ? String(anime.seasonYear) : "";
-  const description = anime.description ? anime.description.replace(/<[^>]*>/g, "") : "";
+  const description = anime.description ? String(anime.description || "").replace(/<[^>]*>/g, "") : "";
 
   return (
     <div
@@ -397,7 +399,94 @@ function TopTrending({ trending, navigate }: {
   topRated: AnimeItem[];
   navigate: (r: any) => void;
 }) {
-  return <PosterRow title="Trending Anime" items={trending} navigate={navigate} />;
+  // Show only 5 trending anime — fits exactly before the Discord widget, no overlap
+  const cards = trending.slice(0, 5);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  if (cards.length === 0) return null;
+
+  const scroll = (dir: "left" | "right") => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: dir === "right" ? 700 : -700, behavior: "smooth" });
+    }
+  };
+
+  return (
+    <section className="px-4 md:px-8 lg:px-8 py-4">
+      <div className="flex items-center justify-between mb-4">
+        <h2
+          className="font-karla text-xl font-bold bg-clip-text text-transparent"
+          style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
+        >
+          Trending Anime
+        </h2>
+        <div className="flex gap-2">
+          <button onClick={() => scroll("left")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <button onClick={() => scroll("right")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
+      </div>
+      {/* Flex container: anime cards on left, Discord widget on right */}
+      <div className="flex gap-6 items-start">
+        {/* Anime cards — left side */}
+        <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-2 flex-1" style={{ scrollbarWidth: "none" }}>
+          {cards.map((anime, idx) => {
+            const cover = getCover(anime);
+            const cardTitle = getTitle(anime);
+            const pill = getStatusPill(anime.status);
+            const accent = HOVER_TITLE_COLORS[idx % HOVER_TITLE_COLORS.length];
+            return (
+              <div
+                key={`${anime.id}-${idx}`}
+                onClick={() => navigate({ page: "anime", id: String(anime.id) })}
+                className="group shrink-0 text-left cursor-pointer"
+                style={{ width: "180px", ["--accent" as any]: accent }}
+              >
+                <div className="relative w-full aspect-[2/3] bg-white/5 overflow-hidden ring-1 ring-transparent group-hover:ring-white/20 transition-all duration-300" style={{ borderRadius: "12px" }}>
+                  {cover ? (
+                    <img src={cover} alt={cardTitle} className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/10 font-bold text-2xl">{cardTitle.charAt(0)}</div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+                  <button
+                    onClick={(e) => handleAddToList(e, { id: anime.id, title: cardTitle, cover })}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    title="Add to list"
+                    aria-label="Add to list"
+                  >
+                    <Plus size={14} strokeWidth={2} />
+                  </button>
+                </div>
+                <div className="mt-2.5 space-y-1">
+                  <p className="text-[13px] font-medium text-white/90 leading-snug line-clamp-2 transition-colors duration-200 group-hover:text-[var(--accent)]">{cardTitle}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {pill && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${pill.className}`}>
+                        {pill.label}
+                      </span>
+                    )}
+                    {!!anime.episodes && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/60">
+                        {anime.episodes} eps
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Discord widget — right side, inline (not floating) */}
+        <div className="hidden lg:block shrink-0">
+          <DiscordWidget />
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function PopularAnime({ popular, navigate }: {
@@ -434,105 +523,177 @@ function getMangaStatusPill(status?: string): { label: string; className: string
 }
 
 function TrendingManga({ navigate }: { navigate: (r: any) => void }) {
+  // REMOVED — manga section replaced by RecentlyReleased
+  return null;
+}
+
+// ── RecentlyReleased — Anikura-style 16:9 cards with episode badges ──
+// Shows currently airing anime with the latest episode info.
+// Card layout matches Anikura:
+//   1. 16:9 thumbnail with episode badge (pink, bottom-left)
+//   2. Below thumbnail: SUB label + title
+//   3. Play icon + view count + timestamp
+//   4. "New" badge
+function RecentlyReleased({ navigate, trending }: { navigate: (r: any) => void; trending: AnimeItem[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [items, setItems] = useState<MangaHomeItem[]>([]);
+  const [items, setItems] = useState<AnimeItem[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch("/api/manga/home");
-        if (!res.ok) return;
-        const data = await res.json();
-        const sections: { type: string; items: MangaHomeItem[] }[] = data.sections || [];
-        const trendingSection = sections.find(s => s.type === "trending");
-        const flat = trendingSection ? trendingSection.items : sections.flatMap(s => s.items);
-        const seen = new Set<string>();
-        const deduped = flat.filter(m => {
-          if (!m.id || seen.has(m.id)) return false;
-          seen.add(m.id);
-          return true;
-        });
-        if (!cancelled) setItems(deduped.slice(0, 12));
-      } catch { /* ignore */ }
+    // Filter trending to currently airing anime (status: RELEASING)
+    const airing = (trending || []).filter(a =>
+      a?.status === "RELEASING" ||
+      a?.nextAiringEpisode
+    ).slice(0, 15);
+
+    if (airing.length > 0) {
+      setItems(airing);
+      return;
     }
-    load();
-    return () => { cancelled = true; };
-  }, []);
+
+    // Fallback: fetch from AniList directly
+    (async () => {
+      try {
+        const res = await fetch("/api/anilist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: `query {
+              Page(page: 1, perPage: 15) {
+                media(type: ANIME, status: RELEASING, sort: POPULARITY_DESC, isAdult: false) {
+                  id title { romaji english native }
+                  coverImage { extraLarge large medium color }
+                  bannerImage format status episodes genres
+                  averageScore popularity season seasonYear
+                  nextAiringEpisode { airingAt timeUntilAiring episode }
+                }
+              }
+            }`,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const list = data?.data?.Page?.media || [];
+          setItems(list);
+        }
+      } catch {}
+    })();
+  }, [trending]);
+
+  const scroll = (dir: "left" | "right") => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollBy({
+      left: dir === "left" ? -400 : 400,
+      behavior: "smooth",
+    });
+  };
+
+  // Format relative time from airingAt timestamp
+  function formatTimeAgo(airingAt?: number): string {
+    if (!airingAt) return "Recently";
+    const diff = Date.now() / 1000 - airingAt;
+    if (diff < 0) return "Upcoming";
+    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    return `${Math.floor(diff / 86400)} days ago`;
+  }
+
+  // Format view count from popularity
+  function formatViews(popularity?: number): string {
+    if (!popularity) return "New";
+    if (popularity >= 1000000) return `${(popularity / 1000000).toFixed(1)}M`;
+    if (popularity >= 1000) return `${(popularity / 1000).toFixed(1)}K`;
+    return String(popularity);
+  }
 
   if (items.length === 0) return null;
 
-  const scroll = (dir: "left" | "right") => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: dir === "right" ? 700 : -700, behavior: "smooth" });
-    }
-  };
-
-  const goToDetail = (manga: MangaHomeItem) => {
-    try {
-      const poster = manga.poster || manga.cover || "";
-      if (poster) sessionStorage.setItem(`manga-poster-${manga.id}`, poster);
-      if (manga.title) sessionStorage.setItem(`manga-title-${manga.id}`, manga.title);
-    } catch { /* ignore */ }
-    navigate({ page: "manga-detail", id: manga.id });
-  };
-
   return (
-    <section className="px-4 md:px-8 lg:px-8 py-4">
+    <section className="py-6 px-4 md:px-8">
+      {/* Header — Anikura style with accent bar */}
       <div className="flex items-center justify-between mb-4">
-        <h2
-          className="font-karla text-xl font-bold bg-clip-text text-transparent"
-          style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}
-        >
-          Trending Manga
-        </h2>
-        <div className="flex gap-2">
-          <button onClick={() => scroll("left")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
+        <div className="flex items-center gap-3">
+          <div className="w-1 h-7 bg-gradient-to-b from-[var(--accent)] to-[var(--accent)]/50 rounded-full" />
+          <div>
+            <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+              Recently Released
+            </h2>
+            <p className="text-xs text-white/40">Fresh episodes from ongoing series</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => scroll("left")}
+            className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
-          <button onClick={() => scroll("right")} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M9 5l7 7-7 7" /></svg>
+          <button
+            onClick={() => scroll("right")}
+            className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         </div>
       </div>
-      <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-        {items.map((manga, idx) => {
-          const cover = manga.poster || manga.cover || "";
-          const pill = getMangaStatusPill(manga.status);
-          const accent = HOVER_TITLE_COLORS[idx % HOVER_TITLE_COLORS.length];
+
+      {/* Cards — horizontal scroll */}
+      <div
+        ref={scrollRef}
+        className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-2"
+      >
+        {items.map((anime) => {
+          const cover = anime?.coverImage?.extraLarge || anime?.coverImage?.large || anime?.bannerImage || "";
+          const title = anime?.title?.english || anime?.title?.romaji || "Unknown";
+          const ep = anime?.nextAiringEpisode?.episode || anime?.episodes || 1;
+          const views = formatViews(anime?.popularity);
+          const timeAgo = formatTimeAgo(anime?.nextAiringEpisode?.airingAt);
+
           return (
             <div
-              key={`${manga.id}-${idx}`}
-              onClick={() => goToDetail(manga)}
-              className="group shrink-0 text-left cursor-pointer"
-              style={{ width: "190px", ["--accent" as any]: accent }}
+              key={anime.id}
+              onClick={() => navigate({ page: "watch", id: String(anime.id), episode: ep })}
+              className="group cursor-pointer flex-shrink-0 w-[220px] md:w-[260px]"
             >
-              <div className="relative w-full aspect-[2/3] bg-white/5 overflow-hidden ring-1 ring-transparent group-hover:ring-white/20 transition-all duration-300" style={{ borderRadius: "12px" }}>
+              {/* ── 16:9 Thumbnail ── */}
+              <div className="relative aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/5 transition-all duration-300 group-hover:border-white/20 group-hover:shadow-2xl group-hover:shadow-black/50">
                 {cover ? (
-                  <img src={cover} alt={manga.title} className="w-full h-full object-cover" loading="lazy" />
+                  <img
+                    src={cover}
+                    alt={title}
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-white/10 font-bold text-2xl">{manga.title.charAt(0)}</div>
+                  <div className="w-full h-full flex items-center justify-center text-white/10 text-4xl font-bold">{String(title).charAt(0)}</div>
                 )}
-                <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
-                {/* Add button — fades in on hover */}
-                <button
-                  onClick={handleAddToListManga}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  title="Add to list"
-                  aria-label="Add to list"
-                >
-                  <Plus size={14} strokeWidth={2} />
-                </button>
+
+                {/* Episode badge (bottom-left, subtle dark to match theme) */}
+                <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded bg-black/80 backdrop-blur-sm">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="white/80"><path d="M8 5v14l11-7z" /></svg>
+                  <span className="text-[10px] font-semibold text-white/80">EP {ep}</span>
+                </div>
               </div>
-              <div className="mt-2.5 space-y-1">
-                <p className="text-[13px] font-medium text-white/90 leading-snug line-clamp-2 transition-colors duration-200 group-hover:text-[var(--accent)]">{manga.title}</p>
-                {pill && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${pill.className}`}>
-                      {pill.label}
-                    </span>
-                  </div>
-                )}
+
+              {/* ── Below thumbnail: text info (Anikura style) ── */}
+              <div className="pt-2 px-0.5">
+                {/* Line 1: SUB label + Title */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider shrink-0">SUB</span>
+                  <h3 className="text-xs font-bold text-white line-clamp-1 leading-tight">{title}</h3>
+                </div>
+
+                {/* Line 2: Play icon + views + timestamp */}
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" className="text-white/30 shrink-0"><path d="M8 5v14l11-7z" /></svg>
+                  <span className="text-[11px] text-white/40">{views}</span>
+                  <span className="text-white/20">·</span>
+                  <span className="text-[11px] text-white/40">{timeAgo}</span>
+                </div>
+
+                {/* Line 3: New badge */}
+                <span className="inline-block text-[10px] font-medium px-2 py-0.5 rounded bg-white/5 text-white/50 border border-white/10">
+                  New
+                </span>
               </div>
             </div>
           );
@@ -541,7 +702,6 @@ function TrendingManga({ navigate }: { navigate: (r: any) => void }) {
     </section>
   );
 }
-
 /* ═══════════════════════════════════════════════════════════════
    MUST WATCH ANIME — curated editorial row, ambient color glow
    pulled from each anime's AniList palette color.
@@ -595,7 +755,7 @@ function MustWatchAnime({ topRated, navigate }: {
 
   const featuredTitle = getTitle(featured);
   const featuredScore = getScore(featured);
-  const featuredDesc = featured.description ? featured.description.replace(/<[^>]+>/g, "") : "";
+  const featuredDesc = featured.description ? String(featured.description || "").replace(/<[^>]+>/g, "") : "";
   const featuredBg = tmdbBackdrop || getBanner(featured);
 
   return (
@@ -1087,13 +1247,19 @@ function ComingSoon({ items, navigate }: { items: AnimeItem[]; navigate: (r: any
   const [extra, setExtra] = useState<AnimeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Always fetch a dedicated batch of upcoming anime from AniList so the
-  // section is never empty / too short (trending list rarely has NOT_YET_RELEASED).
+  // Always fetch a dedicated batch of upcoming anime so the section is never
+  // empty / too short (trending list rarely has NOT_YET_RELEASED).
+  //
+  // Strategy:
+  //   1. Try AniList directly (fastest path when AniList is up)
+  //   2. If AniList is down, fall back to /api/anime/home which has an
+  //      `upcoming` section sourced from our 20K-anime SQLite DB
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("https://graphql.anilist.co", {
+        // Try AniList first
+        const res = await fetch("/api/anilist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1113,18 +1279,42 @@ function ComingSoon({ items, navigate }: { items: AnimeItem[]; navigate: (r: any
             `,
           }),
         });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-        const list: AnimeItem[] = (data?.data?.Page?.media || []).map((a: any) => ({
-          ...a,
-          id: a.id,
-        }));
-        setExtra(list);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            const list: AnimeItem[] = (data?.data?.Page?.media || []).map((a: any) => ({
+              ...a,
+              id: a.id,
+            }));
+            if (list.length > 0) {
+              setExtra(list);
+              setLoading(false);
+              return;
+            }
+          }
+        }
       } catch {}
-      finally {
-        if (!cancelled) setLoading(false);
-      }
+
+      // ── FALLBACK: AniList down — use /api/anime/home which sources from SQLite ──
+      if (cancelled) return;
+      try {
+        const homeRes = await fetch("/api/anime/home");
+        if (homeRes.ok) {
+          const homeData = await homeRes.json();
+          const upcoming = homeData?.upcoming || [];
+          if (upcoming.length > 0) {
+            const list: AnimeItem[] = upcoming.map((a: any) => ({
+              ...a,
+              id: a.id,
+            }));
+            setExtra(list);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {}
+
+      if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
   }, []);
@@ -1613,7 +1803,7 @@ export default function AnimeSectionPage() {
 
         if (idsToFetch.length > 0) {
           try {
-            const descRes = await fetch("https://graphql.anilist.co", {
+            const descRes = await fetch("/api/anilist", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -1656,7 +1846,7 @@ export default function AnimeSectionPage() {
         // Keep only banners that have BOTH a real description and a banner
         // image — so the carousel never shows a bare title-only slide.
         const featuredCandidates = topCandidates.filter(a => {
-          const hasDesc = a?.description && a.description.replace(/<[^>]*>/g, "").trim().length >= 50;
+          const hasDesc = a?.description && String(a.description || "").replace(/<[^>]*>/g, "").trim().length >= 50;
           const hasBanner = a?.bannerImage || a?.coverImage?.extraLarge || a?.coverImage?.large;
           return hasDesc && hasBanner;
         });
@@ -1744,6 +1934,9 @@ export default function AnimeSectionPage() {
       {/* Hero Carousel — full screen */}
       <HeroCarousel items={featured} navigate={navigate} />
 
+      {/* Join the Squad strip — directly below the hero banner */}
+      <JoinTheSquadStrip />
+
       {/* Continue Watching */}
       <ContinueWatching navigate={navigate} />
 
@@ -1753,8 +1946,8 @@ export default function AnimeSectionPage() {
       {/* Popular Anime */}
       <PopularAnime popular={popular} navigate={navigate} />
 
-      {/* Trending Manga — self-fetching from /api/manga/home */}
-      <TrendingManga navigate={navigate} />
+      {/* Recently Released — Anikura-style 16:9 cards with episode badges */}
+      <RecentlyReleased navigate={navigate} trending={trending} />
 
       {/* Must Watch Anime — curated editorial row with ambient color glow */}
       <MustWatchAnime topRated={topRated} navigate={navigate} />

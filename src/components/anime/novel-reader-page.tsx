@@ -546,7 +546,7 @@ function VoiceAssistant({
       const v = window.speechSynthesis.getVoices();
       setVoices(v);
       // Prefer English voices
-      const eng = v.find(v => v.lang.startsWith("en") && v.name.includes("Google")) || v.find(v => v.lang.startsWith("en"));
+      const eng = v.find(v => String(v.lang).startsWith("en") && v.name.includes("Google")) || v.find(v => String(v.lang).startsWith("en"));
       if (eng && !voiceURI) setVoiceURI(eng.voiceURI);
     };
     loadVoices();
@@ -756,7 +756,7 @@ function VoiceAssistant({
                     onChange={e => setVoiceURI(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white outline-none focus:border-white/30"
                   >
-                    {voices.filter(v => v.lang.startsWith("en")).map(v => (
+                    {voices.filter(v => String(v.lang).startsWith("en")).map(v => (
                       <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>
                     ))}
                   </select>

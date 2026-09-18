@@ -156,6 +156,10 @@ function DashPlayer({
 interface WatchPageProps {
   animeId: string;
   episodeNum: number;
+  /** Optional language hint from URL (/watch/{id}/{ep}/{lang}). When set,
+   *  the watch page auto-selects a server of that language on load.
+   *  e.g. "hindi" → picks AnimeSalt Hindi or other Hindi dub server. */
+  language?: string;
 }
 
 interface StreamData {
@@ -187,6 +191,10 @@ interface StreamData {
   tried_providers?: string[];
   all_providers?: string[];
   _fallback?: boolean;
+  hardsub?: boolean; // true = subtitles are burned into the video (don't show external subs)
+  // ── Client-side megaplay resolution ──
+  megaplayFileId?: string;
+  megaplayAudio?: 'sub' | 'dub';
 }
 
 interface EpisodeItem {
@@ -358,7 +366,7 @@ const PROVIDER_PRIORITY = [
   "bee", "miku", "zoro", "arc", "jet",
 ];
 
-export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
+export default function WatchPage({ animeId, episodeNum, language }: WatchPageProps) {
   const navigate = useAppStore(s => s.navigate);
   const addToHistory = useAppStore(s => s.addToHistory);
   const updateHistoryProgress = useAppStore(s => s.updateHistoryProgress);
@@ -378,6 +386,12 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   // ── Stream State ──
   const [streamData, setStreamData] = useState<StreamData | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
+
+  // ── Fullscreen Retain ──
+  // Track whether we were fullscreen BEFORE switching episodes,
+  // so we can re-enter fullscreen after the new player mounts.
+  const wasFullscreenRef = useRef(false);
+  const fullscreenRetain = prefs.fullscreenRetain;
   const [hasShownLoadingScreen, setHasShownLoadingScreen] = useState(false);
   const [activeProvider, setActiveProvider] = useState("kiwi");
   /**
@@ -390,7 +404,40 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
    * "sub" and "hardsub" both map to type="sub" servers (just filtered by
    * the `hardsub` flag on each server).
    */
-  const [translation, setTranslation] = useState<"sub" | "hardsub" | "dub" | "hindi">("sub");
+  // ── Initialize translation from the user's preferred language setting ──
+  // If the user set "Dub" in Settings, default to dub on every watch page.
+  // URL language hints override this (e.g. /watch/123/1/hindi → hindi).
+  const [translation, setTranslation] = useState<"sub" | "hardsub" | "dub" | "hindi">(
+    prefs.preferredLanguage === "dub" ? "dub" : "sub"
+  );
+
+  // ── URL language hint → auto-switch translation tab on mount ──
+  // When user lands on /watch/{id}/{ep}/{lang}, set the translation tab to
+  // match. This works WITH the auto-select logic in tryAutoSelect() —
+  // together they ensure the player loads the correct language server
+  // automatically.
+  //   /watch/123/1/hindi → translation="hindi" → AnimeSalt Hindi auto-selected
+  //   /watch/123/1/tamil → translation="hindi" (Tamil servers live under Hindi tab)
+  //   /watch/123/1/telegu → translation="hindi"
+  //   /watch/123/1/english → translation="sub"
+  //   /watch/123/1/japanese → translation="sub"
+  // Indian languages (hindi/tamil/telugu/...) all map to the "hindi" tab
+  // because that's where AnimeSalt servers are categorized.
+  useEffect(() => {
+    if (!language) return;
+    const lc = language.toLowerCase();
+    const INDIAN_LANGS = new Set([
+      "hindi", "tamil", "telugu", "malayalam", "bengali", "marathi", "kannada",
+    ]);
+    if (INDIAN_LANGS.has(lc)) {
+      console.log(`[WatchPage] URL language=${lc} → translation="hindi"`);
+      setTranslation("hindi");
+    } else if (lc === "english" || lc === "japanese") {
+      console.log(`[WatchPage] URL language=${lc} → translation="sub"`);
+      setTranslation("sub");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [failedProviders, setFailedProviders] = useState<Set<string>>(new Set());
   const [dubAvailable, setDubAvailable] = useState(false);
@@ -404,7 +451,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   interface ServerEntry {
     id: string;
     name: string;
-    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap" | "anilight" | "kyren" | "anikage" | "mioanime" | "anixtv" | "anistream" | "anikuro" | "anipm" | "animeheaven" | "aniwaves" | "anidb" | "anikoto" | "anineko" | "anineko-to" | "anichi" | "allmanga" | "animo4" | "animostream" | "anibd" | "watchanimeworld" | "uniquestream";
+    source: "animex" | "anivault" | "anivexa" | "senshi" | "anidap"  | "mioanime" | "animesalt" | "anistream" | "anikuro"  | "aniwaves" | "anidb" | "anikoto" | "anineko" | "anineko-to" | "anichi" | "allmanga" | "animo4" | "animostream" | "anibd" | "anidao" | "byse" | "watchanimeworld" | "uniquestream" | "blakite" | "desidub" | "miruro" | "animepahe" | "animeonsen" | "anikage" | "mkissa" | "anivexa" | "xanime" | "senshi", "senshi"; // removed: reanime, animeheaven (Shanks), reanimate, luna, anixtv (replaced by animesalt), anikoto-mirror (wrong anime match), anilight (user requested removal)
     provider: string;
     type: "sub" | "dub";
     quality?: string;
@@ -424,6 +471,9 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     subtitleTracks?: Array<{ url: string; lang: string; label: string }>;
     intro?: { start: number; end: number } | null;
     outro?: { start: number; end: number } | null;
+    /** Megaplay fileId for client-side resolution (bypasses VPS IP block) */
+    megaplayFileId?: string;
+    megaplayAudio?: 'sub' | 'dub';
   }
   /**
    * Servers from `incoming` that aren't already in `prev` — deduped WITHIN the
@@ -436,33 +486,25 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
    * which can duplicate or drop entries.
    */
   const dedupeNew = useCallback((prev: ServerEntry[], incoming: ServerEntry[]): ServerEntry[] => {
-    const seen = new Set(prev.map(s => s.id));
+    const seenIds = new Set(prev.map(s => s.id));
+    const seenUrls = new Set(prev.map(s => s.streamUrl || ""));
     const out: ServerEntry[] = [];
     for (const s of incoming) {
-      if (!s?.id || seen.has(s.id)) continue;
-      seen.add(s.id);
+      if (!s?.id || seenIds.has(s.id)) continue;
+      // Also dedupe by streamUrl — prevents same m3u8 from appearing twice
+      // under different server names (e.g., "Dao HD-1" from bibiemb + vivibebe)
+      if (s.streamUrl && seenUrls.has(s.streamUrl)) continue;
+      seenIds.add(s.id);
+      if (s.streamUrl) seenUrls.add(s.streamUrl);
       out.push(s);
     }
     return out;
   }, []);
 
-  // Fetch with timeout — prevents dead server endpoints from hanging forever
-  const fetchServers = useCallback(async (url: string, timeoutMs = 15000): Promise<any> => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-      if (!res.ok) return null;
-      return await res.json();
-    } catch {
-      clearTimeout(timeout);
-      return null;
-    }
-  }, []);
-
   const [serverList, setServerList] = useState<ServerEntry[]>([]);
   const [selectedServer, setSelectedServer] = useState<string>(""); // server id
+  const selectedServerRef = useRef(selectedServer);
+  selectedServerRef.current = selectedServer;
 
   // ── Anime Data ──
   const [episodeList, setEpisodeList] = useState<EpisodeItem[]>([]);
@@ -480,24 +522,17 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   const [animeNextAiring, setAnimeNextAiring] = useState<{ episode: number; airingAt: number } | null>(null);
   // Skip times — PERSISTENT across provider switches.
   // PRIMARY: AniSkip (community DB — most reliable, well-tested)
-  // BACKUP: AniKage (works for ALL anime including new ones, but times
-  //         are sometimes misaligned with non-AniKage streams)
-  // The instant-servers API returns AniKage intro/outro on every server
-  // entry, but we ALSO fetch from AniSkip separately and PREFER it because
-  // AniKage times are sometimes off (wrong episode cut, recap offset, etc).
   const [aniskipData, setAniskipData] = useState<{ intro: { start: number; end: number } | null; outro: { start: number; end: number } | null }>({ intro: null, outro: null });
-  // AniKage skip times stored separately so we can prefer AniSkip when both exist.
-  const [anikageData, setAnikageData] = useState<{ intro: { start: number; end: number } | null; outro: { start: number; end: number } | null }>({ intro: null, outro: null });
-  // Effective skip times: AniSkip wins, AniKage fallback.
-  // Both are validated again here as defense-in-depth — even if a provider
+  // Effective skip times: AniSkip.
+  // Validated again here as defense-in-depth — even if a provider
   // slips {start: 0, end: 0} through, the validator catches it before
   // it reaches the player. This prevents the "outro button shows at anime
   // start" bug where bad outro data (start=0) made the button appear
   // immediately when the video loaded.
   const effectiveSkip = useMemo(() => ({
-    intro: validateSkipTime(aniskipData.intro || anikageData.intro || null, "intro"),
-    outro: validateSkipTime(aniskipData.outro || anikageData.outro || null, "outro"),
-  }), [aniskipData, anikageData]);
+    intro: validateSkipTime(aniskipData.intro || null, "intro"),
+    outro: validateSkipTime(aniskipData.outro || null, "outro"),
+  }), [aniskipData]);
 
   // ── Providers Map ──
   const [providersMap, setProvidersMap] = useState<Record<string, ProviderEpisodes>>({});
@@ -520,8 +555,13 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   const setAutoSkip = (v: boolean) => setPref("autoSkip", v);
   const skipFiller = prefs.skipFillers;
   const setSkipFiller = (v: boolean) => setPref("skipFillers", v);
+  const setFullscreenRetain = (v: boolean) => setPref("fullscreenRetain", v);
   const [flipLayout, setFlipLayout] = useState(false);
   const [lightsOff, setLightsOff] = useState(false);
+  // Theater mode — separate from lightsOff. Theater mode just widens the
+  // player (from 74% to ~90% width) and moves the sidebar below. NO dimming.
+  // lightsOff is a separate toggle that dims the page around the player.
+  const [theaterMode, setTheaterMode] = useState(false);
 
   // ── Relations & Recommendations ──
   const [relations, setRelations] = useState<RelationAnime[]>([]);
@@ -531,19 +571,35 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   // ── Callbacks (declared BEFORE effects that reference them) ──
 
   const switchEpisode = useCallback((epNum: number) => {
+    // Capture fullscreen state BEFORE navigating (which unmounts the player)
+    if (fullscreenRetain) {
+      wasFullscreenRef.current = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+    }
     navigate({ page: "watch", id: animeId, episode: epNum, title: animeTitle, image: animeImage });
-  }, [navigate, animeId, animeTitle, animeImage]);
+  }, [navigate, animeId, animeTitle, animeImage, fullscreenRetain]);
 
   // ── Scraper fallback state (now used as a simple retry token) ──
   const [scraperFallbackToken, setScraperFallbackToken] = useState(0);
   const [scraperSitesTried, setScraperSitesTried] = useState<string[]>([]);
 
   const handleProviderFailed = useCallback((_provider: string) => {
-    // Simple retry — re-fetch from Miruro direct
-    // (miruro-direct tries all 12 providers internally, so a retry may pick a different one)
-    setStreamError("Stream failed. Retrying...");
-    setStreamLoading(true);
-    setScraperFallbackToken(t => t + 1);
+    // ── USER REQUEST: NO AUTO-FALLBACK ──
+    // User said: "after few times it switch again dont this should not happen"
+    // Previously this function would auto-switch to the next server when the
+    // current one had a 403/network error. That caused mid-playback stream
+    // switches when a CDN momentarily rate-limited (which is normal — hls.js
+    // retries automatically with backoff).
+    //
+    // Now: do nothing on transient errors. Let hls.js retry the same stream
+    // via its built-in fragLoadingMaxRetry (3 retries with backoff).
+    // Only if the user manually clicks another server do we switch.
+    //
+    // We still clear the loading state so the spinner doesn't spin forever
+    // if the stream truly is dead (in which case the user can manually
+    // pick another source from the picker).
+    console.log(`[WatchPage] Provider ${_provider} reported failure — keeping current selection (no auto-switch)`);
+    setStreamError(null);
+    setStreamLoading(false);
   }, []);
 
   // ── Scraper retry effect: fires when handleProviderFailed triggers ──
@@ -619,6 +675,34 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     setFailedProviders(new Set());
     setStreamError(null);
 
+    // ── Update URL to reflect the chosen language ──
+    // When the user picks a tab, push a new URL so the language is shareable:
+    //   Hindi tab  → /watch/{id}/{ep}/hindi  (covers Hindi/Tamil/Telugu/Malayalam/etc)
+    //   Sub tab    → /watch/{id}/{ep}        (default — no language suffix)
+    //   Dub tab    → /watch/{id}/{ep}        (default — no language suffix)
+    //   Hardsub tab → /watch/{id}/{ep}        (default — no language suffix)
+    // We use history.replaceState (not pushState) so each tab click doesn't
+    // pollute the back button history — only direct URL navigation creates
+    // a back/forward entry.
+    if (typeof window !== "undefined") {
+      const newLang = t === "hindi" ? "hindi" : null;
+      const currentPath = window.location.pathname;
+      // Strip any existing /{lang} suffix from the path
+      // Match pattern: /watch/{id}/{ep}[/{lang}]
+      const m = currentPath.match(/^(\/watch\/[^/]+\/\d+)(?:\/[a-z]+)?\/?$/i);
+      if (m) {
+        const basePath = m[1];
+        const newPath = newLang ? `${basePath}/${newLang}` : basePath;
+        if (newPath !== currentPath) {
+          window.history.replaceState(null, "", newPath);
+          console.log(`[WatchPage] URL updated → ${newPath} (tab=${t})`);
+        }
+      }
+    }
+
+    // Allowed sources for sub/dub/hardsub (all non-Hindi sources — same as Vercel)
+    const ALLOWED = new Set(["anineko", "anineko-to", "anikoto", "anichi", "animex", "anidap", "anidb", "miruro", "animepahe", "anikuro", "mioanime", "anistream", "animeonsen", "anivexa", "anivault", "senshi", "animo4", "anibd", "anidao", "byse", "uniquestream", "anikage", "anidap", "mkissa", "anivexa-backup", "animexone", "reanimate", "xanime", "senshi"]); // removed: reanime, anikai, animeheaven
+
     // Auto-select the best server for the new translation mode.
     // This way the user doesn't have to manually pick a server when switching.
     setSelectedServer(prev => {
@@ -627,27 +711,35 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       let best: ServerEntry | undefined;
 
       if (t === "hindi") {
-        // Hindi: prefer AnixTV hindi_1, then animostream (also Hindi dub),
-        // then any anixtv server (TryEmbed etc. with hindi dub via audio track)
-        best = serverList.find(s => s.source === "anixtv" && s.provider === "hindi_1")
-            || serverList.find(s => s.source === "animostream")
-            || serverList.find(s => s.source === "anixtv");
+        // Hindi: prefer AnimeSalt Hindi (multi-audio, direct m3u8), then fall
+        // back to any other animesalt language (Tamil/Telugu/etc — same stream,
+        // different audio track picked by the player).
+        // AnixTV removed — anixtv.in is offline. Replaced by animesalt.cx.
+        best = serverList.find(s => s.source === "animesalt" && s.provider === "hindi")
+            || serverList.find(s => s.source === "animesalt");
       } else if (t === "dub") {
-        // Dub: find dub server (not anixtv hindi_1, not animostream which is Hindi-only)
-        best = serverList.find(s => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+        // Dub: find dub server from allowed sources only
+        // Priority: Dao (Dub)  AniNeko > AnimeX mimi > AniKoto > other dub
+        best = serverList.find(s => (s.source === "anidao" || s.id?.includes("anidao")) && s.type === "dub" && !s.isEmbed)
+            || serverList.find(s => (s.source === "anineko-to" || s.source === "anineko" || s.id?.includes("anineko")) && s.type === "dub" && !s.isEmbed)
+            || serverList.find(s => s.id === "animex:mimi:dub")
+            || serverList.find(s => (s.source === "anikoto" || s.source === "anichi" || s.id?.includes("anikoto") || s.id?.includes("anichi")) && s.type === "dub" && !s.isEmbed)
+            || serverList.find(s => s.type === "dub" && ALLOWED.has(s.source))
             || serverList.find(s => s.type === "dub");
       } else if (t === "hardsub") {
-        // Hardsub: prefer 4animo, then true hardsub servers
-        best = serverList.find(s => s.source === "animo4" && s.type === "sub")
+        // Hardsub: true hardsub servers from allowed sources
+        best = serverList.find(s => s.type === "sub" && s.hardsub === true && ALLOWED.has(s.source))
             || serverList.find(s => s.type === "sub" && s.hardsub === true)
-            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+            || serverList.find(s => s.type === "sub" && ALLOWED.has(s.source))
             || serverList.find(s => s.type === "sub");
       } else {
-        // Sub (default): find softsub server, prefer mimi.
-        // Exclude AnixTV + AnimoStream (Hindi-only sources).
-        best = serverList.find(s => s.id === "animex:mimi:sub")
-            || serverList.find(s => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
-            || serverList.find(s => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
+        // Priority: Chopper HD (AniNeko) → Inazuma Sub (AniKoto) → Dao HD → others
+        best = serverList.find(s => (s.source === "anineko-to" || s.source === "anineko" || s.id?.includes("anineko")) && s.type === "sub" && !s.isEmbed && !s.hardsub)
+            || serverList.find(s => (s.source === "anikoto" || s.source === "anichi" || s.id?.includes("anikoto") || s.id?.includes("anichi")) && s.type === "sub" && !s.isEmbed)
+            || serverList.find(s => (s.source === "anidao" || s.id?.includes("anidao")) && s.type === "sub" && !s.isEmbed && !s.hardsub)
+            || serverList.find(s => s.id === "animex:mimi:sub")
+            || serverList.find(s => s.type === "sub" && s.hardsub !== true && ALLOWED.has(s.source))
+            || serverList.find(s => s.type === "sub" && ALLOWED.has(s.source))
             || serverList.find(s => s.type === "sub");
       }
 
@@ -698,7 +790,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
               info.coverImage?.extraLarge || info.coverImage?.large || ""
             );
             setAnimeDescription(
-              info.description?.replace(/<[^>]*>/g, "") || ""
+              String(info?.description || "").replace(/<[^>]*>/g, "") || ""
             );
             if (info.id && !anilistId) setAnilistId(info.id);
             if (info.status) setAnimeStatus(info.status);
@@ -777,7 +869,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
 
   // ── Load episodes ──
   // PRIMARY: AniList (always works, has episode count + streamingEpisodes with thumbnails)
-  // THUMBNAIL FALLBACK: Lunar scraper (real per-episode scene stills on fetch.flixcloud.cc)
+  // THUMBNAIL FALLBACK: Animex scraper (real episode titles)
   // TITLE FALLBACK: Animex scraper (real episode titles)
   // PROVIDER IDS: Miruro direct (for streaming provider IDs only)
   // The /api/anime/episodes endpoint is NOT used — it returns broken AllAnime thumbnails
@@ -791,10 +883,10 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
         // ── STEP 1: AniList ONLY (FAST — shows episodes immediately) ──
         // AniList gives episode COUNT via Media.episodes (finished) or
         //   nextAiringEpisode.episode-1 (ongoing — how many have shipped)
-        // We fetch Lunar + Animex enrichment data in the BACKGROUND (Step 2)
+        // We fetch Animex enrichment data in the BACKGROUND (Step 2)
         // so episodes show instantly without waiting for 3 API calls.
         const alRes = await Promise.race([
-          fetch("https://graphql.anilist.co", {
+          fetch("/api/anilist", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -843,37 +935,44 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           } catch { /* parse error */ }
         }
 
-        // ── Lunar + Animex enrichment happens in BACKGROUND (Step 2) ──
-        // For now, use empty maps — episodes show instantly from AniList data.
-        // Lunar thumbnails + Animex titles will be merged in later.
-        const lunarByNum = new Map<number, any>();
+        // ── Animex enrichment happens in BACKGROUND (Step 2) ──
+        // For now, use empty map — episodes show instantly from AniList data.
+        // Animex titles will be merged in later.
         const animexByNum = new Map<number, any>();
 
-        // Fetch Lunar + Animex in background (don't block episode display)
+        // Fetch Animex in background (don't block episode display)
         (async () => {
           try {
-            const [lunarRes, animexRes] = await Promise.allSettled([
-              fetch(`/api/anime/scraper/episodes/lunar/${anilistId}`).then(r => r.ok ? r.json() : null),
+            const [animexRes] = await Promise.allSettled([
               fetch(`/api/anime/scraper/episodes/animex/${anilistId}`).then(r => r.ok ? r.json() : null),
             ]);
             if (cancelled) return;
 
-            const lunarEps = lunarRes.status === 'fulfilled' && lunarRes.value?.episodes ? lunarRes.value.episodes : [];
             const animexEps = animexRes.status === 'fulfilled' && animexRes.value?.episodes ? animexRes.value.episodes : [];
 
-            if (lunarEps.length === 0 && animexEps.length === 0) return;
+            if (animexEps.length === 0) return;
+
+            // WRONG-SEASON GUARD: if the scraper returned significantly more
+            // episodes than AniList says this season has, the scraper matched
+            // the wrong season via title search (e.g. Slime S2 anilistId →
+            // scraper matched S1's 24-26 episode entry). Drop the enrichment
+            // entirely — those titles belong to a different season.
+            const maxScraperEp = Math.max(...animexEps.map((e: any) => Number(e.number) || 0));
+            if (
+              totalEps > 0 && maxScraperEp > totalEps &&
+              (maxScraperEp >= totalEps * 1.5 || maxScraperEp - totalEps >= 2)
+            ) {
+              console.warn(
+                `[watch-page] Discarding animex enrichment: scraper returned ${maxScraperEp} eps ` +
+                `but AniList says ${totalEps} — likely wrong-season match (anilistId=${anilistId})`
+              );
+              return;
+            }
 
             // Merge enrichment data into existing episode list
             setEpisodeList(prev => {
               if (prev.length === 0) return prev;
               const updated = [...prev];
-              for (const ep of lunarEps) {
-                const num = Number(ep.number);
-                const idx = updated.findIndex(e => e.number === num);
-                if (idx >= 0 && ep.thumbnail && !updated[idx].thumbnail) {
-                  updated[idx] = { ...updated[idx], thumbnail: ep.thumbnail };
-                }
-              }
               for (const ep of animexEps) {
                 const num = Number(ep.number);
                 const idx = updated.findIndex(e => e.number === num);
@@ -914,17 +1013,13 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
             });
           });
 
-          // 2) Fill remaining episodes using Lunar thumbnails + Animex titles
+          // 2) Fill remaining episodes using Animex titles
           if (finalTotal > 0) {
             for (let i = 1; i <= finalTotal; i++) {
               if (!all.has(i)) {
-                const lunarEp = lunarByNum.get(i);
                 const animexEp = animexByNum.get(i);
-                const title = animexEp?.title || lunarEp?.title || `Episode ${i}`;
-                // Lunar thumbnails on fetch.flixcloud.cc work directly in browsers
-                // (Cloudflare only blocks data center IPs, not residential browsers).
-                // Do NOT proxy through /api/image-proxy — Vercel's IP gets 403.
-                const thumb = lunarEp?.thumbnail || null;
+                const title = animexEp?.title || `Episode ${i}`;
+                const thumb = undefined;
                 all.set(i, {
                   number: i,
                   title,
@@ -1063,31 +1158,18 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     setHasShownLoadingScreen(false);
   }, [anilistId]);
 
-  // ── Fetch AniKoto + AniNeko.to servers when the anime title is available ──
-  // These providers need the title to search for the anime on their site.
-  // They have their own dedicated endpoints (separate from instant-servers)
-  // so they don't block or get blocked by other providers.
-  // Called in parallel when animeTitle changes from "" to the real title.
+  // ── Fetch AniNeko.to servers — START IMMEDIATELY (don't wait for animeTitle) ──
+  // AniNeko.to has its own dedicated endpoint for reliability.
+  // The server endpoint resolves the title from AniList cache if not provided.
   useEffect(() => {
-    if (!anilistId || !animeTitle) return;
+    if (!anilistId) return;
     let cancelled = false;
 
-    // Fetch AniKoto servers (direct m3u8 + subtitles + skip times)
-    fetch(`/api/anime/anichi-servers/${anilistId}/${episodeNum}?title=${encodeURIComponent(animeTitle)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          if (newServers.length === 0) return prev;
-          console.log(`[WatchPage] AniKoto: added ${newServers.length} servers`);
-          return [...prev, ...newServers];
-        });
-      })
-      .catch(() => { /* best-effort */ });
+    // Build URL — include title if available for faster server-side resolution
+    const titleParam = animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : "";
 
     // Fetch AniNeko.to servers (direct m3u8 + soft sub subtitles)
-    fetch(`/api/anime/anineko-to-servers/${anilistId}/${episodeNum}?title=${encodeURIComponent(animeTitle)}`)
+    fetch(`/api/anime/anineko-to-servers/${anilistId}/${episodeNum}${titleParam}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (cancelled || !data?.servers?.length) return;
@@ -1095,17 +1177,30 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
           const newServers = dedupeNew(prev, data.servers);
           if (newServers.length === 0) return prev;
           console.log(`[WatchPage] AniNeko.to: added ${newServers.length} servers`);
-          return [...prev, ...newServers];
+          const combined = [...prev, ...newServers];
+          // Update availability flags
+          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub"));
+          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub"));
+          setStreamLoading(false);
+          return combined;
         });
-        // Auto-select AniNeko as PRIMARY default (overrides non-anineko selections)
+        // Auto-select AniNeko (Chopper HD) — but ONLY if nothing better is already selected.
+        // Priority: Chopper HD (AniNeko) → Inazuma Sub (AniKoto) → Dao HD
+        // IMPORTANT: Skip hardsub servers — pick soft-sub (no hardsub flag) first.
+        // Also: DON'T guard with "if prev includes anineko" — the AniNeko useEffect
+        // runs twice (once with partial server list, once with full list). The first
+        // run might pick a hardsub server, the second run has the full list and can
+        // pick the better soft-sub server. We MUST allow overriding the first pick.
         setSelectedServer(prev => {
-          // If anineko/anichi is already selected, keep it
-          if (prev && (prev.includes("anineko") || prev.includes("anichi"))) return prev;
-          const subServer = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
-          if (subServer) {
-            setStreamLoading(false);
-            console.log(`[WatchPage] AniNeko auto-selected (PRIMARY): ${subServer.id}`);
-            return subServer.id;
+          // Only keep prev if it's NOT an anineko server (something better already selected)
+          if (prev && !prev.includes("anineko")) return prev;
+          // First try: soft-sub, non-embed (best — has separate subtitle tracks)
+          const subServer = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed && !s.hardsub);
+          // Fallback: any non-embed sub server (including hardsub)
+          const fallbackServer = subServer || data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
+          if (fallbackServer) {
+            console.log(`[WatchPage] AniNeko auto-selected: ${fallbackServer.id}`);
+            return fallbackServer.id;
           }
           return prev;
         });
@@ -1115,70 +1210,59 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     return () => { cancelled = true; };
   }, [anilistId, episodeNum, animeTitle]);
 
-  // ── AnixTV Hindi dub (standalone, fast) ──
-  // Deliberately NOT waiting on animeTitle: the endpoint resolves the title
-  // itself, and Hindi used to be the one mode that never arrived because it was
-  // stuck behind the 17-provider /api/anime/servers fan-out.
+  // ── AniDao — dedicated effect that WAITS for the title before fetching ──
+  // AniDao's scraper needs the English title to resolve the slug on anidao.to
+  // (e.g. "One Piece" → /anime/one-piece). Without the title, it returns 0
+  // servers. The main server-fetch effect runs before the title arrives from
+  // AniList, so we need this separate effect that depends on animeTitle.
+  useEffect(() => {
+    if (!anilistId || !animeTitle) return; // wait for title
+    let cancelled = false;
+
+    const titleParam = `?title=${encodeURIComponent(animeTitle)}`;
+    fetch(`/api/anime/anidao-servers/${anilistId}/${episodeNum}${titleParam}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data?.servers?.length) return;
+        setServerList(prev => {
+          const newServers = dedupeNew(prev, data.servers);
+          if (newServers.length === 0) return prev;
+          console.log(`[WatchPage] AniDao: added ${newServers.length} servers (title="${animeTitle}")`);
+          const combined = [...prev, ...newServers];
+          serverListRef.current = combined;
+          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub"));
+          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub"));
+          return combined;
+        });
+        // Try auto-select — Dao is #1 priority
+        tryAutoSelectRef.current?.(data.servers);
+      })
+      .catch(() => { /* best-effort */ });
+
+    return () => { cancelled = true; };
+  }, [anilistId, episodeNum, animeTitle]);
+  // ── AnimeSalt Hindi/Tamil/Telugu/English/Japanese multi-audio (standalone) ──
+  // AnimeSalt.cx hosts multi-audio HLS streams via the ASCDN player.
+  // Replaces the old AnixTV scraper (anixtv.in is now offline).
+  // Returns one server per detected language (Hindi, Tamil, Telugu, English,
+  // Japanese, Malayalam, Bengali, Marathi, Kannada — depending on availability).
+  // All languages resolve to the SAME multi-audio m3u8 — the player picks the
+  // audio track via the HLS audio group.
+  //
+  // ── AnimeSalt + other Hindi sources ──
   useEffect(() => {
     if (!anilistId) return;
     let cancelled = false;
 
-    fetch(`/api/anime/anixtv-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
+    // AnimeSalt
+    fetch(`/api/anime/animesalt-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (cancelled || !data?.servers?.length) return;
         setServerList(prev => {
           const newServers = dedupeNew(prev, data.servers);
           if (newServers.length === 0) return prev;
-          console.log(`[WatchPage] AnixTV Hindi: added ${newServers.length} server(s), season ${data.season}`);
-          setHindiAvailable(true);
-          return [...prev, ...newServers];
-        });
-      })
-      .catch(() => { /* best-effort */ });
-
-    // AnimoStream Hindi dub — the fallback when AnixTV has nothing. Only
-    // carries ~250 titles, so an empty result is normal, not an error.
-    fetch(`/api/anime/animostream-hindi/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          if (newServers.length === 0) return prev;
-          console.log(`[WatchPage] AnimoStream Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
-          setHindiAvailable(true);
-          return [...prev, ...newServers];
-        });
-      })
-      .catch(() => { /* best-effort */ });
-
-    // WatchAnimeWorld.top Hindi dub — multi-audio Indian dub site.
-    // Resolves m3u8 via Zephyrix Fire HLS Player API or offers embed fallback.
-    fetch(`/api/anime/watchanimeworld-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          if (newServers.length === 0) return prev;
-          console.log(`[WatchPage] WatchAnimeWorld Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
-          setHindiAvailable(true);
-          return [...prev, ...newServers];
-        });
-      })
-      .catch(() => { /* best-effort */ });
-
-    // DesiDubAnime Hindi dub — cloud/no-ads + other servers from scraped database.
-    // 494 anime with Hindi dubs, auto-updated by scripts/desidub-updater.py.
-    fetch(`/api/anime/desidub-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          if (newServers.length === 0) return prev;
-          console.log(`[WatchPage] DesiDubAnime Hindi: added ${newServers.length} server(s) (matched "${data.matchedTitle}")`);
+          console.log(`[WatchPage] AnimeSalt: added ${newServers.length} server(s), languages: ${(data.languages || []).join(", ")}, slug: ${data.matchedSlug}, season ${data.season}`);
           setHindiAvailable(true);
           return [...prev, ...newServers];
         });
@@ -1193,298 +1277,352 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   // effect below (line ~575) which uses the verified streamUrl from /api/anime/servers.
   // The old effect was competing with the new one and overriding the stream data.
 
-  // ── Fetch VERIFIED server list (all streams checked in parallel) ──
-  // Takes ~4s but every server shown WILL play. No dead servers.
-  // Each server includes a ready-to-play streamUrl — switching is instant.
+  // ── Client-side server cache (5min TTL) ──
+  // Prevents re-fetching all 14+ API endpoints on every mount/episode change.
+  // Keyed by URL, stores {data, timestamp}. Expired entries purged on access.
+  const serverCacheRef = useRef<Map<string, { data: any; ts: number }>>(new Map());
+  const serverListRef = useRef<ServerEntry[]>([]);
+  const tryAutoSelectRef = useRef<(servers: ServerEntry[], delay?: number) => void>(() => {});
+  const SERVER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  const cachedFetch = useCallback(async (url: string, timeoutMs: number = 15000): Promise<any | null> => {
+    const cache = serverCacheRef.current;
+    const cached = cache.get(url);
+    if (cached && Date.now() - cached.ts < SERVER_CACHE_TTL) {
+      console.log(`[ServerCache] HIT ${url}`);
+      return cached.data;
+    }
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const r = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!r.ok) return null;
+      const data = await r.json();
+      cache.set(url, { data, ts: Date.now() });
+      return data;
+    } catch (err) {
+      console.warn(`[cachedFetch] FAILED ${url} — ${err instanceof Error ? err.message : 'unknown'}`);
+      return null;
+    }
+  }, []);
+
+  // ── Fetch server list — EACH SOURCE FETCHED INDEPENDENTLY ──
+  // No instant-servers mega-bundle. No slow/fast group fetches.
+  // Each source has its own API route and fetches independently.
+  // If one source is slow/times out, the others still arrive and show.
+  // Priority: anineko → anikoto → animex → anidap → anilight → anidb → miruro
   useEffect(() => {
     if (!anilistId) return;
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset of server state before re-fetching
+    // ── Reset server state for the new episode ──
+    // Clear selectedServer + serverList + serverListRef so auto-select picks
+    // a fresh server for the new episode. WITHOUT clearing these, stale ep 5
+    // servers would mix with new ep 6 servers in tryAutoSelect.
+    //
+    // DON'T clear serverCacheRef — it caches API responses by URL (which
+    // includes the episode number). The cache speeds up re-visits to the
+    // same episode. Each episode has a different URL so there's no cross-
+    // contamination. Clearing it would add 2-3 sec delay on every switch.
+    //
+    // NULL out streamData so the player UNMOUNTS — old video stops playing
+    // immediately. The "Loading episode X..." overlay shows on a black screen.
     setServerList([]);
     setSelectedServer("");
+    serverListRef.current = [];
     setStreamLoading(true);
     setStreamError(null);
     setStreamData(null);
     // Only show loading screen on FIRST visit (not episode changes)
-    // The loading screen is a one-time cinematic intro per anime
     if (!hasShownLoadingScreen) {
       setPlayerReady(false);
       setHasShownLoadingScreen(true);
     }
 
-    // Safety timeout: if no servers arrive within 20s, show error.
-    // Fast providers (AniNeko, mimi, AniDB, Kyren) arrive in 1-3s.
-    // Slow providers (AniDap, AniPm, Luna) arrive in 5-12s.
-    // 20s is generous — if nothing arrives by then, all servers are dead/down.
-    // Reduced from 30s — dead servers should fail fast, not make users wait.
-    const safetyTimeout = setTimeout(() => {
-      if (cancelled) return;
-      setServerList(prev => {
-        if (prev.length > 0) {
-          setStreamLoading(false);
-          return prev;
-        }
-        setStreamLoading(false);
-        setStreamError("Servers are taking too long to load. Try refreshing the page.");
-        return [];
-      });
-    }, 20000);
+    const ALLOWED_SOURCES = new Set([
+      "anineko", "anineko-to", "anikoto", "anichi", "animex", "anidap", "anidb", "miruro",
+      "animepahe", "anikuro", "mioanime", "anistream", "animeonsen", "anivexa", "anivault",
+      "senshi", "animo4", "anibd", "anidao", "byse", "uniquestream", "xanime", "senshi",
+    ]); // removed: animeheaven (Shanks — unreliable), luna, anilight (user requested removal)
+    const HINDI_SOURCES = new Set(["animostream", "watchanimeworld", "blakite", "desidub"]);
+    // AnimeSalt is multi-audio: it has Hindi/Tamil/Telugu (Indian) AND
+    // English/Japanese servers. Only the Indian-language AnimeSalt servers
+    // belong in the Hindi tab — English goes to Dub tab, Japanese goes to Sub.
+    const INDIAN_LANGS = new Set([
+      "hindi", "tamil", "telugu", "malayalam", "bengali", "marathi", "kannada",
+    ]);
+    const isHindiSource = (s: ServerEntry): boolean => {
+      if (s.source === "animesalt") {
+        // AnimeSalt: classify by provider (language name)
+        return INDIAN_LANGS.has((s.provider || "").toLowerCase());
+      }
+      return HINDI_SOURCES.has(s.source);
+    };
 
-    // ── Fetch INSTANT servers FIRST (AniDB, AniKoto, AniNeko) ──
-    // These are reliable providers that don't dead-link. They resolve
-    // in ~2-3 seconds and are auto-selected as the default.
-    // AniDB is priority 0 — always the first server shown.
-    const animeTitleForInstant = animeTitle || animeTitleRomaji || "";
-    fetchServers(`/api/anime/instant-servers/${anilistId}/${episodeNum}${animeTitleForInstant ? `?title=${encodeURIComponent(animeTitleForInstant)}` : ""}`, 15000)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          return [...prev, ...newServers];
-        });
-        // Auto-select the best server instantly.
-        // PRIORITY: AniNeko/AniChi > other non-embed sub > first available.
-        // AniNeko has the most reliable streams with soft subs, so we prefer it.
-        // Only auto-selects if no server is selected yet.
+    // Helper: merge new servers + update availability flags
+    const mergeServers = (sourceName: string, incoming: ServerEntry[]) => {
+      if (cancelled || !incoming.length) return;
+      setServerList(prev => {
+        const newServers = dedupeNew(prev, incoming);
+        if (newServers.length === 0) return prev;
+        const combined = [...prev, ...newServers];
+        serverListRef.current = combined; // keep ref in sync for tryAutoSelect
+        setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && !isHindiSource(s)));
+        setHardsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.hardsub === true));
+        setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && !isHindiSource(s)));
+        setHindiAvailable(combined.some((s: ServerEntry) => isHindiSource(s)));
+        if (combined.length > 0) setStreamLoading(false);
+        console.log(`[WatchPage] ${sourceName}: +${newServers.length} servers (total: ${combined.length})`);
+        return combined;
+      });
+    };
+
+    // Helper: auto-select best server (only if none selected yet)
+    // ── PRIORITY (user-reported: Inazuma is fastest, lock it once selected) ──
+    //   1. Inazuma Sub (AniKoto/AniChi) — Megaplay direct + VidWish subs
+    //      ✓ User says: "imazume is fastest comes fast... auto select imazume ok imazume sub ok dont swith ok"
+    //   2. Chopper HD (AniNeko/AniNeko-to) — vivibebe.site + anizara subs
+    //   3. Dao HD (AniDao) — vivibebe.site + anizara subs
+    //   4. Hancock/Megaplay direct
+    //   5. AniDap mimi / AnimeX mimi
+    //   6. Other
+    //
+    // IMPORTANT: Inazuma OVERRIDES any other selection when it arrives.
+    // User said: "auto select imazume server any even it take to much to show up"
+    // So even if Chopper/Dao was picked first (because Inazuma was slow to load),
+    // we switch to Inazuma the moment it arrives. Once Inazuma is selected, we
+    // stick with it (no more overrides).
+    const tryAutoSelect = (incomingServers: ServerEntry[], delay = 0) => {
+      if (!incomingServers.length) return;
+      const doSelect = () => {
         setSelectedServer(prev => {
-          if (prev) return prev; // don't override if already selected
-          if (data.servers.length > 0) {
-            setStreamLoading(false);
-            // 1. Prefer AniNeko/AniChi non-embed sub (most reliable)
-            const anineko = data.servers.find((s: ServerEntry) =>
-              (s.source === "anineko" || s.source === "anineko-to" || s.source === "anichi" || s.id?.includes("anineko") || s.id?.includes("anichi")) &&
+          // Use ALL accumulated servers + incoming for best pick
+          const allServers = [...serverListRef.current, ...incomingServers];
+
+          // ── PREFERRED SERVER (from Settings) ──
+          // If the user set a preferred server in Settings, try to select it
+          // when it arrives. This overrides Inazuma auto-select.
+          if (prefs.preferredServer && !language) {
+            const preferred = allServers.find(s => s.source === prefs.preferredServer);
+            if (preferred && prev !== preferred.id) {
+              console.log(`[WatchPage] Auto-selected (preferred server): ${preferred.id} (${preferred.name})`);
+              return preferred.id;
+            }
+          }
+
+          // ── INAZUMA OVERRIDE ──
+          // If Inazuma (AniKoto / AniChi) is available, ALWAYS prefer it.
+          // Even if another server was already selected, switch to Inazuma
+          // when it arrives. User explicitly wants Inazuma as the auto-select.
+          // (Unless we're matching a language hint from the URL — Hindi etc.)
+          // Skip this if the user has a preferred server set (handled above).
+          if (!language && !prefs.preferredServer) {
+            const inazumaNow = allServers.find(s =>
+              (s.source === "anikoto" || s.source === "anichi") &&
               s.type === "sub" && !s.isEmbed
             );
-            // 2. Fallback: any non-embed sub server
-            const firstSub = data.servers.find((s: ServerEntry) => s.type === "sub" && !s.isEmbed);
-            const pick = anineko || firstSub || data.servers[0];
-            console.log(`[WatchPage] Instant-auto-selected: ${pick.id} (from ${data.servers.length} servers)`);
-            return pick.id;
+            if (inazumaNow) {
+              // Switch to Inazuma if it wasn't already selected
+              if (prev !== inazumaNow.id) {
+                console.log(`[WatchPage] Auto-selected (Inazuma override): ${inazumaNow.id} (${inazumaNow.name})`);
+              }
+              return inazumaNow.id;
+            }
+          }
+
+          // ── NO OVERRIDE for non-Inazuma servers ──
+          // Once a server is selected (and it's not Inazuma being overridden),
+          // keep it. This prevents mid-playback switches between Chopper/Dao/etc.
+          if (prev) return prev;
+
+          // ── LANGUAGE HINT FROM URL (/watch/{id}/{ep}/{lang}) ──
+          // When user lands on /watch/123/1/hindi, auto-select a Hindi server
+          // BEFORE trying the default Inazuma→Chopper→Dao priority.
+          // Match by checking server.provider (lowercase language name like
+          // "hindi", "tamil", "telugu") and server.name (e.g. "AnimeSalt Hindi").
+          // Falls through to default priority if no matching server found yet
+          // (the user might land before AnimeSalt API returns, so we keep
+          // trying on each new batch of incoming servers).
+          if (language) {
+            const langLower = language.toLowerCase();
+            const langMatch = allServers.find(s => {
+              if (s.isEmbed) return false;
+              // Match provider (lowercase lang name) — e.g. provider="hindi"
+              if (s.provider && s.provider.toLowerCase() === langLower) return true;
+              // Match server name — e.g. "AnimeSalt Hindi", "AnimeSalt Tamil"
+              if (s.name && s.name.toLowerCase().includes(langLower)) return true;
+              // Match server id — e.g. "animesalt:hindi:..."
+              if (s.id && s.id.includes(`:${langLower}:`)) return true;
+              return false;
+            });
+            if (langMatch) {
+              console.log(`[WatchPage] Auto-selected (lang=${langLower}): ${langMatch.id} (${langMatch.name})`);
+              return langMatch.id;
+            }
+            // No matching server yet — fall through to default priority.
+            // tryAutoSelect() runs again when more servers arrive, so the
+            // language match will be retried on the next batch.
+          }
+
+          const inazuma = allServers.find(s =>
+            (s.source === "anikoto" || s.source === "anichi") &&
+            s.type === "sub" && !s.isEmbed
+          );
+          const chopper = allServers.find(s =>
+            (s.source === "anineko" || s.source === "anineko-to" || s.id?.includes("anineko")) &&
+            s.type === "sub" && !s.isEmbed && !s.hardsub
+          );
+          const dao = allServers.find(s =>
+            (s.source === "anidao" || s.id?.includes("anidao")) &&
+            s.type === "sub" && !s.isEmbed && !s.hardsub
+          );
+          const hancock = allServers.find(s =>
+            /megaplay/i.test(s.provider || "") &&
+            s.type === "sub" && !s.isEmbed
+          );
+          const anidapMimi = allServers.find(s =>
+            s.id === "anidap:mimi:sub" && s.type === "sub" && !s.isEmbed
+          );
+          const animexMimi = allServers.find(s =>
+            s.id === "animex:mimi:sub" && s.type === "sub" && !s.isEmbed
+          );
+          const anidap = allServers.find(s =>
+            s.source === "anidap" && s.type === "sub" && !s.isEmbed
+          );
+          const animex = allServers.find(s =>
+            s.source === "animex" && s.type === "sub" && !s.isEmbed
+          );
+          const firstSub = allServers.find(s => s.type === "sub" && !s.isEmbed);
+          // ── NEW PRIORITY: Inazuma first (fastest), then Chopper, then Dao ──
+          const pick = inazuma || chopper || dao || hancock || anidapMimi || animexMimi || anidap || animex || firstSub || allServers[0];
+
+          console.log(`[WatchPage] Auto-selected: ${pick.id} (source: ${pick.source})`);
+          return pick.id;
+        });
+      };
+      if (delay > 0) {
+        setTimeout(doSelect, delay);
+      } else {
+        doSelect();
+      }
+    };
+    // Store in ref so the separate AniDao effect can call it
+    tryAutoSelectRef.current = tryAutoSelect;
+
+    const animeTitleForFetch = animeTitle || animeTitleRomaji || "";
+
+    // ── 1. AniKoto (Inazuma) — SPLIT into FAST + FULL for instant first load ──
+    //
+    // PROBLEM: On fresh anime load, the full AniKoto scraper (Megaplay + raw
+    // AniKoto) takes 10-20s because raw AniKoto does title resolution, Jikan,
+    // episode list, server list, and per-server embed fetches sequentially.
+    // The 15s timeout often fires → 0 servers shown → user stares at loading.
+    //
+    // FIX: Call the FAST endpoint first (?fast=1) which returns ONLY Megaplay
+    // direct (sub+dub in parallel) in ~2-4s. This shows "Inazuma Sub/Dub"
+    // immediately. Then call the FULL endpoint (default) to get HD-1/HD-2/
+    // VidPlay servers, which merge in later.
+    cachedFetch(`/api/anime/anikoto-servers/${anilistId}/${episodeNum}?fast=1`, 8000).then(data => {
+      console.log(`[WatchPage] AniKoto FAST: ${data?.servers?.length ?? 0} servers`);
+      if (!data?.servers?.length) return;
+      mergeServers("AniKoto", data.servers);
+      tryAutoSelect(data.servers);
+    });
+
+    // Full AniKoto (Megaplay + raw HD-1/HD-2/VidPlay) — runs in background,
+    // merges when ready. Takes 8-15s but the user already has Inazuma Sub/Dub
+    // from the fast call above.
+    cachedFetch(`/api/anime/anikoto-servers/${anilistId}/${episodeNum}${animeTitleForFetch ? `?title=${encodeURIComponent(animeTitleForFetch)}` : ""}`, 25000).then(data => {
+      console.log(`[WatchPage] AniKoto FULL: ${data?.servers?.length ?? 0} servers`);
+      if (!data?.servers?.length) return;
+      mergeServers("AniKoto", data.servers);
+      tryAutoSelect(data.servers);
+    });
+
+    // AniLight REMOVED — user requested removal. API was unreliable and
+    // the servers it returned were often duplicates of other sources.
+
+    // ── 2. AniBD — independent fetch ──
+    cachedFetch(`/api/anime/anibd-servers/${anilistId}/${episodeNum}`, 45000).then(data => {
+      console.log(`[WatchPage] AniBD: ${data?.servers?.length ?? 0} servers`);
+      if (!data?.servers?.length) return;
+      mergeServers("AniBD", data.servers);
+    });
+
+    // ── 4. Xanime.me — multi-CDN m3u8 + soft sub VTTs (English/Indo/Malay/Thai/Viet) ──
+    // LIVE scraper — fetches fresh m3u8 URLs every time (no client-side cache).
+    // The m3u8 signatures expire every ~24h, so caching would serve stale URLs.
+    // Also, the sub/dub type detection depends on the LIVE page content, so
+    // caching could show a server in the wrong tab if the page changed.
+    //
+    // Direct fetch (NOT cachedFetch) — always gets the latest response.
+    {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
+      fetch(`/api/anime/xanime-servers/${anilistId}/${episodeNum}`, { signal: controller.signal })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          clearTimeout(timeout);
+          console.log(`[WatchPage] Xanime: ${data?.servers?.length ?? 0} servers${data?.reason ? ` (${data.reason})` : ""}`);
+          if (!data?.servers?.length) return;
+          // Log the type of each server so we can verify sub/dub classification
+          for (const s of data.servers) {
+            console.log(`  [Xanime] ${s.name}: type=${s.type} hardsub=${s.hardsub} subs=${(s.subtitleTracks || []).length}`);
+          }
+          mergeServers("Xanime", data.servers);
+          tryAutoSelect(data.servers);
+        })
+        .catch(() => { clearTimeout(timeout); /* best-effort */ });
+    }
+
+    // ── Senshi.to (Deo) — vidcloud API, clean m3u8 + subtitles ──
+    cachedFetch(`/api/anime/senshi-servers/${anilistId}/${episodeNum}${animeTitleForFetch ? `?title=${encodeURIComponent(animeTitleForFetch)}` : ""}`, 25000).then(data => {
+      console.log(`[WatchPage] Senshi: ${data?.servers?.length ?? 0} servers`);
+      if (!data?.servers?.length) return;
+      mergeServers("Senshi", data.servers);
+      tryAutoSelect(data.servers);
+    });
+
+    // ═══════ REMOVED DEAD SCRAPERS ═══════
+    // AniKai — REMOVED: flixcloud.cc uses Cloudflare Turnstile + WASM-encrypted m3u8
+    //          with IP-bound JWT tokens. Cannot be scraped server-side or proxied.
+    // AniChi — no logs at all, not running
+    // AniKage — 0 streams on ALL anime (koto/kiwi/wave/megg/dib all dead)
+    // AniDap — chad.anidap.lol rate-limited long-term, 0 streams on all anime
+    // Mkissa — api.mkissa.net returning 0 servers on all 15 attempts
+    // AniDB — uses chad.anidap.lol (dead), only "No match" errors
+    // 4animo — no logs at all, not running
+    // Byse — only "No match" errors on every anime
+    // AnimeX.one — no logs at all, not running
+    // Reanime — REMOVED (flixcloud.cc WASM encryption too complex, CDN blocks VPS IP)
+
+    // ── 19b. AniDao — REMOVED from main effect (now has dedicated effect above
+    //    that waits for animeTitle before fetching, since AniDao needs the title
+    //    for slug resolution on anidao.to) ──
+
+    // Safety: if no servers arrive after 15s, clear loading
+    // (was 25s — reduced because we removed 15+ dead/slow sources)
+    setTimeout(() => {
+      if (!cancelled) {
+        setServerList(prev => {
+          if (prev.length === 0) {
+            setStreamLoading(false);
+            setStreamError("No servers available for this episode.");
           }
           return prev;
         });
-      })
-      .catch(() => { /* instant servers are best-effort */ });
+      }
+    }, 15000);
 
-    // ── Fetch MIRURO V3 servers (api.luffytv.online) ──
-    // These are on a SEPARATE route from instant-servers.
-    // They merge in alongside the other providers.
-    fetchServers(`/api/anime/miruro-v3/servers/${anilistId}/${episodeNum}?sub=1&dub=1`, 10000)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          if (newServers.length === 0) return prev;
-          console.log(`[WatchPage] Miruro V3: added ${newServers.length} servers`);
-          const combined = [...prev, ...newServers];
-          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
-          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
-          return combined;
-        });
-      })
-      .catch(() => { /* miruro v3 is best-effort */ });
-
-    // The slow half (animex, anivault, animepahe, animeonsen, reanime,
-    // 4animo, anibd) runs as its own request so it gets a full serverless
-    // budget instead of being cut short to fit alongside the fast providers.
-    // It simply merges in whenever it lands — nothing is dropped for being slow.
-    fetchServers(`/api/anime/servers/${anilistId}/${episodeNum}?group=slow`, 20000)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          if (newServers.length === 0) return prev;
-          console.log(`[WatchPage] Slow providers: added ${newServers.length} servers`);
-          const combined = [...prev, ...newServers];
-          setDubAvailable(combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
-          setHardsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4")));
-          setSoftsubAvailable(combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld"));
-          return combined;
-        });
-      })
-      .catch(() => { /* best-effort — the fast half already populated the list */ });
-
-    fetchServers(`/api/anime/servers/${anilistId}/${episodeNum}?group=fast`, 15000)
-      .then(data => {
-        if (cancelled) return;
-        if (!data?.servers?.length) {
-          // Don't overwrite if animex servers already loaded (they arrive via separate fetch)
-          setServerList(prev => {
-            if (prev.length > 0) {
-              setStreamLoading(false);
-              return prev;
-            }
-            setStreamLoading(false);
-            setStreamError("No servers available for this episode.");
-            return [];
-          });
-          return;
-        }
-        // MERGE with existing servers (animex may have arrived first via separate fetch).
-        // Don't overwrite — append new servers that don't already exist.
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, data.servers);
-          const combined = [...prev, ...newServers];
-          // Update availability flags based on the combined list
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub");
-          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
-          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub");
-          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld" || s.source === "desidub");
-          setDubAvailable(hasDub);
-          setHardsubAvailable(hasHardsub);
-          setSoftsubAvailable(hasSoftsub);
-          setHindiAvailable(hasHindi);
-          return combined;
-        });
-
-        // Auto-select first server matching current translation mode.
-        // DON'T override if a server is already selected (instant servers
-        // like AniDB may have already been auto-selected).
-        // Translation modes: "sub" (soft sub preferred, falls back to hardsub),
-        // "hardsub", "dub" (English dub), "hindi" (Hindi dub from AnixTV).
-        setSelectedServer(prevSelected => {
-          if (prevSelected) return prevSelected; // don't override instant-server selection
-
-          let firstMatch: ServerEntry | undefined;
-          if (translation === "hindi") {
-            // Prefer AnixTV Hindi 1, then AnimoStream, then DesiDub cloud, then any anixtv
-            firstMatch = data.servers.find((s: ServerEntry) => s.source === "anixtv" && s.provider === "hindi_1")
-              || data.servers.find((s: ServerEntry) => s.source === "animostream")
-              || data.servers.find((s: ServerEntry) => s.source === "desidub" && s.provider === "cloud")
-              || data.servers.find((s: ServerEntry) => s.source === "anixtv");
-          } else if (translation === "dub") {
-            firstMatch = data.servers.find((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld");
-          } else if (translation === "hardsub") {
-            // Hardsub: prefer 4animo, then true hardsub servers
-            firstMatch = data.servers.find((s: ServerEntry) => s.source === "animo4" && s.type === "sub")
-              || data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub === true);
-          } else {
-            // "sub" → soft sub preferred, fall back to any sub (hardsub ok)
-            // Exclude AnixTV + AnimoStream (Hindi-only sources)
-            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
-                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
-                      || data.servers.find((s: ServerEntry) => s.type === "sub");
-          }
-
-          // If first match doesn't exist (e.g. user picked "hardsub" but only
-          // soft sub is available), fall back to whatever's first available
-          // in priority order: soft sub → hard sub → dub
-          if (!firstMatch) {
-            firstMatch = data.servers.find((s: ServerEntry) => s.type === "sub" && s.hardsub !== true && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
-                      || data.servers.find((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld")
-                      || data.servers.find((s: ServerEntry) => s.type === "sub")
-                      || data.servers.find((s: ServerEntry) => s.type === "dub")
-                      || data.servers[0];
-            // Update translation to match what we actually picked
-            if (firstMatch) {
-              if (firstMatch.type === "dub") setTranslation("dub");
-              else if (firstMatch.hardsub === true) setTranslation("hardsub");
-              else setTranslation("sub");
-            }
-          }
-
-          if (firstMatch) {
-            return firstMatch.id;
-          } else if (data.servers[0]) {
-            return data.servers[0].id;
-          }
-          return prevSelected;
-        });
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStreamLoading(false);
-          setStreamError("Failed to load servers.");
-        }
-      });
-
-    // ── Fetch Animex servers SEPARATELY (doesn't block the main list) ──
-    // Animex fetches from pp.animex.one in batches — takes longer than other
-    // sources. This runs in parallel and appends servers when ready.
-    fetchServers(`/api/anime/animex-servers/${anilistId}/${episodeNum}`, 12000)
-      .then(animexData => {
-        if (cancelled || !animexData?.servers?.length) return;
-        // Append Animex servers to the existing server list
-        setServerList(prev => {
-          // Avoid duplicates — only add servers whose IDs don't already exist
-          const newServers = dedupeNew(prev, animexData.servers);
-          const combined = [...prev, ...newServers];
-          // Update availability flags
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub");
-          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
-          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub");
-          const hasHindi = combined.some((s: ServerEntry) => s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld" || s.source === "desidub");
-          setDubAvailable(hasDub);
-          setHardsubAvailable(hasHardsub);
-          setSoftsubAvailable(hasSoftsub);
-          setHindiAvailable(hasHindi);
-          console.log(`[WatchPage] Animex servers loaded: +${newServers.length} (total: ${combined.length})`);
-          return combined;
-        });
-      })
-      .catch(() => {
-        // Animex failed silently — other servers are still available
-        console.log("[WatchPage] Animex servers failed to load (non-critical)");
-      });
-
-    // ── Fetch AniDap servers SEPARATELY (13+ providers, batched — slow) ──
-    fetchServers(`/api/anime/anidap-servers/${anilistId}/${episodeNum}`, 12000)
-      .then(anidapData => {
-        if (cancelled || !anidapData?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, anidapData.servers);
-          const combined = [...prev, ...newServers];
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub");
-          const hasHardsub = combined.some((s: ServerEntry) => s.type === "sub" && (s.hardsub === true || s.source === "animo4"));
-          const hasSoftsub = combined.some((s: ServerEntry) => s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub");
-          setDubAvailable(hasDub);
-          setHardsubAvailable(hasHardsub);
-          setSoftsubAvailable(hasSoftsub);
-          console.log(`[WatchPage] AniDap servers loaded: +${newServers.length} (total: ${combined.length})`);
-          return combined;
-        });
-      })
-      .catch(() => console.log("[WatchPage] AniDap servers failed to load (non-critical)"));
-
-    // ── Fetch AniKuro servers SEPARATELY (11 providers via proxy.anikuro.ru) ──
-    fetchServers(`/api/anime/anikuro-servers/${anilistId}/${episodeNum}`, 12000)
-      .then(anikuroData => {
-        if (cancelled || !anikuroData?.servers?.length) return;
-        setServerList(prev => {
-          const newServers = dedupeNew(prev, anikuroData.servers);
-          const combined = [...prev, ...newServers];
-          const hasDub = combined.some((s: ServerEntry) => s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub");
-          setDubAvailable(hasDub);
-          console.log(`[WatchPage] AniKuro servers loaded: +${newServers.length} (total: ${combined.length})`);
-          return combined;
-        });
-      })
-      .catch(() => console.log("[WatchPage] AniKuro servers failed to load (non-critical)"));
-
-    // REMOVED: Animetsu and Miruro stream providers.
-    // Miruro's episodes endpoint returns HTTP 403 so it produced no streams;
-    // it is still used for anime metadata on the detail page, which is
-    // untouched. Animex keeps its own dedicated fetch below.
-
-    return () => { cancelled = true; clearTimeout(safetyTimeout); };
+    return () => { cancelled = true; };
   }, [anilistId, episodeNum]);
 
   // ── Fetch skip times (PERSISTENT across provider switches) ──
   // PRIMARY: AniSkip (community DB — most reliable, well-tested)
-  // BACKUP: AniKage (works for ALL anime including new ones, but times
-  //         are sometimes misaligned with non-AniKage streams)
-  //
-  // Both sources are fetched in parallel and stored separately. The
-  // effective skip time (aniskipData.intro || anikageData.intro) is
-  // computed via `effectiveSkip` useMemo above. AniSkip WINS when both
-  // are available — this fixes the "outro time is messed up" issue
-  // where AniKage times were being applied to streams from other
-  // providers (which may have different intro/outro positions).
   useEffect(() => {
     if (!anilistId || !episodeNum) return;
     let cancelled = false;
     setAniskipData({ intro: null, outro: null }); // reset on episode change
-    setAnikageData({ intro: null, outro: null });
 
     // Fetch AniSkip (PRIMARY — covers old/popular anime, very reliable)
     // URL format: types[]=op&types[]=ed&types[]=mixed-op&types[]=mixed-ed&types[]=recap
@@ -1505,23 +1643,9 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       })
       .catch(() => {});
 
-    // Fetch AniKage skip times (BACKUP — works for ALL anime, applied to every instant server)
-    fetch(`/api/anime/instant-servers/${anilistId}/${episodeNum}${animeTitle ? `?title=${encodeURIComponent(animeTitle)}` : ""}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled || !data?.servers?.length) return;
-        // Find the first server with intro/outro (these come from AniKage in
-        // the instant-servers route — see lines 259-264 of that route).
-        const serverWithSkip = data.servers.find((s: any) => s.intro || s.outro);
-        if (serverWithSkip) {
-          setAnikageData({
-            intro: serverWithSkip.intro || null,
-            outro: serverWithSkip.outro || null,
-          });
-          console.log(`[WatchPage] AniKage: intro=${serverWithSkip.intro ? `${serverWithSkip.intro.start}-${serverWithSkip.intro.end}` : "no"} outro=${serverWithSkip.outro ? `${serverWithSkip.outro.start}-${serverWithSkip.outro.end}` : "no"}`);
-        }
-      })
-      .catch(() => {});
+    // AniSkip is the PRIMARY source and covers most anime reliably.
+    // Server intro/outro is picked up from individual server responses
+    // (anikoto/anichi servers include intro/outro in their responses).
 
     return () => { cancelled = true; };
   }, [anilistId, episodeNum, animeTitle]);
@@ -1529,9 +1653,20 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
   // ── Play stream from selected server (INSTANT — no second API call) ──
   // The streamUrl is already verified and included in the server list.
   // Switching servers is instant — just set the stream data.
+  //
+  // IMPORTANT: This effect depends on [selectedServer, serverList].
+  // serverList IS needed as a dep — when new servers arrive and auto-select
+  // picks one, the effect needs to re-run to find the server in the list.
+  //
+  // To prevent the HLS player from being destroyed/recreated when serverList
+  // changes (which was the original bug), we check if streamData is already
+  // set for the current selectedServer. If it is, we SKIP — don't recreate.
+  const effectiveSkipRef = useRef(effectiveSkip);
+  effectiveSkipRef.current = effectiveSkip;
+
   useEffect(() => {
     if (!selectedServer) return;
-    const server = serverList.find(s => s.id === selectedServer);
+    const server = serverList.find(s => s.id === selectedServer) || serverListRef.current.find(s => s.id === selectedServer);
     if (!server) return;
 
     // The streamUrl is already in the server object — use it directly
@@ -1544,7 +1679,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     }
 
     const quality = (server as any).quality || "Auto";
-    const isM3U8 = (server as any).isM3U8 !== false;
+    const isM3U8 = (server as any).isM3U8 === true;
     const isMP4 = (server as any).isMP4 === true;
     const isEmbed = (server as any).isEmbed === true;
     const isDASH = (server as any).isDASH === true;
@@ -1556,8 +1691,9 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     // Strip these params so the embed doesn't render subs. The subtitleTracks
     // are still passed below for our own HLS player overlay (non-embed servers).
     //
-    // For embed servers (AnixTV, AniWaves, etc.): load the URL directly in an iframe.
-    // Hindi embed servers (AnixTV, AnimoStream) use /api/embed/proxy which:
+    // For embed servers (AniWaves, etc.): load the URL directly in an iframe.
+    // Hindi embed servers (AnimoStream, WatchAnimeWorld, Blakite, DesiDub) use
+    // /api/embed/proxy which:
     //   1. Fetches the page server-side (bypasses CF bot protection via worker)
     //   2. Strips sandbox/iframe detection scripts
     //   3. Injects anti-sandbox overrides (window.self===window.top, etc.)
@@ -1568,9 +1704,11 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
     // Other embed servers use the CF Worker proxy directly (no anti-sandbox needed).
     // Servers that set `noProxy` are known-frameable hosts that ignore Referer —
     // sending those through the worker only adds a hop and a point of failure.
+    // NOTE: AnimeSalt returns direct m3u8 (not embed) — handled by the standard
+    // /p/{token} proxy path with the animesalt.cx Referer rule.
     const noProxy = (server as any).noProxy === true;
     const useEmbedProxy = (server as any).useEmbedProxy === true;
-    const isHindiEmbedSource = (server as any).source === "anixtv" || (server as any).source === "animostream" || (server as any).source === "watchanimeworld";
+    const isHindiEmbedSource = (server as any).source === "animostream" || (server as any).source === "watchanimeworld" || (server as any).source === "blakite" || (server as any).source === "desidub";
     let finalStreamUrl = streamUrl;
     if (isEmbed) {
       try {
@@ -1582,14 +1720,15 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
         } else if (useEmbedProxy || isHindiEmbedSource) {
           // Route through /api/embed/proxy — our anti-sandbox embed proxy.
           // This fetches server-side, strips frame-busting, injects overrides,
-          // and serves with ALLOWALL. For CF-protected sites like anixtv.in,
-          // the proxy internally routes through the CF Worker to bypass bot protection.
+          // and serves with ALLOWALL. For CF-protected Hindi dub sites like
+          // animostream and watchanimeworld, the proxy internally routes
+          // through the CF Worker to bypass bot protection.
           finalStreamUrl = `/api/embed/proxy?url=${encodeURIComponent(u.toString())}&ref=${encodeURIComponent(u.origin + "/")}`;
         } else {
           // Route through our Cloudflare Worker proxy — it sends the correct
           // Referer/Origin and serves the page with X-Frame-Options: ALLOWALL
           // so our iframe can load it.
-          const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+          const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://api.luffytv.live";
           finalStreamUrl = `${WORKER_BASE}/proxy?url=${encodeURIComponent(u.toString())}&ref=${encodeURIComponent(u.origin + "/")}`;
         }
       } catch { /* if URL parsing fails, use original */ }
@@ -1597,18 +1736,18 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
 
     // Skip times priority (PERSISTENT across provider switches):
     // 1. AniSkip (community DB, fetched separately — most reliable)
-    // 2. AniKage (from instant-servers, baked into every server entry)
-    // 3. Server's own intro/outro (same as #2 — already on every instant server)
+    // 2. Server's own intro/outro (from instant-servers, baked into server entry)
+  // Find the current episode thumbnail (episode-specific screenshot from AniList)
+  const currentEpThumb = episodeList.find(e => e.number === episodeNum)?.thumbnail;
+
     //
-    // AniSkip WINS over AniKage because AniKage times are sometimes misaligned
-    // with streams from other providers (different recaps, different cuts).
     // All values are validated — bad data (start=0, swapped intro/outro,
     // too-short intervals) is filtered out before reaching the player.
     const subtitleTracks = (server as ServerEntry).subtitleTracks || [];
     const serverIntro = validateSkipTime((server as ServerEntry).intro ?? null, "intro");
     const serverOutro = validateSkipTime((server as ServerEntry).outro ?? null, "outro");
-    const intro = effectiveSkip.intro ?? serverIntro ?? null;
-    const outro = effectiveSkip.outro ?? serverOutro ?? null;
+    const intro = effectiveSkipRef.current.intro ?? serverIntro ?? null;
+    const outro = effectiveSkipRef.current.outro ?? serverOutro ?? null;
 
     const newStreamData: StreamData = {
       video_link: finalStreamUrl,
@@ -1629,6 +1768,10 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       outro,
       provider: `${server.source}:${server.provider}`,
       available_qualities: [quality],
+      hardsub: !!(server as ServerEntry).hardsub,
+      // Pass megaplay fileId through to the HLS player for client-side resolution
+      megaplayFileId: (server as any).megaplayFileId,
+      megaplayAudio: (server as any).megaplayAudio,
     };
 
     console.log(`[WatchPage] Playing via ${server.source}:${server.provider} (${quality}) — subs=${subtitleTracks.length} intro=${intro ? `${intro.start}-${intro.end}` : "no"} outro=${outro ? `${outro.start}-${outro.end}` : "no"}`);
@@ -1653,7 +1796,7 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       addToHistory({
         animeId,
         animeName: animeTitle,
-        thumbnail: animeImage || undefined,
+        thumbnail: currentEpThumb || animeImage || undefined,
         episodeNum,
         progress: 0,
         duration: 0,
@@ -1806,7 +1949,48 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       handleTranslationChange={handleTranslationChange}
       serverList={serverList}
       selectedServer={selectedServer}
-      setSelectedServer={setSelectedServer}
+      setSelectedServer={(id: string) => {
+        setSelectedServer(id);
+        // ── Update URL when user manually clicks a server ──
+        // If the clicked server has a known language (e.g. AnimeSalt Tamil),
+        // update the URL suffix to match so the language is shareable.
+        // If a non-language server is picked (Inazuma, Chopper, etc.), strip
+        // the language suffix from the URL.
+        if (typeof window !== "undefined") {
+          const server = serverList.find(s => s.id === id);
+          const currentPath = window.location.pathname;
+          const m = currentPath.match(/^(\/watch\/[^/]+\/\d+)(?:\/[a-z]+)?\/?$/i);
+          if (m && server) {
+            const INDIAN_LANGS = new Set([
+              "hindi", "tamil", "telugu", "malayalam", "bengali", "marathi", "kannada",
+            ]);
+            let newLang: string | null = null;
+            // Check server.provider (lowercase lang name) — e.g. "hindi", "tamil"
+            if (server.provider && INDIAN_LANGS.has(server.provider.toLowerCase())) {
+              newLang = server.provider.toLowerCase();
+            }
+            // Check server.id for pattern like "animesalt:tamil:..."
+            else if (server.id) {
+              const idMatch = server.id.match(/:(hindi|tamil|telugu|malayalam|bengali|marathi|kannada):/i);
+              if (idMatch) newLang = idMatch[1].toLowerCase();
+            }
+            // Check server.name — e.g. "AnimeSalt Hindi"
+            else if (server.name) {
+              const lc = server.name.toLowerCase();
+              for (const lang of INDIAN_LANGS) {
+                if (lc.includes(lang)) { newLang = lang; break; }
+              }
+            }
+            const basePath = m[1];
+            const newPath = newLang ? `${basePath}/${newLang}` : basePath;
+            if (newPath !== currentPath) {
+              window.history.replaceState(null, "", newPath);
+              console.log(`[WatchPage] URL updated → ${newPath} (server=${server.name})`);
+            }
+          }
+        }
+        setSelectedServer(id);
+      }}
       setStreamError={setStreamError}
       setStreamLoading={setStreamLoading}
       getProviderDisplayName={getProviderDisplayName}
@@ -1825,6 +2009,8 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       setAutoNext={setAutoNext}
       skipFiller={skipFiller}
       setSkipFiller={setSkipFiller}
+      fullscreenRetain={fullscreenRetain}
+      setFullscreenRetain={setFullscreenRetain}
       navigate={navigate}
       relations={relations}
       recommendations={recommendations}
@@ -1848,11 +2034,41 @@ export default function WatchPage({ animeId, episodeNum }: WatchPageProps) {
       setShowShortcuts={setShowShortcuts}
       lightsOff={lightsOff}
       setLightsOff={setLightsOff}
+      theaterMode={theaterMode}
+      setTheaterMode={setTheaterMode}
       synopsisExpanded={synopsisExpanded}
       setSynopsisExpanded={setSynopsisExpanded}
       animeId={animeId}
       playerReady={playerReady}
-      onCanPlay={() => setPlayerReady(true)}
+      onCanPlay={() => {
+        setPlayerReady(true);
+        // ── Fullscreen Retain: re-enter fullscreen after new episode loads ──
+        // When switching episodes while in fullscreen, the old player unmounts
+        // (key change), browser auto-exits fullscreen, new player mounts, and
+        // we need to re-enter fullscreen on the new container.
+        // Browsers may block requestFullscreen() if not triggered by a user
+        // gesture — but since the episode switch was initiated by a user
+        // click (Next/Prev button), the "transient activation" window is
+        // usually still open. We retry up to 3 times with increasing delay.
+        if (fullscreenRetain && wasFullscreenRef.current) {
+          wasFullscreenRef.current = false;
+          const tryFullscreen = (attempt: number) => {
+            const el = document.getElementById("hls-player-container")
+              || document.querySelector("[data-player-container]")
+              || document.querySelector("video")?.parentElement;
+            if (el && !(document.fullscreenElement || (document as any).webkitFullscreenElement)) {
+              (el as HTMLElement).requestFullscreen?.().catch(() => {
+                // Retry up to 3 times with increasing delay (300ms, 600ms, 1000ms)
+                if (attempt < 3) {
+                  setTimeout(() => tryFullscreen(attempt + 1), 300 + attempt * 300);
+                }
+              });
+            }
+          };
+          // Initial attempt after 100ms (let the player DOM stabilize)
+          setTimeout(() => tryFullscreen(1), 100);
+        }
+      }}
       animeBackdrop={animeImage || undefined}
     />
     </>

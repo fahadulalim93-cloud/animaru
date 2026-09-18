@@ -235,9 +235,9 @@ export default function MusicTab({ anilistId, currentTitle, romajiTitle, seasons
       {/* ═══ SEASON SECTIONS ═══ */}
       {seasonMusic.map((sm, idx) => {
         const themes = sm.result?.animethemes || [];
-        const ops = themes.filter(t => t.type?.startsWith("OP"));
-        const eds = themes.filter(t => t.type?.startsWith("ED"));
-        const other = themes.filter(t => !t.type?.startsWith("OP") && !t.type?.startsWith("ED"));
+        const ops = themes.filter(t => String(t?.type).startsWith("OP"));
+        const eds = themes.filter(t => String(t?.type).startsWith("ED"));
+        const other = themes.filter(t => !String(t?.type).startsWith("OP") && !String(t?.type).startsWith("ED"));
         const coverImg = pickCoverImage(sm.result?.images);
 
         return (
@@ -327,8 +327,8 @@ function ThemeGroup({
               <span
                 className="text-[10px] font-extrabold px-1.5 py-0.5 rounded shrink-0 w-12 text-center"
                 style={{
-                  background: theme.type.startsWith("OP") ? "rgba(52,211,153,0.15)" : "rgba(251,191,36,0.15)",
-                  color: theme.type.startsWith("OP") ? "#34D399" : "#FBBF24",
+                  background: String(theme.type).startsWith("OP") ? "rgba(52,211,153,0.15)" : "rgba(251,191,36,0.15)",
+                  color: String(theme.type).startsWith("OP") ? "#34D399" : "#FBBF24",
                 }}
               >
                 {theme.type}

@@ -39,7 +39,7 @@ const DAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const ANILIST_API = "https://graphql.anilist.co";
+const ANILIST_API = "/api/anilist";
 
 // ── Strip HTML from AniList description ──
 function stripHtml(html: string): string {
@@ -269,12 +269,12 @@ export default function SchedulePage() {
         const pages = await Promise.all([
           fetch(ANILIST_API, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ query, variables: { page: 1, perPage: 50, airingAt_greater: start, airingAt_lesser: end } }),
           }).then(r => r.json()),
           fetch(ANILIST_API, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ query, variables: { page: 2, perPage: 50, airingAt_greater: start, airingAt_lesser: end } }),
           }).then(r => r.json()),
         ]);

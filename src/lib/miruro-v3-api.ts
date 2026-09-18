@@ -1,7 +1,7 @@
 /**
- * Miruro V3 API Client — uses the NEW api.luffytv.online backend.
+ * Miruro V3 API Client — uses the NEW ap.luffytv.live backend.
  *
- * This is the official Miruro API v3.0 hosted at https://api.luffytv.online/
+ * This is the official Miruro API v3.0 hosted at https://ap.luffytv.live/
  * It provides a 3-step streaming flow:
  *   1. GET /episodes/{anilist_id} → episode lists per provider (sub/dub)
  *   2. GET /watch/{provider}/{anilistId}/{category}/{slug} → stream URLs
@@ -21,10 +21,10 @@
 import { wrapM3u8Url, wrapM3u8UrlWithReferer, wrapStreamUrl } from "./proxy";
 
 // ─── Configuration ────────────────────────────────────────────────────────
-// PRIMARY: api.luffytv.online (dedicated V3 API)
+// PRIMARY: ap.luffytv.live (dedicated V3 API on Coolify)
 // FALLBACK: api.consumet.org (public Consumet API with Miruro provider)
 // The primary API may return CF 1033 (Argo tunnel down) — if so, we fall back.
-const MIRURO_V3_BASE = "https://api.luffytv.online";
+const MIRURO_V3_BASE = process.env.NEXT_PUBLIC_MIRURO_API_BASE || "https://ap.luffytv.live";
 const MIRURO_V3_FALLBACK = "https://api.consumet.org";
 
 // Provider priority order (best quality/reliability first)
@@ -87,6 +87,7 @@ export interface MiruroV3WatchResponse {
 export interface MiruroV3ServerResult {
   id: string;
   name: string;
+  source: string;
   provider: string;
   type: "sub" | "dub";
   quality: string;
@@ -240,7 +241,7 @@ function wrapMiruroStream(rawUrl: string, streamType: string, streamReferer?: st
  *
  * This is the main function called by the separate miruro-v3 route.
  * It:
- *   1. Fetches ALL providers + episodes from api.luffytv.online
+ *   1. Fetches ALL providers + episodes from ap.luffytv.live
  *   2. For each provider that has this episode (sub and/or dub):
  *      a. Fetches the stream data
  *      b. Wraps URLs through our proxy
@@ -413,6 +414,7 @@ function buildServersFromWatch(
     servers.push({
       id: `miruro-v3:${providerName}:${category}`,
       name: `Nexus ${displayName} ${activeStream.quality || "Auto"}${nameTag}`,
+      source: "miruro",
       provider: providerName,
       type: category,
       quality: activeStream.quality || "1080p",
@@ -421,7 +423,7 @@ function buildServersFromWatch(
       isMP4: false,
       isEmbed: false,
       hardsub: false,
-      priority: providerIdx * 2 + (isDub ? 1 : 0),
+      priority: 5 + providerIdx * 2 + (isDub ? 1 : 0),
       subtitleTracks: subtitleTracks.length > 0 ? subtitleTracks : undefined,
       intro: watchData.intro || null,
       outro: watchData.outro || null,
@@ -435,6 +437,7 @@ function buildServersFromWatch(
       servers.push({
         id: `miruro-v3:${providerName}:${category}:${s.quality || i}`,
         name: `Nexus ${displayName} ${s.quality || "Alt"}${nameTag}`,
+        source: "miruro",
         provider: providerName,
         type: category,
         quality: s.quality || "auto",
@@ -443,7 +446,7 @@ function buildServersFromWatch(
         isMP4: false,
         isEmbed: false,
         hardsub: false,
-        priority: providerIdx * 2 + (isDub ? 1 : 0) + 0.1 * (i + 1),
+        priority: 5 + providerIdx * 2 + (isDub ? 1 : 0) + 0.1 * (i + 1),
         subtitleTracks: subtitleTracks.length > 0 ? subtitleTracks : undefined,
         intro: watchData.intro || null,
         outro: watchData.outro || null,
@@ -457,6 +460,7 @@ function buildServersFromWatch(
     servers.push({
       id: `miruro-v3:${providerName}:${category}:embed`,
       name: `Nexus ${displayName} (Embed)${nameTag}`,
+      source: "miruro",
       provider: providerName,
       type: category,
       quality: embed.quality || "SD",
@@ -465,7 +469,7 @@ function buildServersFromWatch(
       isMP4: false,
       isEmbed: true,
       hardsub: false,
-      priority: providerIdx * 2 + (isDub ? 1 : 0) + 0.5,
+      priority: 5 + providerIdx * 2 + (isDub ? 1 : 0) + 0.5,
       intro: watchData.intro || null,
       outro: watchData.outro || null,
     });
@@ -477,6 +481,7 @@ function buildServersFromWatch(
     servers.push({
       id: `miruro-v3:${providerName}:${category}:mp4`,
       name: `Nexus ${displayName} (MP4)${nameTag}`,
+      source: "miruro",
       provider: providerName,
       type: category,
       quality: mp4.quality || "720p",
@@ -485,7 +490,7 @@ function buildServersFromWatch(
       isMP4: true,
       isEmbed: false,
       hardsub: false,
-      priority: providerIdx * 2 + (isDub ? 1 : 0) + 0.6,
+      priority: 5 + providerIdx * 2 + (isDub ? 1 : 0) + 0.6,
       intro: watchData.intro || null,
       outro: watchData.outro || null,
     });

@@ -25,8 +25,6 @@ interface AnimeCard {
   popularity?: number;
 }
 
-const ANILIST_API = "https://graphql.anilist.co";
-
 async function fetchAnime(sort: string, page: number): Promise<AnimeCard[]> {
   const query = `
     query ($page: Int, $perPage: Int, $sort: [MediaSort]) {
@@ -45,7 +43,7 @@ async function fetchAnime(sort: string, page: number): Promise<AnimeCard[]> {
     }
   `;
   try {
-    const res = await fetch(ANILIST_API, {
+    const res = await fetch("/api/anilist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, variables: { page, perPage: 40, sort: [sort] } }),

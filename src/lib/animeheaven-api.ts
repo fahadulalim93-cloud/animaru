@@ -26,6 +26,7 @@ const HEADERS: Record<string, string> = {
 
 // Use aniwatchtv proxy (same as all other sources) — NOT the worker
 import { wrapStreamUrl } from "./proxy";
+import { getTitle } from "./anilist-cache";
 
 export interface AnimeHeavenResult {
   provider: string;
@@ -115,24 +116,9 @@ export async function fetchAnimeHeavenSources(
 ): Promise<AnimeHeavenResult[]> {
   const timeoutMs = options?.timeoutMs ?? 8000;
 
-  // Get title from AniList
-  let title: string;
-  try {
-    const titleRes = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": UA },
-      body: JSON.stringify({
-        query: `query($id:Int){Media(id:$id,type:ANIME){id title{english romaji native}}}`,
-        variables: { id: anilistId },
-      }),
-      cache: "no-store",
-    });
-    const titleData = await titleRes.json();
-    title = titleData?.data?.Media?.title?.english || titleData?.data?.Media?.title?.romaji || "";
-    if (!title) return [];
-  } catch {
-    return [];
-  }
+  // Get title from AniList (via centralized cache)
+  const title = await getTitle(anilistId);
+  if (!title) return [];
 
   // Step 1: Search
   const animeId = await searchAnimeHeaven(title, timeoutMs);

@@ -20,3 +20,12 @@ prisma/*.db
 
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
+
+# Dev artifacts — should never be in repo
+upload/
+tool-results/
+myanime/
+skills/
+*.zip
+*.sql.gz
+upload/

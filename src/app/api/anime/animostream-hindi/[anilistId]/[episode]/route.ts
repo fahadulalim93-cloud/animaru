@@ -19,7 +19,7 @@ export const maxDuration = 30;
  * not by season, so "Slime S4" has to be searched as "Slime".
  */
 
-const ANILIST_GQL = "https://graphql.anilist.co";
+import { cachedQuery } from "@/lib/anilist-cache";
 
 /** Different story, not just a later season — never an acceptable match. */
 const SPINOFF_KEYWORDS = [
@@ -56,27 +56,17 @@ const stripSeasonSuffix = (t: string) => t
   .trim();
 
 async function titlesFromAniList(id: number): Promise<string[]> {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 5000);
   try {
-    const res = await fetch(ANILIST_GQL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
-        variables: { id },
-      }),
-      signal: ac.signal,
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const j = await res.json();
-    const t = j?.data?.Media?.title;
+    const data = await cachedQuery(
+      `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
+      { id },
+      { ttl: 2 * 60 * 60 * 1000, timeoutMs: 5000, revalidate: 3600 },
+    );
+    if (!data) return [];
+    const t = data?.Media?.title;
     return [t?.english, t?.romaji].filter(Boolean) as string[];
   } catch {
     return [];
-  } finally {
-    clearTimeout(timer);
   }
 }
 

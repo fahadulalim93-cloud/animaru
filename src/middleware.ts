@@ -5,17 +5,42 @@ import { checkRateLimit, getRateLimitTier } from "./lib/rate-limit";
 /**
  * Next.js Edge Middleware
  *
- * Keeps only essential protections:
+ * Protections:
  * 1. Path injection block — immediate 403 for malicious paths
  * 2. Rate limiting — per-IP sliding window for API routes
- *
- * All bot detection, bot blocking, cloud IP blocking, request signing,
- * and anti-scrape measures have been removed for full SEO indexing.
+ * 3. Admin route protection — redirects unauthenticated users to /admin/login
  */
 
 export function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const pathname = url.pathname;
+  const host = request.headers.get("host") || "";
+
+  // ─── CDN subdomain routing ───
+  // cdn.luffytv.live/ → show stats dashboard (rewrite to /cdn-stats)
+  // cdn.luffytv.live/v1/* → API routes (rewrite to /api/cdn/v1/*)
+  // cdn.luffytv.live/media/* → image serving (rewrite to /api/cdn/media/*)
+  // cdn.luffytv.live/api/* → pass through (already correct path)
+  if (host.startsWith("cdn.")) {
+    // Rewrite /v1/* → /api/cdn/v1/* for clean API URLs
+    if (pathname.startsWith("/v1/")) {
+      const newUrl = request.nextUrl.clone();
+      newUrl.pathname = "/api/cdn" + pathname;
+      return NextResponse.rewrite(newUrl);
+    }
+    // Rewrite /media/* → /api/cdn/media/* for clean image URLs
+    if (pathname.startsWith("/media/")) {
+      const newUrl = request.nextUrl.clone();
+      newUrl.pathname = "/api/cdn" + pathname;
+      return NextResponse.rewrite(newUrl);
+    }
+    // Root path → stats dashboard
+    if (pathname === "/" || pathname === "") {
+      const newUrl = request.nextUrl.clone();
+      newUrl.pathname = "/cdn-stats";
+      return NextResponse.rewrite(newUrl);
+    }
+  }
 
   // ─── Skip internal paths ───
   if (
@@ -43,7 +68,8 @@ export function middleware(request: NextRequest) {
   }
 
   // ─── 2. Rate limiting for API routes ───
-  if (pathname.startsWith("/api/")) {
+  // Skip rate limiting for admin API routes (login has its own rate limiter)
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/admin/")) {
     const ip = getClientIP(request);
     const rateLimitConfig = getRateLimitTier(pathname);
     const rateKey = `${ip}:${pathname}`;
@@ -64,6 +90,25 @@ export function middleware(request: NextRequest) {
           },
         }
       );
+    }
+  }
+
+  // ─── 3. Admin route protection ───
+  // Protect /admin/* pages (except /admin/login and /api/admin/login)
+  // by checking for the session cookie. If missing, redirect to login.
+  // The actual auth validation still happens server-side in each API route —
+  // this is just a fast early gate to prevent unauthenticated page loads.
+  if (
+    pathname.startsWith("/admin") &&
+    !pathname.startsWith("/admin/login") &&
+    !pathname.startsWith("/api/admin/login") &&
+    !pathname.startsWith("/api/admin/seed")
+  ) {
+    const sessionCookie = request.cookies.get("luffytv_admin_session");
+    if (!sessionCookie?.value) {
+      // No session cookie — redirect to login page
+      const loginUrl = new URL("/admin/login", request.url);
+      return NextResponse.redirect(loginUrl);
     }
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cachedQuery } from "@/lib/anilist-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,15 +92,13 @@ export async function GET(request: NextRequest) {
           }
         }
       `;
-      const res = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, variables: { ids: toFetch } }),
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const media = json?.data?.Page?.media || [];
+      const data = await cachedQuery(
+        query,
+        { ids: toFetch },
+        { ttl: 2 * 60 * 60 * 1000, timeoutMs: 5000, revalidate: 3600 },
+      );
+      if (data) {
+        const media = data?.Page?.media || [];
         for (const m of media) {
           cache.set(m.id, {
             id: m.id,

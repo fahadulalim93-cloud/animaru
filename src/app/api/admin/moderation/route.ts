@@ -1,37 +1,51 @@
+import { PrismaClient } from "@prisma/client";
+import { adminGuard } from "@/lib/admin-auth-server";
 import { pipe, hToStrObj } from "@/lib/kv";
-import { isValidAdminToken } from "@/lib/admin-token-server";
-import { DIRECTORY_KEY, MOD_STATUS_KEY, ROLES_KEY, applyModerationAction, logModAction, type DirectoryEntry, type ModStatus } from "@/lib/moderation-server";
+import { DIRECTORY_KEY, MOD_STATUS_KEY, ROLES_KEY } from "@/lib/moderation-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function unauthorized() {
-  return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { status: 401 });
+const prisma = new PrismaClient();
+
+function json(o: unknown, status = 200) {
+  return new Response(JSON.stringify(o), {
+    status,
+    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  });
 }
 
-/** GET: full member directory merged with current ban/suspend status + role. */
+/** GET /api/admin/moderation — full member directory */
 export async function GET(req: Request) {
-  const token = req.headers.get("x-admin-token");
-  if (!(await isValidAdminToken(token))) return unauthorized();
+  const [user, err] = await adminGuard(req);
+  if (err) return err;
 
-  const [dirRaw, modRaw, rolesRaw] = await pipe([["HGETALL", DIRECTORY_KEY], ["HGETALL", MOD_STATUS_KEY], ["HGETALL", ROLES_KEY]]);
+  const [dirRaw, modRaw, rolesRaw] = await pipe([
+    ["HGETALL", DIRECTORY_KEY],
+    ["HGETALL", MOD_STATUS_KEY],
+    ["HGETALL", ROLES_KEY],
+  ]);
   const dirObj = hToStrObj(dirRaw);
   const modObj = hToStrObj(modRaw);
   const rolesObj = hToStrObj(rolesRaw);
   const now = Date.now();
 
-  const members = Object.entries(dirObj).map(([username, json]) => {
-    let entry: DirectoryEntry;
-    try { entry = JSON.parse(json); } catch { entry = { id: username, username, name: username, email: "", createdAt: new Date().toISOString(), lastSeen: 0 }; }
+  const members = Object.entries(dirObj).map(([username, raw]) => {
+    let entry: any;
+    try { entry = JSON.parse(raw); } catch { entry = { id: username, username, name: username, email: "", createdAt: new Date().toISOString(), lastSeen: 0 }; }
 
-    let mod: ModStatus | null = null;
+    let mod: any = null;
     const modJson = modObj[username];
     if (modJson) { try { mod = JSON.parse(modJson); } catch { mod = null; } }
-    if (mod?.status === "suspended" && mod.until && mod.until <= now) mod = null; // expired
+    if (mod?.status === "suspended" && mod.until && mod.until <= now) mod = null;
 
-    const { token: _token, ...safeEntry } = entry;
     return {
-      ...safeEntry,
+      id: entry.id || username,
+      username: entry.username || username,
+      name: entry.name || username,
+      email: entry.email || "",
+      createdAt: entry.createdAt,
+      lastSeen: entry.lastSeen || 0,
       status: mod?.status || "active",
       reason: mod?.reason || null,
       until: mod?.until || null,
@@ -39,39 +53,48 @@ export async function GET(req: Request) {
     };
   }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  return new Response(JSON.stringify({ ok: true, members }), {
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-  });
+  return json({ ok: true, members });
 }
 
-/** POST: { username, action: "ban"|"unban"|"suspend"|"unsuspend"|"promote"|"demote", reason?, hours? } */
+/** POST /api/admin/moderation — moderation actions */
 export async function POST(req: Request) {
-  const token = req.headers.get("x-admin-token");
-  if (!(await isValidAdminToken(token))) return unauthorized();
+  const [user, err] = await adminGuard(req);
+  if (err) return err;
 
   const body = await req.json().catch(() => null) as {
     username?: string; action?: string; reason?: string; hours?: number;
   } | null;
-  const username = body?.username?.trim().toLowerCase();
+  const targetUsername = body?.username?.trim().toLowerCase();
   const action = body?.action;
-  if (!username || !action) {
-    return new Response(JSON.stringify({ ok: false, error: "Missing username/action" }), { status: 400 });
-  }
+
+  if (!targetUsername || !action) return json({ ok: false, error: "Missing username/action" }, 400);
+
+  // Apply the action using the existing moderation server logic
+  const { applyModerationAction } = await import("@/lib/moderation-server");
 
   if (action === "ban" || action === "unban" || action === "suspend" || action === "unsuspend") {
-    await applyModerationAction(username, action, { reason: body?.reason, hours: body?.hours });
-    await logModAction("admin", action, username, body?.reason);
+    await applyModerationAction(targetUsername, action as any, { reason: body?.reason, hours: body?.hours });
   } else if (action === "promote") {
-    await pipe([["HSET", ROLES_KEY, username, "mod"]]);
-    await logModAction("admin", "promote", username);
+    await pipe([["HSET", ROLES_KEY, targetUsername, "mod"]]);
   } else if (action === "demote") {
-    await pipe([["HDEL", ROLES_KEY, username]]);
-    await logModAction("admin", "demote", username);
+    await pipe([["HDEL", ROLES_KEY, targetUsername]]);
+  } else if (action === "warn") {
+    // Warn is just a log entry
   } else {
-    return new Response(JSON.stringify({ ok: false, error: "Unknown action" }), { status: 400 });
+    return json({ ok: false, error: "Unknown action" }, 400);
   }
 
-  return new Response(JSON.stringify({ ok: true }), {
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  // Audit log
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.id,
+      actorUsername: user.username,
+      action,
+      targetType: "user",
+      targetId: targetUsername,
+      details: JSON.stringify({ reason: body?.reason, hours: body?.hours }),
+    },
   });
+
+  return json({ ok: true });
 }

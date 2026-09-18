@@ -50,34 +50,15 @@ const ANILIST_GENRES = [
 
 // ── AniList GraphQL query helper ──
 async function anilistQuery(query: string, variables: Record<string, unknown>) {
-  const MAX_RETRIES = 3;
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ query, variables }),
-        next: { revalidate: 1800 },
-      });
-      if (res.status === 429 || res.status >= 500) {
-        if (attempt < MAX_RETRIES - 1) {
-          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-          continue;
-        }
-      }
-      if (!res.ok) throw new Error(`AniList request failed: ${res.status}`);
-      const json = await res.json();
-      if (json.errors) throw new Error(`AniList GraphQL error: ${json.errors[0]?.message || "Unknown"}`);
-      return json.data;
-    } catch (err) {
-      if (attempt < MAX_RETRIES - 1) {
-        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error("AniList request failed after retries");
+  const res = await fetch("/api/anilist", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error(`AniList proxy failed: ${res.status}`);
+  const json = await res.json();
+  if (json.errors) throw new Error(`AniList GraphQL error: ${json.errors[0]?.message || "Unknown"}`);
+  return json.data;
 }
 
 // ── Anime type ──
@@ -140,7 +121,7 @@ function BrowseAnimeCard({ anime, navigate }: { anime: BrowseAnime; navigate: (r
           </div>
         )}
         {anime.format && (
-          <div className="browse-anime-card-format">{anime.format.replace("_", " ")}</div>
+          <div className="browse-anime-card-format">{String(anime.format || "").replace("_", " ")}</div>
         )}
       </div>
       <div className="browse-anime-card-info">
@@ -255,7 +236,7 @@ export default function Browse() {
     prevFiltersRef.current = filterFingerprint;
   }, [filterFingerprint]);
 
-  // ---- Fetch anime from AniList ----
+  // ---- Fetch anime from our SQLite DB (not AniList) ----
   useEffect(() => {
     let cancelled = false;
 
@@ -264,86 +245,61 @@ export default function Browse() {
       setError(null);
 
       try {
-        // Build GraphQL variables
-        const variables: Record<string, unknown> = {
-          page,
-          perPage: ITEMS_PER_PAGE,
-        };
+        // Build query params for /api/anime/browse (reads from our SQLite DB)
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        params.set("perPage", String(ITEMS_PER_PAGE));
 
-        // Determine sort
-        variables.sort = [sortBy];
+        // Sort mapping
+        const sortMap: Record<string, string> = {
+          "POPULARITY_DESC": "most-popular",
+          "TRENDING_DESC": "trending",
+          "SCORE_DESC": "high-rated",
+          "START_DATE_DESC": "new",
+          "TITLE_ENGLISH": "most-popular",
+          "TITLE_ROMAJI": "most-popular",
+        };
+        params.set("sort", sortMap[sortBy] || "most-popular");
 
         // Search query
-        if (debouncedQuery) {
-          variables.search = debouncedQuery;
-        }
+        if (debouncedQuery) params.set("search", debouncedQuery);
 
-        // Genres (AniList uses genre_in)
-        if (selectedGenres.length > 0) {
-          variables.genre_in = selectedGenres;
-        }
+        // Genres (use first selected genre — our API takes one at a time)
+        if (selectedGenres.length > 0) params.set("genre", selectedGenres[0]);
 
-        // Formats (AniList uses format_in)
-        if (selectedFormats.length > 0) {
-          variables.format_in = selectedFormats;
-        }
+        // Formats (use first selected format)
+        if (selectedFormats.length > 0) params.set("format", selectedFormats[0]);
 
         // Status
-        if (status) {
-          variables.status = status;
-        }
+        if (status) params.set("status", status);
 
         // Year + Season
-        if (year) {
-          variables.seasonYear = parseInt(year);
-        }
-        if (season) {
-          variables.season = season;
-        }
+        if (year) params.set("year", year);
+        if (season) params.set("season", season);
 
-        const query = `
-          query (
-            $page: Int,
-            $perPage: Int,
-            $sort: [MediaSort],
-            $search: String,
-            $genre_in: [String],
-            $format_in: [MediaFormat],
-            $status: MediaStatus,
-            $season: MediaSeason,
-            $seasonYear: Int
-          ) {
-            Page(page: $page, perPage: $perPage) {
-              pageInfo { total currentPage lastPage hasNextPage perPage }
-              media(
-                type: ANIME,
-                sort: $sort,
-                search: $search,
-                genre_in: $genre_in,
-                format_in: $format_in,
-                status: $status,
-                season: $season,
-                seasonYear: $seasonYear,
-                isAdult: false
-              ) {
-                id
-                title { romaji english native }
-                coverImage { extraLarge large medium color }
-                format status
-                episodes
-                genres
-                averageScore popularity
-                season seasonYear
-              }
-            }
-          }
-        `;
+        const res = await fetch(`/api/anime/browse?${params.toString()}`);
+        if (!res.ok) throw new Error(`Browse API failed: ${res.status}`);
+        const data = await res.json();
 
-        const data = await anilistQuery(query, variables);
-        if (!cancelled && data?.Page) {
-          setAnimeList(data.Page.media || []);
-          setTotalResults(data.Page.pageInfo?.total || 0);
-          setLastPage(data.Page.pageInfo?.lastPage || 1);
+        if (!cancelled) {
+          const results = data.results || [];
+          // Map to the BrowseAnime shape the component expects
+          const mapped = results.map((m: any) => ({
+            id: m.id,
+            title: m.title || { romaji: "Unknown" },
+            coverImage: m.coverImage || {},
+            format: m.format,
+            status: m.status,
+            episodes: m.episodes,
+            genres: m.genres || [],
+            averageScore: m.averageScore,
+            popularity: m.popularity,
+            seasonYear: m.seasonYear,
+            season: m.season,
+          }));
+          setAnimeList(mapped);
+          setTotalResults(data.total || mapped.length);
+          setLastPage(data.hasNextPage ? page + 1 : page);
         }
       } catch (err: any) {
         if (!cancelled) {

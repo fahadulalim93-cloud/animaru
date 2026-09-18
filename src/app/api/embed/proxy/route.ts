@@ -418,13 +418,18 @@ function injectAntiSandboxScript(html: string): string {
  * For these, we route through the CF Worker proxy first.
  */
 const CF_PROTECTED_DOMAINS = [
-  "anixtv.in",
-  "anixx.fun",
+  "animesalt.cx",       // AnimeSalt — replaced AnixTV
   "watchanimeworld.top",
   "play.zephyrix.top",
+  "desidubanime.me",
+  "cloud.desidubanime.me",
+  "gdmirrorbot.nl",
+  "abyssplayer.com",
+  "p2pplay.pro",
+  "rubyvidhub.com",
 ];
 
-const CF_WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+const CF_WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://api.luffytv.live";
 
 /**
  * Check if a URL points to a Cloudflare-protected domain.

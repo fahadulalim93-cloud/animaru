@@ -43,7 +43,7 @@ const AMBER = "#f59e0b";
 /* ── Links ─────────────────────────────────────────────────────────────── */
 
 const PATREON_URL = "https://patreon.com/LuffytvStream";
-const DISCORD_URL = "https://discord.gg/GEVes3uhtM";
+const DISCORD_URL = "https://discord.gg/SdFB3HxDH5";
 
 /** First real overlay frame, used to preview the supporter frame. Null while
  *  `public/frames` has no PNGs installed — the preview falls back to a glow

@@ -1,23 +1,28 @@
 // Server Providers for LuffyTV — One Piece-named servers
 //
+// Priority order (user-specified 2026-08-08):
+//   AniNeko(-1) → AniKoto(1) → AnimeX(2) → AniDap(4) → Miruro(5+)
+//
 // Anime Servers (SUB/DUB) — HLS only, no embed/iframe:
-//   0. Luffy         (YumeZone/Miruro Miku) — AniList ID — HLS, sub+dub, auto-switch
-//   1. Brook         (YumeZone/Miruro Kiwi) — AniList ID — HLS, sub+dub
-//   2. Jinbe         (YumeZone/Miruro Arc)  — AniList ID — HLS, sub+dub
-//   3. Law           (YumeZone/Miruro Bee)  — AniList ID — HLS, sub only
-//   4. Franky        (AnimeX)              — AniList ID — GraphQL+REST, HLS proxy
+//   5. Luffy         (YumeZone/Miruro Miku) — AniList ID — HLS, sub+dub, auto-switch
+//   6. Brook         (YumeZone/Miruro Kiwi) — AniList ID — HLS, sub+dub
+//   7. Jinbe         (YumeZone/Miruro Arc)  — AniList ID — HLS, sub+dub
+//   8. Franky        (AnimeX)              — AniList ID — GraphQL+REST, HLS proxy
+//   9. Law           (YumeZone/Miruro Bee)  — AniList ID — HLS, sub only
 //
 // Miruro V3 Servers (SEPARATE route — NOT in instant-servers):
-//   5. Kidd          (Miruro V3 Kiwi)  — AniList ID — HLS, sub+dub
-//   6. Bonney        (Miruro V3 Pewe)  — AniList ID — HLS, sub+dub
-//   7. Bege          (Miruro V3 Bee)   — AniList ID — HLS, sub only
-//   8. Urouge        (Miruro V3 Bonk)  — AniList ID — HLS, sub+dub
-//   9. Apoo          (Miruro V3 Ally)  — AniList ID — HLS, sub+dub
-//   10. Drake        (Miruro V3 Moo)   — AniList ID — HLS, sub+dub
+//   10. Kidd          (Miruro V3 Kiwi)  — AniList ID — HLS, sub+dub
+//   10.1 Bonney        (Miruro V3 Pewe)  — AniList ID — HLS, sub+dub
+//   10.2 Bege          (Miruro V3 Bee)   — AniList ID — HLS, sub only
+//   10.3 Urouge        (Miruro V3 Bonk)  — AniList ID — HLS, sub+dub
+//   10.4 Apoo          (Miruro V3 Ally)  — AniList ID — HLS, sub+dub
+//   10.5 Drake         (Miruro V3 Moo)   — AniList ID — HLS, sub+dub
 //
 // Hindi Servers (embed/iframe allowed):
 //   Shanks         (AniXtv)        — AniList ID — Hindi dub, iframe
 //   Rayleigh       (VidNest Hindi) — AniList ID — Hindi dub, iframe
+//   Buggy          (Blakite)       — Blakite ID — Hindi dub, iframe (blakiteanime.buzz)
+//   Crocodile      (DesiDubAnime)  — Slug-based — Hindi dub, iframe/MP4/HLS (desidubanime.me Server 4 self-host)
 //
 // TMDB Servers for Movies/TV kept separately
 
@@ -59,7 +64,7 @@ export interface EmbedUrlParams {
 const yumezoneMiku: EmbedServer = {
   id: "yz-miku",
   name: "Luffy",
-  priority: 0,
+  priority: 5,
   supportsSub: true,
   supportsDub: true,
   supportsHindi: false,
@@ -81,7 +86,7 @@ const yumezoneMiku: EmbedServer = {
 const yumezoneKiwi: EmbedServer = {
   id: "yz-kiwi",
   name: "Brook",
-  priority: 5,
+  priority: 6,
   supportsSub: true,
   supportsDub: true,
   supportsHindi: false,
@@ -100,7 +105,7 @@ const yumezoneKiwi: EmbedServer = {
 const yumezoneArc: EmbedServer = {
   id: "yz-arc",
   name: "Jinbe",
-  priority: 6,
+  priority: 7,
   supportsSub: true,
   supportsDub: true,
   supportsHindi: false,
@@ -119,7 +124,7 @@ const yumezoneArc: EmbedServer = {
 const yumezoneBee: EmbedServer = {
   id: "yz-bee",
   name: "Law",
-  priority: 7,
+  priority: 9,
   supportsSub: true,
   supportsDub: false,
   supportsHindi: false,
@@ -164,7 +169,7 @@ const yumezoneBee: EmbedServer = {
 const animexServer: EmbedServer = {
   id: "animex-auto",
   name: "Franky",
-  priority: 6,
+  priority: 8,
   supportsSub: true,
   supportsDub: true,
   supportsHindi: false,
@@ -181,15 +186,15 @@ const animexServer: EmbedServer = {
 };
 
 // =====================================================
-// MIRURO V3 SERVERS — Using NEW api.luffytv.online backend
+// MIRURO V3 SERVERS — Using NEW ap.luffytv.live backend
 // SEPARATE ROUTE — NOT part of instant-servers!
 //
 // These servers hit the dedicated /api/anime/miruro-v3/servers route
-// which calls api.luffytv.online directly. Each Miruro provider
+// which calls ap.luffytv.live directly. Each Miruro provider
 // (kiwi, pewe, bee, bonk, ally, moo) gets its own EmbedServer entry.
 //
 // Key differences from YumeZone servers:
-//   - Uses api.luffytv.online (NEW API v3.0) instead of miruro.tv pipe
+//   - Uses ap.luffytv.live (NEW API v3.0) instead of miruro.tv pipe
 //   - Has its OWN route (/api/anime/miruro-v3/servers/...)
 //   - NOT in instant-servers (separate route for isolation)
 //   - Sub/dub handled carefully — each checked separately per provider
@@ -203,12 +208,12 @@ const MIRURO_V3_PROVIDERS: Array<{
   priority: number;
   supportsDub: boolean;  // Some providers only have sub
 }> = [
-  { id: "kiwi",  name: "Kidd",    color: "#A3E635", priority: 8,  supportsDub: true },
-  { id: "pewe",  name: "Bonney",   color: "#34D399", priority: 8.1, supportsDub: true },
-  { id: "bee",   name: "Bege",     color: "#FBBF24", priority: 8.2, supportsDub: false },
-  { id: "bonk",  name: "Urouge",   color: "#F472B6", priority: 8.3, supportsDub: true },
-  { id: "ally",  name: "Apoo",     color: "#60A5FA", priority: 8.4, supportsDub: true },
-  { id: "moo",   name: "Drake",    color: "#C084FC", priority: 8.5, supportsDub: true },
+  { id: "kiwi",  name: "Kidd",    color: "#A3E635", priority: 10,   supportsDub: true },
+  { id: "pewe",  name: "Bonney",   color: "#34D399", priority: 10.1, supportsDub: true },
+  { id: "bee",   name: "Bege",     color: "#FBBF24", priority: 10.2, supportsDub: false },
+  { id: "bonk",  name: "Urouge",   color: "#F472B6", priority: 10.3, supportsDub: true },
+  { id: "ally",  name: "Apoo",     color: "#60A5FA", priority: 10.4, supportsDub: true },
+  { id: "moo",   name: "Drake",    color: "#C084FC", priority: 10.5, supportsDub: true },
 ];
 
 const miruroV3Servers: EmbedServer[] = MIRURO_V3_PROVIDERS.map((prov) => ({
@@ -236,8 +241,8 @@ const miruroV3Servers: EmbedServer[] = MIRURO_V3_PROVIDERS.map((prov) => ({
 // HINDI SERVERS — One Piece-named
 // =====================================================
 
-const anixtvHindi: EmbedServer = {
-  id: "anixtv-hindi",
+const animesaltHindi: EmbedServer = {
+  id: "animesalt-hindi",
   name: "Shanks",
   priority: 0,
   supportsSub: false,
@@ -246,12 +251,14 @@ const anixtvHindi: EmbedServer = {
   idType: "anilist",
   color: "#FF6B35",
   category: "hindi",
-  // noSandbox removed — we proxy through CF worker which sets ALLOWALL
   streamType: "iframe",
+  // AnimeSalt is scraped via /api/anime/animesalt-servers — the route returns
+  // direct m3u8 URLs (multi-audio HLS), so this entry is a placeholder for the
+  // legacy embed-servers picker. The actual fetch happens in watch-page.tsx
+  // via /api/anime/animesalt-servers/[anilistId]/[episode].
   generateUrl: (p) => {
     if (!p.anilistId) return "";
-    const title = p.title ? encodeURIComponent(p.title) : "Anime";
-    return `https://anixtv.in/anime-watch?action=hindi_1_player&id=${p.anilistId}&season=1&episode=${p.episode}&title=${title}`;
+    return `/api/anime/animesalt-servers/${p.anilistId}/${p.episode}?title=${encodeURIComponent(p.title || "Anime")}`;
   },
 };
 
@@ -269,26 +276,6 @@ const vidnestHindi: EmbedServer = {
   generateUrl: (p) => {
     if (!p.anilistId) return "";
     return `https://vidnest.fun/anime/${p.anilistId}/${p.episode}/hindi`;
-  },
-};
-
-// DesiDubAnime — Cloud/No-Ads server from scraped database
-// Auto-updated by scripts/desidub-updater.py on schedule
-const desidubCloud: EmbedServer = {
-  id: "desidub-cloud",
-  name: "Buggy",
-  priority: 2,
-  supportsSub: false,
-  supportsDub: false,
-  supportsHindi: true,
-  idType: "anilist",
-  color: "#22C55E",
-  category: "hindi",
-  streamType: "iframe",
-  generateUrl: (p) => {
-    const title = p.title ? encodeURIComponent(p.title) : "";
-    if (!title) return "";
-    return `/api/anime/desidub/watch?title=${title}&episode=${p.episode}`;
   },
 };
 
@@ -317,10 +304,49 @@ const ANIME_SERVERS: EmbedServer[] = [
   ...miruroV3Servers, // Kidd, Bonney, Bege, Urouge, Apoo, Drake (Miruro V3)
 ];
 
+const blakiteHindi: EmbedServer = {
+  id: "blakite-hindi",
+  name: "Buggy",
+  priority: 2,
+  supportsSub: false,
+  supportsDub: false,
+  supportsHindi: true,
+  idType: "anilist",
+  color: "#E11D48",
+  category: "hindi",
+  streamType: "iframe",
+  generateUrl: (p) => {
+    if (!p.anilistId) return "";
+    const title = p.title ? encodeURIComponent(p.title) : "Anime";
+    return `/api/anime/blakite-servers/${p.anilistId}/${p.episode}?title=${title}&season=${p.season || 1}`;
+  },
+};
+
+const desidubHindi: EmbedServer = {
+  id: "desidub-hindi",
+  name: "Crocodile",
+  priority: 3,
+  supportsSub: false,
+  supportsDub: false,
+  supportsHindi: true,
+  idType: "anilist",
+  color: "#06B6D4",
+  category: "hindi",
+  // DesiDubAnime Server 4 (self-host) can return direct MP4/HLS or iframe
+  // We route through our API which resolves the best available server
+  streamType: "iframe",
+  generateUrl: (p) => {
+    if (!p.anilistId) return "";
+    const title = p.title ? encodeURIComponent(p.title) : "Anime";
+    return `/api/anime/desidub-servers/${p.anilistId}/${p.episode}?title=${title}&server=selfhost`;
+  },
+};
+
 const HINDI_SERVERS: EmbedServer[] = [
-  anixtvHindi,       // Shanks (AniXtv)
+  animesaltHindi,    // Shanks (AnimeSalt — replaces AnixTV)
   vidnestHindi,      // Rayleigh (VidNest Hindi)
-  desidubCloud,      // Buggy (DesiDubAnime Cloud — no ads)
+  blakiteHindi,      // Buggy (Blakite)
+  desidubHindi,      // Crocodile (DesiDubAnime Server 4 self-host)
 ];
 
 const ALL_SERVERS: EmbedServer[] = [
@@ -381,6 +407,21 @@ export function hasHindiSupport(anilistId?: number): boolean {
  */
 export function isHlsServer(serverId: string): boolean {
   return serverId.startsWith("animex-") || serverId.startsWith("yz-") || serverId.startsWith("miruro-v3-");
+}
+
+/**
+ * Check if a server is a Hindi server (iframe/embed)
+ */
+export function isHindiServer(serverId: string): boolean {
+  return HINDI_SERVERS.some(s => s.id === serverId);
+}
+
+/**
+ * Check if a server is the DesiDubAnime self-host server
+ * (can return direct MP4/HLS instead of iframe)
+ */
+export function isDesiDubSelfHost(serverId: string): boolean {
+  return serverId === "desidub-hindi";
 }
 
 /**

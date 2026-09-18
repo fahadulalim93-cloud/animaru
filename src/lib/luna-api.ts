@@ -59,7 +59,7 @@ import { validateSkipTime } from "./episode-metadata";
 const LUNA_API = "https://api.luna-stream.me";
 const WORKER_BASE =
   process.env.NEXT_PUBLIC_PROXY_BASE ||
-  "https://luffytv-proxy.ggy892767.workers.dev";
+  "https://api.luffytv.live";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";

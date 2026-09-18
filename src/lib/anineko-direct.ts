@@ -19,7 +19,7 @@
 const ANINEKO_BASE = "https://anineko.to";
 const WORKER_BASE =
   process.env.NEXT_PUBLIC_PROXY_BASE ||
-  "https://luffytv-proxy.ggy892767.workers.dev";
+  "https://api.luffytv.live";
 
 const HEADERS: Record<string, string> = {
   "User-Agent":

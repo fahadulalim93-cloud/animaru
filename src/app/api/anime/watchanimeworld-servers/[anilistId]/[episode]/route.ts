@@ -16,7 +16,7 @@ export const maxDuration = 30;
  * a JW Player–based player that serves m3u8 HLS streams from as-cdn17.top.
  */
 
-const ANILIST_GQL = "https://graphql.anilist.co";
+import { cachedQuery } from "@/lib/anilist-cache";
 
 /** Normalize for matching */
 const norm = (t: string) => t.toLowerCase().replace(/[:',.\-!]/g, "").replace(/\s+/g, " ").trim();
@@ -46,27 +46,17 @@ function extractSeasonFromTitle(title: string): number {
 }
 
 async function getTitleFromAniList(id: number): Promise<string> {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 5000);
   try {
-    const res = await fetch(ANILIST_GQL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
-        variables: { id },
-      }),
-      signal: ac.signal,
-      cache: "no-store",
-    });
-    if (!res.ok) return "";
-    const j = await res.json();
-    const t = j?.data?.Media?.title;
+    const data = await cachedQuery(
+      `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
+      { id },
+      { ttl: 2 * 60 * 60 * 1000, timeoutMs: 5000, revalidate: 3600 },
+    );
+    if (!data) return "";
+    const t = data?.Media?.title;
     return t?.english || t?.romaji || "";
   } catch {
     return "";
-  } finally {
-    clearTimeout(timer);
   }
 }
 

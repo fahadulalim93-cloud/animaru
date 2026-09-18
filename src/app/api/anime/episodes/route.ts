@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAnimeDetails, getAnimeBasicInfo } from "@/lib/anilist-api";
 import { miruroInfo, miruroEpisodes } from "@/lib/miruro-api";
+import { getAnimeByAnilistId } from "@/lib/anime-db-sqlite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,21 +13,6 @@ function parseAnimeId(rawId: string): { anilistId: number | null; allanimeId: st
     return { anilistId: parseInt(cleanId), allanimeId: null };
   }
   return { anilistId: null, allanimeId: cleanId };
-}
-
-// Fetch Lunar scraper episodes (real per-episode thumbnails on fetch.flixcloud.cc)
-async function fetchLunarEpisodes(anilistId: number): Promise<any[]> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(`https://luffytv-fahad.vercel.app/api/anime/scraper/episodes/lunar/${anilistId}`, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data?.episodes || [];
-  } catch { return []; }
 }
 
 // Fetch Animex scraper episodes (real episode titles)
@@ -42,6 +28,46 @@ async function fetchAnimexEpisodes(anilistId: number): Promise<any[]> {
     const data = await res.json();
     return data?.episodes || [];
   } catch { return []; }
+}
+
+/**
+ * Last-resort SQLite fallback for episode count.
+ *
+ * When AniList is down (currently the case — "severe stability issues"), the
+ * cachedQuery Layer 5 fallback returns our SQLite raw_json. Some anime have
+ * raw_json.episodes = null (anime was ongoing when scraped). For those, we
+ * fall back to the SQLite column value (`anime.episodes`) which is at least
+ * a non-null number we can show.
+ *
+ * If raw_json has nextAiringEpisode.episode, we use that - 1 as the most
+ * accurate count (currently-airing anime).
+ */
+function getEpisodesFromSqlite(anilistId: number): {
+  episodes: number | null;
+  nextAiringEpisode: { episode: number; airingAt: number } | null;
+  title: { romaji?: string; english?: string; native?: string } | null;
+  streamingEpisodes: any[];
+  format: string | null;
+  status: string | null;
+} {
+  const sqliteData = getAnimeByAnilistId(anilistId);
+  if (!sqliteData?.Media) {
+    return { episodes: null, nextAiringEpisode: null, title: null, streamingEpisodes: [], format: null, status: null };
+  }
+  const m = sqliteData.Media;
+  let episodes: number | null = m.episodes || null;
+  // If episodes is null but nextAiringEpisode exists, use episode - 1
+  if ((!episodes || episodes === 0) && m.nextAiringEpisode?.episode && m.nextAiringEpisode.episode > 1) {
+    episodes = m.nextAiringEpisode.episode - 1;
+  }
+  return {
+    episodes,
+    nextAiringEpisode: m.nextAiringEpisode || null,
+    title: m.title || null,
+    streamingEpisodes: m.streamingEpisodes || [],
+    format: m.format || null,
+    status: m.status || null,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -116,6 +142,21 @@ export async function GET(request: NextRequest) {
         } catch { /* basic info fallback failed */ }
       }
 
+      // ── FALLBACK: If AniList returned no episode count, pull from SQLite ──
+      // AniList is currently down. cachedQuery Layer 5 already returns SQLite
+      // raw_json, but if that raw_json has episodes=null, we still have no count.
+      // As a last resort, fall through to the SQLite column value (which was
+      // denormalized when we first scraped — should be non-null for most anime).
+      if (!totalEpsFromAniList || totalEpsFromAniList === 0) {
+        const sqliteEps = getEpisodesFromSqlite(anilistId);
+        if (sqliteEps.episodes && sqliteEps.episodes > 0) {
+          totalEpsFromAniList = sqliteEps.episodes;
+          if (!animeTitle) animeTitle = sqliteEps.title?.english || sqliteEps.title?.romaji || null;
+          if (!isMovie) isMovie = sqliteEps.format === "MOVIE";
+          console.log(`[episodes] SQLite fallback for ${anilistId}: ${sqliteEps.episodes} episodes`);
+        }
+      }
+
       // Process Miruro episodes
       if (miruroEpsResult_.status === 'fulfilled' && miruroEpsResult_.value) {
         miruroEpsResult = miruroEpsResult_.value;
@@ -131,29 +172,47 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── PARALLEL: Lunar + Animex scraper for thumbnails/titles ──
-    let lunarEps: any[] = [];
+    // ── PARALLEL: Animex scraper for titles ──
     let animexEps: any[] = [];
     if (anilistId) {
-      const [lunarResult, animexResult] = await Promise.allSettled([
-        fetchLunarEpisodes(anilistId),
+      const [animexResult] = await Promise.allSettled([
         fetchAnimexEpisodes(anilistId),
       ]);
-      if (lunarResult.status === 'fulfilled') lunarEps = lunarResult.value;
       if (animexResult.status === 'fulfilled') animexEps = animexResult.value;
     }
 
-    const lunarByNum = new Map<number, any>();
-    for (const ep of lunarEps) lunarByNum.set(Number(ep.number), ep);
     const animexByNum = new Map<number, any>();
     for (const ep of animexEps) animexByNum.set(Number(ep.number), ep);
 
-    // If scrapers have higher episode counts than AniList, prefer AniList's count
-    // (e.g. Mugen Train: AniList says 1, scrapers might return many — AniList wins for MOVIE format)
+    // Scraper count is only used as a FALLBACK when AniList has no count.
+    // We NEVER let scrapers override AniList, because scrapers resolve
+    // AniList ID → source ID by TITLE search, which frequently matches
+    // the WRONG season (e.g. searching for "That Time I Got Reincarnated
+    // as a Slime" S2 will match S1's 24-26 episode entry, causing the
+    // detail page to show 26 episodes when AniList correctly says 12).
     const maxScraperEp = Math.max(
-      lunarByNum.size > 0 ? Math.max(...lunarByNum.keys()) : 0,
       animexByNum.size > 0 ? Math.max(...animexByNum.keys()) : 0,
     );
+
+    // If AniList says this season has N episodes but the scraper returned
+    // significantly more (e.g. 12 vs 24+), the scraper almost certainly
+    // matched a DIFFERENT season via title search. In that case, drop the
+    // scraper's enrichment data entirely — those titles/thumbnails belong
+    // to a different season and would mislead the user.
+    // Threshold: scraper has >50% more episodes than AniList, AND at least
+    // 2 extra episodes (to avoid false positives on near-complete scrapers).
+    let animexByNumSafe = animexByNum;
+    if (
+      totalEpsFromAniList && totalEpsFromAniList > 0 &&
+      maxScraperEp > totalEpsFromAniList &&
+      (maxScraperEp >= totalEpsFromAniList * 1.5 || maxScraperEp - totalEpsFromAniList >= 2)
+    ) {
+      console.warn(
+        `[episodes] Discarding animex enrichment: scraper returned ${maxScraperEp} eps ` +
+        `but AniList says ${totalEpsFromAniList} — likely wrong-season match`
+      );
+      animexByNumSafe = new Map();
+    }
 
     let finalTotal: number;
     if (isMovie && totalEpsFromAniList) {
@@ -161,11 +220,14 @@ export async function GET(request: NextRequest) {
       // Scrapers often return wrong episode data for movies
       finalTotal = totalEpsFromAniList;
     } else if (totalEpsFromAniList && totalEpsFromAniList > 0) {
-      // For TV series, use the larger of AniList count or scraper max
-      // (some anime have AniList=12 but actual=24 from scrapers)
-      finalTotal = Math.max(totalEpsFromAniList, maxScraperEp);
+      // For TV series, AniList's Media.episodes is AUTHORITATIVE.
+      // Do NOT use Math.max with scraper count — title-based scrapers
+      // frequently match a different season (S1 vs S2) and return more
+      // episodes than this season actually has. This matches the logic
+      // already used by watch-page.tsx (its loadEpisodes trusts AniList).
+      finalTotal = totalEpsFromAniList;
     } else if (maxScraperEp > 0) {
-      // No AniList count, use scraper count
+      // No AniList count at all — fall back to scraper count
       finalTotal = maxScraperEp;
     } else if (anilistEps.length > 0) {
       // No AniList count, no scrapers, but streamingEpisodes exist
@@ -195,23 +257,20 @@ export async function GET(request: NextRequest) {
 
     for (let i = 1; i <= finalTotal; i++) {
       const anilistEp = anilistEps.find(e => e.episodeIdNum === i);
-      const lunarEp = lunarByNum.get(i);
-      const animexEp = animexByNum.get(i);
+      const animexEp = animexByNumSafe.get(i);  // ← safe map (drops wrong-season matches)
       const subEp = miruroEpsResult.sub?.find((e: any) => Number(e.number) === i);
       const dubEp = miruroEpsResult.dub?.find((e: any) => Number(e.number) === i);
 
-      // Title priority: Animex > AniList streamingEpisodes > Miruro > Lunar > "Episode N"
+      // Title priority: Animex > AniList streamingEpisodes > Miruro > "Episode N"
       const title =
         animexEp?.title ||
         anilistEp?.title ||
         subEp?.title || dubEp?.title ||
-        lunarEp?.title ||
         `Episode ${i}`;
 
-      // Thumbnail priority: AniList streamingEpisodes > Lunar (real scene stills) > Miruro
+      // Thumbnail priority: AniList streamingEpisodes > Miruro
       const thumbnail =
         anilistEp?.thumbnail ||
-        lunarEp?.thumbnail ||
         subEp?.thumbnail || dubEp?.thumbnail ||
         null;
 
@@ -220,7 +279,7 @@ export async function GET(request: NextRequest) {
         title,
         thumbnail,
         description: null,
-        source: anilistEp ? "anilist" : (lunarEp ? "lunar" : (subEp ? "miruro" : "numbered")),
+        source: anilistEp ? "anilist" : (subEp ? "miruro" : "numbered"),
         subSlug: subEp?.slug || subEp?.id || String(i),
         dubSlug: dubEp?.slug || dubEp?.id || null,
       });
@@ -234,7 +293,6 @@ export async function GET(request: NextRequest) {
       _meta: {
         hasMiruro: hasMiruroEps,
         hasAnilist: anilistEps.length > 0,
-        hasLunar: lunarEps.length > 0,
         hasAnimex: animexEps.length > 0,
         primarySource: hasMiruroEps ? "miruro" : (anilistEps.length > 0 ? "anilist" : "numbered"),
         title: animeTitle,

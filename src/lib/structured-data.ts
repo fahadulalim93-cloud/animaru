@@ -33,7 +33,7 @@ export function generateStructuredData(props: StructuredDataProps): object {
       return {
         "@context": "https://schema.org",
         "@type": "TVSeries",
-        name: title.replace(/ — .+$/, "").replace(/ \| .+$/, ""),
+        name: String(title || "").replace(/ — .+$/, "").replace(/ \| .+$/, ""),
         description,
         url,
         image: imageUrl,
@@ -53,7 +53,7 @@ export function generateStructuredData(props: StructuredDataProps): object {
       return {
         "@context": "https://schema.org",
         "@type": "VideoObject",
-        name: title.replace(/ — .+$/, "").replace(/ \| .+$/, ""),
+        name: String(title || "").replace(/ — .+$/, "").replace(/ \| .+$/, ""),
         description,
         url,
         thumbnailUrl: imageUrl,
@@ -66,7 +66,7 @@ export function generateStructuredData(props: StructuredDataProps): object {
       return {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        name: title.replace(/ \| .+$/, ""),
+        name: String(title || "").replace(/ \| .+$/, ""),
         description,
         url,
         image: imageUrl,
@@ -77,7 +77,7 @@ export function generateStructuredData(props: StructuredDataProps): object {
       return {
         "@context": "https://schema.org",
         "@type": "WebPage",
-        name: title.replace(/ \| .+$/, ""),
+        name: String(title || "").replace(/ \| .+$/, ""),
         description,
         url,
         image: imageUrl,

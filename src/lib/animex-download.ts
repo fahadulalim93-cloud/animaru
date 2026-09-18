@@ -1,19 +1,22 @@
 /**
- * AnimeX Download API — fetches download links from animex.one's REST API.
+ * AnimeX Download API — fetches download links directly from animex.one's REST API.
+ *
+ * Scraped from animex.one/community/download — the site uses pp.animex.one as its
+ * REST backend (found in their SvelteKit JS bundle at BLk5wYRl.js).
  *
  * API flow:
- *   1. Search: GET https://chad.anidap.lol/rest/api/download?q={query}
+ *   1. Search: GET https://pp.animex.one/rest/api/download?q={query}
  *      Returns: [{ id, title, ... }] — list of anime with download links available
  *
- *   2. Get links: GET https://chad.anidap.lol/rest/api/download?id={id}
+ *   2. Get links: GET https://pp.animex.one/rest/api/download?id={id}
  *      Returns: [{ text, url }] — url is base64-encoded (decode to get the actual URL)
  *
- * The download links point to external services (Google Drive, Mega, tinyurl, etc.)
+ * The download links point to external services (AnimeOut/rapidbot, Google Drive, etc.)
  * — they are NOT direct video files. Users click the link and are taken to the
  * external download page.
  */
 
-const ANIMEX_REST = "https://chad.anidap.lol/rest/api";
+const ANIMEX_REST = "https://pp.animex.one/rest/api";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 export interface AnimexDownloadResult {
@@ -38,7 +41,7 @@ export async function searchAnimexDownloads(query: string): Promise<AnimexDownlo
     const url = `${ANIMEX_REST}/download?q=${encodeURIComponent(query)}`;
     const res = await fetch(url, {
       headers: { "User-Agent": UA },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -64,7 +67,7 @@ export async function getAnimexDownloadLinks(downloadId: string): Promise<Animex
     const url = `${ANIMEX_REST}/download?id=${encodeURIComponent(downloadId)}`;
     const res = await fetch(url, {
       headers: { "User-Agent": UA },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) return [];
     const data = await res.json();

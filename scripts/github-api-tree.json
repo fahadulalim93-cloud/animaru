@@ -1,0 +1,25 @@
+{
+  "code": 200,
+  "data": {
+    "description": "",
+    "external": {},
+    "html": "<html><head><meta name=\"color-scheme\" content=\"light dark\"><meta charset=\"utf-8\"></head><body><pre>{\n  \"message\": \"Not Found\",\n  \"documentation_url\": \"https://docs.github.com/rest/git/trees#get-a-tree\",\n  \"status\": \"404\"\n}\n</pre><div class=\"json-formatter-container\"></div></body></html>",
+    "httpStatus": 404,
+    "httpStatusText": "",
+    "metadata": {
+      "color-scheme": "light dark"
+    },
+    "title": "",
+    "url": "https://api.github.com/repos/fahadulalim93-cloud/luffytv-fahad/git/trees/main",
+    "usage": {
+      "tokens": 81
+    },
+    "warning": "Target URL returned error 404: Not Found"
+  },
+  "meta": {
+    "usage": {
+      "tokens": 81
+    }
+  },
+  "status": 200
+}

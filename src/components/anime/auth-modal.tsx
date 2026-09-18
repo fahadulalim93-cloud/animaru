@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "./store";
-import { signIn, signUp, checkAccountStatus, signInWithGoogleProfile } from "@/lib/auth-local";
+import { checkAccountStatus, signInWithGoogleProfile } from "@/lib/auth-local";
 import { getAniListAuthUrl, isAniListConfigured } from "@/lib/anilist-auth";
-import { isMalConfigured, startMalAuth } from "@/lib/mal-auth";
 import { isGoogleConfigured, signInWithGoogle } from "@/lib/google-auth";
 
 /**
@@ -96,15 +95,33 @@ export default function AuthModal() {
     setError("");
     setLoading(true);
     await new Promise((r) => setTimeout(r, 400));
-    const result = signIn({ identifier, password });
-    if (result.ok) {
-      const status = await checkAccountStatus(result.user.username);
+    // Server-side login (Prisma + HTTP-only session cookie) — works across
+    // browsers and incognito. The old localStorage-based signIn() from
+    // auth-local.ts was per-browser only, so users couldn't log in from
+    // a different browser or incognito window.
+    try {
+      const res = await fetch("/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: identifier, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setLoading(false);
+        setError(data.error || "Invalid credentials");
+        return;
+      }
+      const status = await checkAccountStatus(data.user.username);
       setLoading(false);
       if (status.blocked) { setError(status.message); return; }
-      setUser(result.user);
-    } else {
+      setUser(data.user);
+      useAppStore.getState().setAuthNotice({
+        type: "success",
+        message: `Welcome back, ${data.user.name || data.user.username}!`,
+      });
+    } catch (err: any) {
       setLoading(false);
-      setError(result.error);
+      setError(err?.message || "Network error. Please try again.");
     }
   };
 
@@ -121,15 +138,31 @@ export default function AuthModal() {
     }
     setLoading(true);
     await new Promise((r) => setTimeout(r, 400));
-    const result = signUp({ username, email, password, name: username });
-    if (result.ok) {
-      const status = await checkAccountStatus(result.user.username);
+    // Server-side signup (Prisma + HTTP-only session cookie) — works across
+    // browsers and incognito.
+    try {
+      const res = await fetch("/api/users/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password, name: username }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setLoading(false);
+        setError(data.error || "Registration failed");
+        return;
+      }
+      const status = await checkAccountStatus(data.user.username);
       setLoading(false);
       if (status.blocked) { setError(status.message); return; }
-      setUser(result.user);
-    } else {
+      setUser(data.user);
+      useAppStore.getState().setAuthNotice({
+        type: "success",
+        message: `Welcome to LuffyTV, ${data.user.name || data.user.username}! Your account is ready.`,
+      });
+    } catch (err: any) {
       setLoading(false);
-      setError(result.error);
+      setError(err?.message || "Network error. Please try again.");
     }
   };
 
@@ -380,20 +413,6 @@ export default function AuthModal() {
                   <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-.102 5.6c1.566 0 2.834.39 3.804 1.17.97.78 1.455 1.81 1.455 3.09 0 2.08-1.085 3.432-3.255 4.056l-2.862.84c-.69.21-1.155.405-1.395.585-.24.18-.36.405-.36.675 0 .33.135.585.405.765.27.18.66.27 1.17.27.69 0 1.275-.165 1.725-.495.45-.33.765-.795.945-1.395l3.045.84c-.39 1.32-1.155 2.34-2.295 3.06-1.14.72-2.55 1.08-4.23 1.08-1.77 0-3.18-.39-4.23-1.17-1.05-.78-1.575-1.86-1.575-3.24 0-2.04 1.065-3.39 3.195-4.05l3.06-.93c.69-.21 1.155-.405 1.395-.585.24-.18.36-.42.36-.72 0-.33-.135-.585-.405-.765-.27-.18-.66-.27-1.17-.27-.69 0-1.275.165-1.725.495-.45.33-.765.795-.945 1.395l-3.045-.84c.39-1.32 1.155-2.34 2.295-3.06 1.14-.72 2.55-1.08 4.23-1.08z"/>
                 </svg>
                 Continue with AniList
-              </button>
-
-              <button
-                onClick={() => {
-                  if (isMalConfigured()) startMalAuth();
-                  else setError("MyAnimeList login is not configured.");
-                }}
-                className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold text-white/90 transition-all hover:bg-white/5"
-                style={{ background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.08)" }}
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" style={{ color: "#2E51A2" }}>
-                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 4.5c2.25 0 4.275.93 5.7 2.4h-2.55c-1.05-.6-2.25-.9-3.525-.9-3.75 0-6.75 3-6.75 6.75s3 6.75 6.75 6.75c2.85 0 5.25-1.725 6.225-4.2h-3.15c-.45.6-1.2 1.05-2.1 1.05-1.5 0-2.7-1.2-2.7-2.7s1.2-2.7 2.7-2.7c.9 0 1.65.45 2.1 1.05h3.75c-.6-2.4-2.85-4.05-5.4-4.05-3 0-5.4 2.4-5.4 5.4s2.4 5.4 5.4 5.4c1.5 0 2.85-.6 3.825-1.65h2.55C16.275 19.05 14.25 20.4 12 20.4c-4.65 0-8.4-3.75-8.4-8.4S7.35 4.5 12 4.5z"/>
-                </svg>
-                Continue with MyAnimeList
               </button>
             </div>
 

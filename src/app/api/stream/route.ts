@@ -10,10 +10,9 @@ const ALLOWED_HOSTS = [
   "allanimenews.com", "cdn.allanimenews.com", "allanime.day",
   "vibeplayer.site", "otakuvid.online", "otakuhg.site", "myvidplay.com",
   "mp4upload.com", "ibyteimg.com",
-  "flixcloud.cc", "fetch1.flixcloud.cc", "fetch2.flixcloud.cc",
+  "flixcloud.cc", "fetch1.flixcloud.cc", "fetch2.flixcloud.cc", "fetch7.flixcloud.cc", "fetch8.flixcloud.cc", "fetch9.flixcloud.cc",
   "s4.anilist.co", "kwik.cx", "kwik.si",
   "megaplay.buzz", "megaplay.online",
-  "reanime.to",
   "cimovix.store", "cdn.cimovix.store",
   "wixmp.com", "cdn.wixmp.com", "fast4speed.rsvp",
   "cdn1.animex.tech", "cdn2.animex.tech", "animex.tech",
@@ -43,8 +42,6 @@ const ALLOWED_HOSTS = [
   // AniZone CDN — suzaku.xin-cdn.xyz (needs Referer: https://anizone.to/)
   "xin-cdn.xyz", "suzaku.xin-cdn.xyz",
   "kyren.moe", "api.kyren.moe",
-  // AniKage API + CDN
-  "anikage.cc", "api.anikage.cc",
   // Ani.pm API + HLS proxy
   "ani.pm",
   // AniWaves embed CDNs
@@ -55,11 +52,9 @@ const ALLOWED_HOSTS = [
   "vodvidl.site", "hakunaymatata.com",
   // AniDap subtitle CDNs (lostproject.club = Yuki subs, krussdomi.com = Sora subs)
   "lostproject.club", "krussdomi.com",
-  // AniZone / Luna ASS subtitle CDN (filtered out client-side, but allow
+  // AniZone ASS subtitle CDN (filtered out client-side, but allow
   // the host in case future ASS→VTT conversion is added)
   "xin-cdn.xyz", "suzaku.xin-cdn.xyz",
-  // AniKage subtitle CDN
-  "anikage.cc", "api.anikage.cc", "prox.anikage.cc",
   // SlopNet (ReAnime subtitles/fonts)
   "slopnet.site", "vault94.slopnet.site", "vault99.slopnet.site",
   // AnimeOnsen subtitle CDN
@@ -72,15 +67,52 @@ const ALLOWED_HOSTS = [
   "anizara.store", "cdn.anizara.store",
   // AniKoto / VidTube / MegaPlay embed CDNs
   "vidtube.site",
+  // VidWish — AniKoto secondary HLS + subtitle CDN
+  "vidwish.live",
+  // VidWish subtitle CDN (subtitles are served from *.watching.onl)
+  "watching.onl",
+  // MegaPlay subtitle CDN (subtitles are served from cdn.kryntal.top)
+  "kryntal.top", "cdn.kryntal.top",
+  // AnimePahe / Kwik CDN — vault-XX.uwucdn.top + vault-XX.owocdn.top (HLS segments)
+  "uwucdn.top", "owocdn.top",
+  // mapper.mewcdn.online — AniKoto mapper fallback streams
+  "mewcdn.online", "mapper.mewcdn.online",
+  // ── AniKai via otakuhg.site — premilkyway.com CDN (also used by AniNeko) ──
+  // otakuhg.site embed pages decode (dean-edwards packed JS) to premilkyway URLs.
+  // These work from VPS IP with otakuhg.site referer. Need to be in allowlist
+  // so /api/stream can proxy them with the correct referer.
+  "premilkyway.com",
+  // api.ani.zip — AniKoto metadata lookups (not a stream host, but allowed for safety)
+  "api.ani.zip",
   // Moviebox API + player domain
   "aoneroom.com", "h5-api.aoneroom.com", "moviebox.ph",
   // Netfilm player domain (Moviebox stream CDN)
   "netfilm.world", "api.netfilm.world",
+  // Anivexa backup source CDNs (self-hosted Anivexa-API providers)
+  "s1.akirax.buzz",           // Vexa-Stream (VidPlay-1) HLS
+  "vivibebe.site",             // Vexa-Play (anineko) HLS
+  "vibevibe.workers.dev",      // Vexa-Play (anineko workers) HLS
+  "morning-credit-3bcc.vibevibe.workers.dev", // Vexa-Play worker
+  "fetch8.flixcloud.cc",      // Vexa-HD (reanime) HLS — already in list but duplicate for safety
+  "babastream.top",            // Vexa-Hive (2dhive) embed
+  "anicloud-hls-proxy.n3779118.workers.dev", // Vexa-Hive (hiAnime) HLS proxy
+  "animeapps.top",             // Vexa-BD (anibd) HLS
+  "playeng.animeapps.top",     // Vexa-BD (anibd) HLS
+  // AnimeX.one source — flixcloud.cc embed + animex.one itself
+  "flixcloud.cc",              // AnimeX.one player embeds
+  "animex.one",                // AnimeX.one website
 ];
 
 function isHostAllowed(url: string): boolean {
   try {
     const hostname = new URL(url).hostname;
+    // Allow ALL subtitle files (.vtt, .srt, .ass) from any host.
+    // Inazuma/megaplay rotate their subtitle CDN domains constantly.
+    // These are just text files — no SSRF risk.
+    const pathname = new URL(url).pathname.toLowerCase();
+    if (pathname.endsWith('.vtt') || pathname.endsWith('.srt') || pathname.endsWith('.ass') || pathname.includes('/subtitles/')) {
+      return true;
+    }
     return ALLOWED_HOSTS.some(
       (host) => hostname === host || hostname.endsWith("." + host)
     );
@@ -94,6 +126,26 @@ function getRefererForUrl(url: string): string {
     const hostname = new URL(url).hostname;
     if (hostname.includes("kwik") || hostname.includes("kiwi")) return "https://kwik.cx/";
     if (hostname.includes("megaplay")) return "https://megaplay.buzz/";
+    if (hostname.includes("vidwish")) return "https://vidwish.live/";
+    if (hostname.includes("vidtube")) return "https://vidtube.site/";
+    // flixcloud.cc / fetch*.flixcloud.cc — Reanime video host
+    // Needs Referer: https://flixcloud.cc/ (the embed page origin)
+    if (hostname.includes("flixcloud")) return "https://flixcloud.cc/";
+    // premilkyway.com — AniKai (otakuhg.site) + AniNeko m3u8 CDN
+    // Works from VPS IP with otakuhg.site referer (worker IP gets 403)
+    if (hostname.includes("premilkyway")) return "https://otakuhg.site/";
+    // AniKoto subtitle CDNs — these serve VTT files and 403 without the right referer
+    if (hostname.includes("kryntal")) return "https://megaplay.buzz/";      // MegaPlay subtitle CDN
+    if (hostname.includes("watching.onl")) return "https://megaplay.buzz/"; // VidWish subtitle CDN (megaplay referer works)
+    if (hostname.includes("mewstream")) return "https://megaplay.buzz/";    // mewstream subtitle CDN
+    if (hostname.includes("vyrnex")) return "https://megaplay.buzz/";       // vyrnex.top — Inazuma subtitle CDN
+    if (hostname.includes("qeltrix")) return "https://megaplay.buzz/";      // qeltrix.top — Inazuma subtitle CDN
+    if (hostname.includes("zhaevor")) return "https://megaplay.buzz/";      // zhaevor.top — Inazuma Dub subtitle CDN
+    if (hostname.includes("nexabloom")) return "https://megaplay.buzz/";     // nexabloom.top — older Inazuma subtitle CDN
+    if (hostname.includes("norami")) return "https://megaplay.buzz/";        // norami.top — VidPlay subtitle CDN
+    if (hostname.includes("vid-cdn")) return "https://anizone.to/";          // AniZone subtitle CDN
+    if (hostname.includes("lostproject")) return "https://anidap.lol/";      // AniDap (Yuki) subtitle CDN
+    if (hostname.includes("krussdomi")) return "https://anidap.lol/";        // AniDap (Sora) subtitle CDN
     if (hostname.includes("allanime") || hostname.includes("allmanga") || hostname.includes("animenews")) return "https://allmanga.to/";
     if (hostname.includes("streamruby")) return "https://streamruby.net/";
     if (hostname.includes("vidplay")) return "https://vidplay.online/";
@@ -106,7 +158,6 @@ function getRefererForUrl(url: string): string {
     if (hostname.includes("aniwatch")) return "https://aniwatch.to/";
     if (hostname.includes("kyren")) return "https://kyren.moe/";
     if (hostname.includes("ninstream")) return "https://senshi.live/";
-    if (hostname.includes("anikage")) return "https://anikage.cc/";
     if (hostname.includes("ani.pm")) return "https://ani.pm/";
     if (hostname.includes("xin-cdn")) return "https://anizone.to/";
     if (hostname.includes("echovideo") || hostname.includes("gn1r5n")) return "https://aniwaves.ru/";
@@ -251,10 +302,13 @@ export async function GET(request: NextRequest) {
     // For .vtt subtitles, strip inline STYLE blocks (which contain
     // ::cue { background: black } that creates the ugly black box)
     // and pass through with correct content-type
-    if (targetUrl.endsWith(".vtt")) {
+    if (targetUrl.endsWith(".vtt") || upstreamContentType?.includes("text/vtt") || upstreamContentType?.includes("vtt")) {
       const rawVtt = await res.text();
-      // Remove STYLE blocks — everything from "STYLE" to the next blank line
-      const vttContent = rawVtt.replace(/^STYLE\s*\n((?:.*\n)*?)\n/gm, "\n");
+      // Robust STYLE block stripping — matches "STYLE" through the next blank line
+      // (handles multi-line CSS blocks with nested braces)
+      let vttContent = rawVtt.replace(/^STYLE\s*\r?\n[\s\S]*?\r?\n\r?\n/gm, "\n");
+      // Also strip any stray ::cue CSS rules that survived (paranoia)
+      vttContent = vttContent.replace(/^::cue(?:\([^\)]*\))?\s*\{[^}]*\}\s*/gm, "");
       return new NextResponse(vttContent, {
         status: 200,
         headers: {

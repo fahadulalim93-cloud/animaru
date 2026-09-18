@@ -1,10 +1,10 @@
 /**
  * AnimeX Fast — resolves the "mimi" provider's m3u8 URL directly.
+ * REWRITTEN 2026-08-12 — GraphQL schema changed
  *
- * The user observed that AnimeX mimi loads faster than AniDB. This module
- * resolves the m3u8 URL in 2 quick steps:
- *   1. AniList ID → slug (via AnimeX GraphQL at graphql.animex.one)
- *   2. Fetch sources for the "mimi" provider (via chad.anidap.lol REST API)
+ * Resolves the m3u8 URL in 2 quick steps:
+ *   1. AniList ID → slug (via AnimeX searchAnime GraphQL at graphql.animex.one)
+ *   2. Fetch sources for the "mimi" provider (via pp.animex.one REST API)
  *
  * Returns the direct m3u8 URL (from vivibebe.site) for hls.js playback.
  * No iframe, no embed page scraping — just the raw m3u8.
@@ -13,11 +13,11 @@
  */
 
 const ANIMEX_GRAPHQL = "https://graphql.animex.one/graphql";
-const ANIMEX_REST = "https://chad.anidap.lol/rest/api";
+const ANIMEX_REST = "https://pp.animex.one/rest/api";
 
 const HEADERS: Record<string, string> = {
   "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win:64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/5737.36",
   Accept: "application/json, text/plain, */*",
   "Accept-Language": "en-US,en;q=0.5",
   Origin: "https://animex.one",
@@ -25,7 +25,9 @@ const HEADERS: Record<string, string> = {
 };
 
 // ── Caches ──
-const slugCache = new Map<number, string | null>(); // anilistId → slug
+// Slug cache is SHARED with animex-api.ts via import — both modules resolve
+// the same AniList ID → slug mapping, so sharing avoids duplicate GraphQL calls.
+import { animexGetAnime } from "./animex-api";
 const sourceCache = new Map<string, any>(); // "slug:ep:type:provider" → sources data
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 const cacheTimestamps = new Map<string, number>();
@@ -52,47 +54,15 @@ export interface AnimexFastResult {
 }
 
 // ── Step 1: Resolve AniList ID → AnimeX slug ──
+// Delegates to animexGetAnime() from animex-api.ts which has its own
+// in-memory cache + negative cache. This avoids duplicate GraphQL calls
+// when both animex-servers route and animex-fast run for the same anime.
 async function resolveSlug(anilistId: number): Promise<string | null> {
-  const cacheKey = `animex:${anilistId}`;
-  if (slugCache.has(anilistId) && isCacheFresh(cacheKey)) {
-    return slugCache.get(anilistId)!;
-  }
-
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch(ANIMEX_GRAPHQL, {
-      method: "POST",
-      headers: { ...HEADERS, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `query($id:Int!){anime(anilistId:$id){id anilistId titleEnglish titleRomaji}}`,
-        variables: { id: anilistId },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      console.error(`[animex-fast] GraphQL HTTP ${res.status} for AniList ${anilistId}`);
-      slugCache.set(anilistId, null);
-      cacheTimestamps.set(cacheKey, Date.now());
-      return null;
-    }
-
-    const data = await res.json();
-    const slug = data?.data?.anime?.id || null;
-
-    if (slug) {
-      console.log(`[animex-fast] resolved AniList ${anilistId} → slug "${slug}"`);
-    }
-
-    slugCache.set(anilistId, slug);
-    cacheTimestamps.set(cacheKey, Date.now());
-    return slug;
+    const anime = await animexGetAnime(anilistId);
+    return anime?.slug || null;
   } catch (err) {
     console.error(`[animex-fast] resolveSlug error:`, err);
-    slugCache.set(anilistId, null);
-    cacheTimestamps.set(cacheKey, Date.now());
     return null;
   }
 }

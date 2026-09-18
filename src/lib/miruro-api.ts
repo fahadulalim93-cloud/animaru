@@ -1,58 +1,22 @@
 // Miruro API Client — REWRITTEN to use direct AniList + direct miruro.tv pipe
 // No dependency on any deployed Vercel API.
-// - Metadata (search, trending, popular, info): AniList GraphQL directly
+// - Metadata (search, trending, popular, info): AniList GraphQL via cachedQuery
 // - Episodes + streams: www.miruro.tv/api/secure/pipe directly (base64+gzip codec)
 //
 // This file is imported by 20+ components/API routes, so the public API
 // (function names + return shapes) is kept compatible with the old version.
 
 import { encodePipeRequest, decodePipeResponse, translateId, deepTranslateIds, fetchRawEpisodes, getEpisodes as getMiruroEpisodesDirect, getSourceFromProvider } from "./miruro-direct";
-import { wrapStreamUrl, wrapM3u8Url } from "./proxy";
+import { wrapStreamUrl, wrapM3u8Url, wrapM3u8UrlWithReferer } from "./proxy";
+import { cachedQuery } from "./anilist-cache";
 
-// ─── AniList GraphQL ──────────────────────────────────────────────
-const ANILIST_API = "https://graphql.anilist.co";
-
-/**
- * AniList GraphQL query with retry logic + rate limit handling.
- * AniList returns 429 (rate limited) or 500 (error 1101) when too many
- * requests come from the same IP (Vercel's shared IPs get rate-limited often).
- */
+// ─── AniList GraphQL (now cached via anilist-cache.ts) ─────────────
 async function anilistQuery(query: string, variables?: Record<string, unknown>) {
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 1000;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetch(ANILIST_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ query, variables }),
-        next: { revalidate: 3600 },
-      });
-
-      // Rate limited or server error — retry after delay
-      if (res.status === 429 || res.status >= 500) {
-        if (attempt < MAX_RETRIES - 1) {
-          await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
-          continue;
-        }
-        return null;
-      }
-
-      if (!res.ok) return null;
-
-      const json = await res.json();
-      if (json.errors) return null;
-      return json.data;
-    } catch {
-      if (attempt < MAX_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
-        continue;
-      }
-      return null;
-    }
-  }
-  return null;
+  return cachedQuery(query, variables, {
+    ttl: 2 * 60 * 60 * 1000,
+    timeoutMs: 5000,
+    revalidate: 3600,
+  });
 }
 
 const MEDIA_FIELDS = `

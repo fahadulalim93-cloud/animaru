@@ -9,7 +9,7 @@ export const maxDuration = 30;
  * GET /api/anime/miruro-v3/servers/[anilistId]/[episode]?sub=1&dub=1
  *
  * Miruro V3 SEPARATE route — NOT part of instant-servers.
- * This hits the NEW api.luffytv.online backend directly.
+ * This hits the NEW ap.luffytv.live backend directly.
  *
  * Returns servers in the same format as instant-servers for frontend compatibility,
  * but fetched exclusively from the Miruro V3 API providers.
@@ -27,7 +27,7 @@ export const maxDuration = 30;
  *   - MP4 URLs → wrapStreamUrl (worker proxy)
  *
  * Cloudflare note:
- *   - The api.luffytv.online has CF protection on the pipe endpoint
+ *   - The ap.luffytv.live has CF protection on the pipe endpoint
  *   - This server-side route bypasses browser CF checks
  *   - Do NOT deploy on Vercel — use VPS with residential IP
  */
@@ -57,7 +57,7 @@ export async function GET(
     const servers = await getMiruroV3Servers(id, epNum, {
       sub: includeSub,
       dub: includeDub,
-      timeoutMs: 12000,
+      timeoutMs: 7000,
       maxProviders: 6,
     });
 
@@ -67,7 +67,9 @@ export async function GET(
       `dub=${servers.filter(s => s.type === "dub").length})`,
     );
 
-    return NextResponse.json({ servers });
+    return NextResponse.json({ servers }, {
+      headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600" },
+    });
   } catch (err) {
     console.error("[miruro-v3] error:", err);
     return NextResponse.json({ servers: [] });

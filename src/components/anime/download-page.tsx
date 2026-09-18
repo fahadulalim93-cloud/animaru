@@ -47,20 +47,14 @@ export default function DownloadPage() {
   const [downloadLinks, setDownloadLinks] = useState<DownloadLink[]>([]);
   const [loadingLinks, setLoadingLinks] = useState(false);
 
-  // Load popular catalog on mount (first 24 anime from animex.one)
+  // Load popular catalog on mount (proxied through our API to avoid CORS)
   useEffect(() => {
     const loadCatalog = async () => {
       try {
-        const res = await fetch("https://graphql.animex.one/graphql", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: `{catalogAnime(limit:24,offset:0){items{id titleEnglish titleRomaji coverImage episodeCount}totalCount}}`,
-          }),
-        });
+        const res = await fetch("/api/anime/animex-catalog?limit=24&offset=0");
         if (res.ok) {
           const data = await res.json();
-          const items = data?.data?.catalogAnime?.items || [];
+          const items = data?.items || [];
           setCatalog(items);
         }
       } catch {
@@ -328,7 +322,7 @@ export default function DownloadPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline"
                     >
-                      Search on AnimeX
+                      Explore downloads on AnimeX
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </a>
                   </div>

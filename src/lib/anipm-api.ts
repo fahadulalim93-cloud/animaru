@@ -25,7 +25,9 @@
  */
 
 const ANI_PM = "https://ani.pm";
-const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://api.luffytv.live";
+
+import { getTitle } from "./anilist-cache";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
@@ -108,27 +110,27 @@ export async function searchAniPm(query: string, timeoutMs = 8000): Promise<AniP
 
 // ─── Resolve AniList ID → ani.pm anime ID ────────────────────────────────────
 
-const anilistToAniPmCache = new Map<number, { animeId: number; title: string } | null>();
+// Cache with TTL: successful resolves are cached for 1h; null (failed) entries
+// expire after 5 minutes so we retry instead of caching failure forever.
+const anilistToAniPmCache = new Map<number, { data: { animeId: number; title: string } | null; ts: number }>();
+const ANIPM_CACHE_TTL = 60 * 60 * 1000;     // 1 hour for success
+const ANIPM_NULL_TTL = 5 * 60 * 1000;        // 5 minutes for null
 
 export async function resolveAniPmId(anilistId: number, timeoutMs = 8000): Promise<{ animeId: number; title: string } | null> {
-  if (anilistToAniPmCache.has(anilistId)) return anilistToAniPmCache.get(anilistId)!;
+  const cached = anilistToAniPmCache.get(anilistId);
+  if (cached) {
+    const ttl = cached.data ? ANIPM_CACHE_TTL : ANIPM_NULL_TTL;
+    if (Date.now() - cached.ts < ttl) return cached.data;
+    anilistToAniPmCache.delete(anilistId); // expired
+  }
 
   try {
-    // Get title from AniList
-    const titleRes = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": UA },
-      body: JSON.stringify({
-        query: `query($id:Int){Media(id:$id,type:ANIME){id title{english romaji native}}}`,
-        variables: { id: anilistId },
-      }),
-      cache: "no-store",
-    });
-    if (!titleRes.ok) { anilistToAniPmCache.set(anilistId, null); return null; }
-    const titleData = await titleRes.json();
-    const title = titleData?.data?.Media?.title?.english
-               || titleData?.data?.Media?.title?.romaji;
-    if (!title) { anilistToAniPmCache.set(anilistId, null); return null; }
+    // Get title from centralized cache (no direct AniList call)
+    const title = await getTitle(anilistId);
+    if (!title) {
+      anilistToAniPmCache.set(anilistId, { data: null, ts: Date.now() });
+      return null;
+    }
 
     // Search ani.pm
     const results = await searchAniPm(title, timeoutMs);
@@ -136,14 +138,17 @@ export async function resolveAniPmId(anilistId: number, timeoutMs = 8000): Promi
     const match = results.find(r => r.anilistId === anilistId)
                || results.find(r => r.title?.toLowerCase() === title.toLowerCase())
                || results[0];
-    if (!match?.id) { anilistToAniPmCache.set(anilistId, null); return null; }
+    if (!match?.id) {
+      anilistToAniPmCache.set(anilistId, { data: null, ts: Date.now() });
+      return null;
+    }
 
     const result = { animeId: match.id, title: match.title };
-    anilistToAniPmCache.set(anilistId, result);
+    anilistToAniPmCache.set(anilistId, { data: result, ts: Date.now() });
     console.log(`[AniPm] anilistId=${anilistId} → animeId=${result.animeId} (${result.title})`);
     return result;
   } catch {
-    anilistToAniPmCache.set(anilistId, null);
+    anilistToAniPmCache.set(anilistId, { data: null, ts: Date.now() });
     return null;
   }
 }

@@ -123,7 +123,9 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
   const [miruroInfo, setMiruroInfo] = useState<MiruroAnimeResult | null>(null);
   const [anilistMedia, setAnilistMedia] = useState<AniListMedia | null>(null);
   const [anilistInfo, setAnilistInfo] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingInfo, setLoadingInfo] = useState(true);
+  const [loadingEpisodes, setLoadingEpisodes] = useState(true);
+  const [infoFailed, setInfoFailed] = useState(false);
 
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [totalEpisodes, setTotalEpisodes] = useState<number | null>(null);
@@ -180,163 +182,181 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
     setActiveTab("episodes");
     setEpSearch("");
     setEpPage(1);
+    setInfoFailed(false);
   }, [animeId]);
 
   // ── Load core data ──
+  // PROGRESSIVE: Fetch info + episodes in PARALLEL but render info IMMEDIATELY.
+  // Info loads in 1-3s, episodes can take 3-10s.
+  // Show the hero/banner/title as soon as info arrives — episodes load in-place.
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      setLoading(true);
+    setLoadingInfo(true);
+    setLoadingEpisodes(true);
 
-      // Clean the ID for initial display, but the REAL AniList ID will come from
-      // the /api/anime/info response via _resolvedAnilistId (critical for mal_ IDs)
-      const cleanId = animeId.replace(/^miruro_/, "").replace(/^mal_/, "");
-      if (/^\d+$/.test(cleanId) && !animeId.startsWith("mal_")) {
-        // Only set directly for non-MAL IDs — MAL IDs need reverse lookup via info API
-        setAnilistId(parseInt(cleanId));
+    // Clean the ID for initial display, but the REAL AniList ID will come from
+    // the /api/anime/info response via _resolvedAnilistId (critical for mal_ IDs)
+    const cleanId = String(animeId).replace(/^miruro_/, "").replace(/^mal_/, "");
+    let resolvedAnilistId: number | null = null;
+    if (/^\d+$/.test(cleanId) && !String(animeId).startsWith("mal_")) {
+      resolvedAnilistId = parseInt(cleanId);
+      setAnilistId(resolvedAnilistId);
+    }
+
+    // ── Fetch info + episodes simultaneously ──
+    const infoPromise = fetch(`/api/anime/info?id=${encodeURIComponent(animeId)}`)
+      .then(res => res.ok ? res.json() : null)
+      .catch(() => null);
+
+    const episodesPromise = fetch(`/api/anime/episodes?id=${encodeURIComponent(animeId)}`)
+      .then(res => res.ok ? res.json() : null)
+      .catch(() => null);
+
+    // ── Process info AS SOON AS IT ARRIVES (don't wait for episodes) ──
+    infoPromise.then((infoData) => {
+      if (cancelled) { return; }
+      if (!infoData) {
+        // Info failed — show a clear network error message instead of "Unknown".
+        setLoadingInfo(false);
+        setInfoFailed(true);
+        return;
+      }
+      setInfoFailed(false);
+      setAnime(infoData.anime);
+      setMiruroInfo(infoData.miruroInfo);
+      if (infoData.anilistInfo) {
+        setAnilistInfo(infoData.anilistInfo);
+        if (infoData.anilistInfo._resolvedAnilistId) {
+          console.log(`[anime-detail] Using resolved AniList ID: ${infoData.anilistInfo._resolvedAnilistId} (original: ${animeId})`);
+          setAnilistId(infoData.anilistInfo._resolvedAnilistId);
+        } else if (String(animeId).startsWith("mal_") && infoData.anilistInfo.id) {
+          setAnilistId(infoData.anilistInfo.id);
+        }
+        if (infoData.anilistInfo.characters && Array.isArray(infoData.anilistInfo.characters)) {
+          setCharacters(infoData.anilistInfo.characters);
+        }
+        const studiosRaw = Array.isArray(infoData.anilistInfo.studios) ? infoData.anilistInfo.studios : (infoData.anilistInfo.studios?.nodes || []);
+        if (studiosRaw.length > 0) {
+          setAnilistStudios(studiosRaw.map((s: any) => ({
+            id: s.id, name: s.name, isAnimationStudio: s.isAnimationStudio
+          })));
+        }
+        const mapRelation = (edge: any) => {
+          const node = edge.node || edge;
+          return {
+            relationType: edge.relationType,
+            id: node.id,
+            title: node.title,
+            coverImage: node.coverImage,
+            type: node.type,
+            format: node.format,
+            episodes: node.episodes,
+            status: node.status,
+          };
+        };
+        if (infoData.anilistInfo.franchiseSeasons || infoData.anilistInfo.franchiseRelated) {
+          const seasons = (infoData.anilistInfo.franchiseSeasons || []).map(mapRelation);
+          const related = (infoData.anilistInfo.franchiseRelated || []).map(mapRelation);
+          setFranchiseSeasons(seasons);
+          setFranchiseRelated(related);
+          setAnilistRelations([...seasons, ...related]);
+        } else {
+          const relsRaw = Array.isArray(infoData.anilistInfo.relations) && infoData.anilistInfo.relations[0]?.relationType
+            ? infoData.anilistInfo.relations
+            : (infoData.anilistInfo.relations?.edges || []);
+          if (relsRaw.length > 0) {
+            const mapped = relsRaw.map(mapRelation);
+            setAnilistRelations(mapped);
+            const seasons = mapped.filter(r =>
+              (r.relationType === "SEQUEL" || r.relationType === "PREQUEL") &&
+              (!r.format || r.format === "TV" || r.format === "TV_SHORT" || r.format === "OVA" || r.format === "ONA")
+            );
+            const related = mapped.filter(r => !seasons.some(s => s.id === r.id));
+            setFranchiseSeasons(seasons);
+            setFranchiseRelated(related);
+          }
+        }
+        const recsRaw = Array.isArray(infoData.anilistInfo.recommendations) ? infoData.anilistInfo.recommendations : (infoData.anilistInfo.recommendations?.nodes || []);
+        if (recsRaw.length > 0) {
+          setAnilistRecommendations(
+            recsRaw
+              .filter((r: any) => r.mediaRecommendation || r.id)
+              .map((r: any) => {
+                const m = r.mediaRecommendation || r;
+                return {
+                  id: m.id,
+                  title: m.title,
+                  coverImage: m.coverImage,
+                  type: m.type,
+                  episodes: m.episodes,
+                  averageScore: m.averageScore,
+                  status: m.status,
+                };
+              })
+          );
+        }
+        if (infoData.anilistInfo.trailer) setAnilistTrailer(infoData.anilistInfo.trailer);
+        if (infoData.anilistInfo.nextAiringEpisode) setNextAiring(infoData.anilistInfo.nextAiringEpisode);
+        else if (infoData.nextAiringEpisode) setNextAiring(infoData.nextAiringEpisode);
+      }
+      if (infoData.totalEpisodes != null && infoData.totalEpisodes > 0) setTotalEpisodes(infoData.totalEpisodes);
+      if (infoData.anilistInfo?.source) setSource(infoData.anilistInfo.source);
+
+      // If ani.zip provided episode data (when AniList failed), use it as fallback
+      if (infoData._anizipEpisodes && infoData._anizipEpisodes.length > 0) {
+        const anizipEps: EpisodeData[] = infoData._anizipEpisodes.map((ep: any) => ({
+          episodeIdNum: ep.number,
+          title: ep.title || null,
+          thumbnail: ep.thumbnail || null,
+          description: null,
+          source: "anizip",
+          subSlug: String(ep.number),
+          dubSlug: null,
+        }));
+        setEpisodes(anizipEps);
+        if (anizipEps.length > 0) setTotalEpisodes(anizipEps.length);
       }
 
-      try {
-        const infoRes = await fetch(`/api/anime/info?id=${encodeURIComponent(animeId)}`);
-        if (infoRes.ok && !cancelled) {
-          const data = await infoRes.json();
-          setAnime(data.anime);
-          setMiruroInfo(data.miruroInfo);
-          if (data.anilistInfo) {
-            setAnilistInfo(data.anilistInfo);
-            // CRITICAL: If the server resolved a MAL ID → AniList ID, use the resolved ID
-            // for all subsequent API calls (episodes, servers, franchise, etc.)
-            if (data.anilistInfo._resolvedAnilistId) {
-              console.log(`[anime-detail] Using resolved AniList ID: ${data.anilistInfo._resolvedAnilistId} (original: ${animeId})`);
-              setAnilistId(data.anilistInfo._resolvedAnilistId);
-            } else if (animeId.startsWith("mal_") && data.anilistInfo.id) {
-              // Fallback: use the id from anilistInfo if it looks like an AniList ID
-              setAnilistId(data.anilistInfo.id);
-            }
-            if (data.anilistInfo.characters && Array.isArray(data.anilistInfo.characters)) {
-              setCharacters(data.anilistInfo.characters);
-            }
-            const studiosRaw = Array.isArray(data.anilistInfo.studios) ? data.anilistInfo.studios : (data.anilistInfo.studios?.nodes || []);
-            if (studiosRaw.length > 0) {
-              setAnilistStudios(studiosRaw.map((s: any) => ({
-                id: s.id, name: s.name, isAnimationStudio: s.isAnimationStudio
-              })));
-            }
-            const mapRelation = (edge: any) => {
-              const node = edge.node || edge;
-              return {
-                relationType: edge.relationType,
-                id: node.id,
-                title: node.title,
-                coverImage: node.coverImage,
-                type: node.type,
-                format: node.format,
-                episodes: node.episodes,
-                status: node.status,
-              };
-            };
-            if (data.anilistInfo.franchiseSeasons || data.anilistInfo.franchiseRelated) {
-              const seasons = (data.anilistInfo.franchiseSeasons || []).map(mapRelation);
-              const related = (data.anilistInfo.franchiseRelated || []).map(mapRelation);
-              setFranchiseSeasons(seasons);
-              setFranchiseRelated(related);
-              setAnilistRelations([...seasons, ...related]);
-            } else {
-              const relsRaw = Array.isArray(data.anilistInfo.relations) && data.anilistInfo.relations[0]?.relationType
-                ? data.anilistInfo.relations
-                : (data.anilistInfo.relations?.edges || []);
-              if (relsRaw.length > 0) {
-                const mapped = relsRaw.map(mapRelation);
-                setAnilistRelations(mapped);
-                const seasons = mapped.filter(r =>
-                  (r.relationType === "SEQUEL" || r.relationType === "PREQUEL") &&
-                  (!r.format || r.format === "TV" || r.format === "TV_SHORT" || r.format === "OVA" || r.format === "ONA")
-                );
-                const related = mapped.filter(r => !seasons.some(s => s.id === r.id));
-                setFranchiseSeasons(seasons);
-                setFranchiseRelated(related);
-              }
-            }
-            const recsRaw = Array.isArray(data.anilistInfo.recommendations) ? data.anilistInfo.recommendations : (data.anilistInfo.recommendations?.nodes || []);
-            if (recsRaw.length > 0) {
-              setAnilistRecommendations(
-                recsRaw
-                  .filter((r: any) => r.mediaRecommendation || r.id)
-                  .map((r: any) => {
-                    const m = r.mediaRecommendation || r;
-                    return {
-                      id: m.id,
-                      title: m.title,
-                      coverImage: m.coverImage,
-                      type: m.type,
-                      episodes: m.episodes,
-                      averageScore: m.averageScore,
-                      status: m.status,
-                    };
-                  })
-              );
-            }
-            if (data.anilistInfo.trailer) setAnilistTrailer(data.anilistInfo.trailer);
-            if (data.anilistInfo.nextAiringEpisode) setNextAiring(data.anilistInfo.nextAiringEpisode);
-            else if (data.nextAiringEpisode) setNextAiring(data.nextAiringEpisode);
-          }
-          if (data.totalEpisodes != null && data.totalEpisodes > 0) setTotalEpisodes(data.totalEpisodes);
-          if (data.anilistInfo?.source) setSource(data.anilistInfo.source);
-        }
-      } catch { /* ignore */ }
+      setLoadingInfo(false);
+    });
 
-      if (!cancelled) setLoading(false);
+    // ── Process episodes AS SOON AS THEY ARRIVE (don't wait for info) ──
+    episodesPromise.then((epData) => {
+      if (!epData || cancelled) { setLoadingEpisodes(false); return; }
+      const rawEps: any[] = epData.episodes || [];
+      const eps: EpisodeData[] = rawEps.map((ep: any) => ({
+        episodeIdNum: Number(ep.episodeIdNum || ep.number || 0),
+        title: ep.title || null,
+        thumbnail: ep.thumbnail || null,
+        description: ep.description || null,
+        source: ep.source || "miruro",
+        subSlug: ep.subSlug || String(ep.episodeIdNum || ep.number),
+        dubSlug: ep.dubSlug || null,
+      })).filter((ep: EpisodeData) => ep.episodeIdNum > 0)
+         .sort((a, b) => a.episodeIdNum - b.episodeIdNum);
 
-      // Load episodes
-      try {
-        let aid = anilistId;
-        if (!aid) {
-          try {
-            const infoRes = await fetch(`/api/anime/info?id=${encodeURIComponent(animeId)}`);
-            if (infoRes.ok) {
-              const info = await infoRes.json();
-              aid = info?.anilistInfo?.id ? Number(info.anilistInfo.id) : null;
-              if (aid && !cancelled) setAnilistId(aid);
-            }
-          } catch { /* ignore */ }
-        }
-        if (aid && !cancelled) {
-          // Use the aggregated episodes endpoint which pulls thumbnails
-          // from TMDB + TVMaze + AniList + Miruro (much better images
-          // than miruro-direct alone which often has no thumbnails)
-          const epRes = await fetch(`/api/anime/episodes?id=${encodeURIComponent(animeId)}`);
-          if (epRes.ok && !cancelled) {
-            const data = await epRes.json();
-            const rawEps: any[] = data.episodes || [];
-            const eps: EpisodeData[] = rawEps.map((ep: any) => ({
-              episodeIdNum: Number(ep.episodeIdNum || ep.number || 0),
-              title: ep.title || null,
-              thumbnail: ep.thumbnail || null,
-              description: ep.description || null,
-              source: ep.source || "miruro",
-              subSlug: ep.subSlug || String(ep.episodeIdNum || ep.number),
-              dubSlug: ep.dubSlug || null,
-            })).filter((ep: EpisodeData) => ep.episodeIdNum > 0)
-               .sort((a, b) => a.episodeIdNum - b.episodeIdNum);
+      if (eps.length > 0) setEpisodes(eps);
 
-            if (eps.length > 0) setEpisodes(eps);
+      // Derive sub/dub from episode data
+      const hasDub = eps.some(ep => ep.dubSlug);
+      if (hasDub) {
+        setMiruroEps({
+          sub: eps.map(ep => ({ number: ep.episodeIdNum, slug: ep.subSlug || String(ep.episodeIdNum), title: ep.title || `Episode ${ep.episodeIdNum}`, thumbnail: ep.thumbnail || undefined })),
+          dub: eps.filter(ep => ep.dubSlug).map(ep => ({ number: ep.episodeIdNum, slug: ep.dubSlug!, title: ep.title || `Episode ${ep.episodeIdNum}`, thumbnail: ep.thumbnail || undefined })),
+        });
+      }
+      const epTotal = epData.totalEpisodes ?? eps.length;
+      if (epTotal) setTotalEpisodes(epTotal);
+      setLoadingEpisodes(false);
+    });
 
-            // Derive sub/dub from episode data
-            const hasDub = eps.some(ep => ep.dubSlug);
-            if (hasDub) {
-              setMiruroEps({
-                sub: eps.map(ep => ({ number: ep.episodeIdNum, slug: ep.subSlug || String(ep.episodeIdNum), title: ep.title || `Episode ${ep.episodeIdNum}`, thumbnail: ep.thumbnail || undefined })),
-                dub: eps.filter(ep => ep.dubSlug).map(ep => ({ number: ep.episodeIdNum, slug: ep.dubSlug!, title: ep.title || `Episode ${ep.episodeIdNum}`, thumbnail: ep.thumbnail || undefined })),
-              });
-            }
-            const epTotal = data.totalEpisodes ?? eps.length;
-            if (epTotal && !cancelled) setTotalEpisodes(epTotal);
-          }
-        }
-      } catch { /* ignore */ }
-    }
-    load();
-    return () => { cancelled = true; };
+    // Safety: if both fail, still clear loading after timeout.
+    // Reduced from 15s to 8s because /api/anime/info now has a 6s max budget.
+    const safety = setTimeout(() => {
+      if (!cancelled) { setLoadingInfo(false); setLoadingEpisodes(false); }
+    }, 8000);
+
+    return () => { cancelled = true; clearTimeout(safety); };
   }, [animeId]);
 
   // ── Load full franchise in background ──
@@ -368,26 +388,29 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
     loadFranchise();
   }, [anilistId]);
 
-  // ── Load deferred data ──
+  // ── Load deferred data (only characters+staff if missing) ──
+  // The /api/anime/info response already includes relations, recommendations,
+  // studios, trailer, nextAiringEpisode. Only fetch anilist-detail if
+  // characters are still missing (rare — happens when MAL was used as source).
   useEffect(() => {
     if (!anilistId) return;
-    if (anilistRelations.length > 0 || characters.length > 0) return;
+    if (characters.length > 0 && anilistRelations.length > 0) return;
     async function loadDeferred() {
       try {
         const res = await fetch(`/api/anime/anilist-detail?id=${anilistId}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.relations?.length) setAnilistRelations(data.relations);
-          if (data.recommendations?.length) setAnilistRecommendations(data.recommendations);
-          if (data.studios?.length) setAnilistStudios(data.studios);
-          if (data.trailer) setAnilistTrailer(data.trailer);
-          if (data.characters?.length) setCharacters(data.characters);
-          if (data.details) {
+          if (data.relations?.length && anilistRelations.length === 0) setAnilistRelations(data.relations);
+          if (data.recommendations?.length && anilistRecommendations.length === 0) setAnilistRecommendations(data.recommendations);
+          if (data.studios?.length && anilistStudios.length === 0) setAnilistStudios(data.studios);
+          if (data.trailer && !anilistTrailer) setAnilistTrailer(data.trailer);
+          if (data.characters?.length && characters.length === 0) setCharacters(data.characters);
+          if (data.details && !anilistMedia) {
             setAnilistMedia(data.details);
             if (data.details.episodes) setTotalEpisodes(prev => prev ?? data.details.episodes);
             if (data.details.nextAiringEpisode) setNextAiring(data.details.nextAiringEpisode);
           }
-          if (data.details?.source) setSource(data.details.source);
+          if (data.details?.source && !source) setSource(data.details.source);
         }
       } catch { /* ignore */ }
     }
@@ -423,8 +446,8 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
     return () => { cancelled = true; };
   }, [anilistId, anilistInfo, anilistMedia, miruroInfo, anime]);
 
-  // ── Loading skeleton ──
-  if (loading) {
+  // ── Loading skeleton (only while info is loading — page renders progressively) ──
+  if (loadingInfo) {
     return (
       <div className="min-h-screen bg-black text-white">
         {/* Banner skeleton */}
@@ -484,6 +507,37 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
     );
   }
 
+  // ── Info failed: show friendly error instead of empty/"Unknown" page ──
+  if (infoFailed) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          {/* Icon */}
+          <div className="mx-auto mb-6 w-20 h-20 rounded-full bg-white/[0.06] flex items-center justify-center">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 12V8M12 16h.01M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0" />
+            </svg>
+          </div>
+          <h2 className="font-karla text-2xl font-bold mb-3 bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)" }}>
+            Network Issue
+          </h2>
+          <p className="text-white/60 text-sm mb-6 leading-relaxed">
+            Could not load anime details. This may be a temporary issue with the data source or your connection.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 px-6 h-11 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-white font-medium text-sm transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+            Please Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Derived data ──
   const alTitle = anilistMedia?.title || anilistInfo?.title || null;
   const miruroTitle = miruroInfo?.title || null;
@@ -491,7 +545,7 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
   const anilistTitleRomaji = String(alTitle?.romaji || miruroTitle?.romaji || "");
   const anilistTitleNative = String(alTitle?.native || miruroTitle?.native || "");
   const allanimeTitle = anime ? String(anime.englishName || anime.name || "") : "";
-  const displayTitle = anilistTitle || allanimeTitle || "Unknown";
+  const displayTitle = anilistTitle || allanimeTitle || String(animeId).replace(/^miruro_/, "").replace(/^mal_/, "") || "Anime";
 
   const alImage = anilistMedia?.coverImage?.extraLarge || anilistMedia?.coverImage?.large || anilistInfo?.coverImage?.extraLarge || anilistInfo?.coverImage?.large || "";
   const image = alImage || miruroInfo?.coverImage?.extraLarge || miruroInfo?.coverImage?.large || anime?.thumbnail || "";
@@ -502,8 +556,8 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
   //   4. AniList cover extraLarge (poster — better than nothing, fills the banner area)
   const banner = tmdbBackdrop || anilistMedia?.bannerImage || anilistInfo?.bannerImage || miruroInfo?.bannerImage || alImage || image;
 
-  const alDesc = anilistMedia?.description?.replace(/<[^>]*>/g, "") || anilistInfo?.description?.replace(/<[^>]*>/g, "") || "";
-  const miruroDesc = miruroInfo?.description?.replace(/<[^>]*>/g, "") || "";
+  const alDesc = String(anilistMedia?.description || "").replace(/<[^>]*>/g, "") || String(anilistInfo?.description || "").replace(/<[^>]*>/g, "") || "";
+  const miruroDesc = String(miruroInfo?.description || "").replace(/<[^>]*>/g, "") || "";
   const allanimeDesc = anime?.description || "";
   const description = alDesc || miruroDesc || allanimeDesc;
 
@@ -861,6 +915,13 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
                 {/* ─── EPISODES TAB ─── */}
                 {activeTab === "episodes" && (
                   <div className="flex flex-col w-full gap-2">
+                    {/* Episodes still loading — show inline skeleton */}
+                    {loadingEpisodes && episodes.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 gap-3">
+                        <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                        <span className="text-white/40 text-sm">Loading episodes...</span>
+                      </div>
+                    ) : (<>
                     {/* Controls row */}
                     <div className="flex items-center w-full gap-2 justify-between px-2 mb-2">
                       <span className="flex items-center justify-center gap-1 font-medium h-8 text-xs px-2 rounded-md bg-white/8 text-white/50">
@@ -935,6 +996,7 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
                         <button onClick={() => setEpPage(p => p + 1)} className="px-5 py-2 text-xs font-bold text-white/60 hover:text-white bg-white/8 hover:bg-white/12 rounded-md transition-colors">Load More</button>
                       </div>
                     )}
+                    </>)}
                   </div>
                 )}
 
@@ -1028,7 +1090,7 @@ export default function AnimeDetailPage({ animeId }: AnimeDetailProps) {
                                 <div className="flex flex-col gap-0.5">
                                   <p className="text-[11px] font-semibold text-white line-clamp-2 group-hover:text-violet-300 transition-colors leading-tight">{rTitle}</p>
                                   {r.format && (
-                                    <span className="text-[9px] text-white/40 uppercase tracking-wider">{r.format.replace(/_/g, " ")}</span>
+                                    <span className="text-[9px] text-white/40 uppercase tracking-wider">{String(r.format || "").replace(/_/g, " ")}</span>
                                   )}
                                 </div>
                               </button>

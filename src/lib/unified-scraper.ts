@@ -1,7 +1,7 @@
 /**
  * Unified Anime Scraper — adapter layer.
  *
- * Normalizes 4 streaming sites (miruro, animex, lunar, plus existing miruro-api)
+ * Normalizes 3 streaming sites (miruro, animex, plus existing miruro-api)
  * into one tagged-source schema with sub/dub/hardsub/harddub variants.
  *
  * AniList is used for all metadata (title, cover, episodes, description, etc.).
@@ -27,10 +27,6 @@ import {
   animexEpisodes,
   animexWatch,
 } from "./animex-api";
-import {
-  lunarEpisodes,
-  lunarWatch,
-} from "./lunar-api";
 
 // ─── Variant Taxonomy ─────────────────────────────────────────────────────────
 export type Variant = "sub" | "dub" | "hardsub" | "harddub";
@@ -117,15 +113,7 @@ export const SITES: SiteInfo[] = [
     supportsHardsub: true,
     supportsHarddub: true,
   },
-  {
-    site: "lunar",
-    name: "Site-C",
-    baseUrl: "https://lunaranime.ru",
-    supportsSub: true,
-    supportsDub: false,
-    supportsHardsub: true,
-    supportsHarddub: false,
-  },
+
 ];
 
 // ─── Metadata via AniList ────────────────────────────────────────────────────
@@ -217,18 +205,6 @@ export async function fetchEpisodes(
       isFiller: ep.isFiller,
       // Animex supports sub/dub/hardsub/harddub depending on provider — declare all
       variants: ["sub", "hardsub", "dub", "harddub"],
-    }));
-    return base;
-  }
-
-  if (site === "lunar") {
-    const result = await lunarEpisodes(anilistId);
-    base.episodes = result.episodes.map((e) => ({
-      number: e.number,
-      id: e.id,
-      title: e.title,
-      thumbnail: e.thumbnail,
-      variants: e.variants as Variant[],
     }));
     return base;
   }
@@ -435,25 +411,6 @@ export async function fetchSources(
     }
 
     return { site, episodeId, sources, intro, outro, subtitles, triedProviders };
-  }
-
-  if (site === "lunar") {
-    const result = await lunarWatch(episodeId);
-    const sources: UnifiedSource[] = result.sources.map((s) => ({
-      url: s.url,
-      variant: s.variant,
-      audio: s.audio,
-      subtitle: s.subtitle,
-      quality: s.quality,
-      format: s.format,
-      provider: "lunar",
-      subProvider: s.subProvider,
-      headers: s.headers,
-      proxyRequired: s.proxyRequired,
-      isM3U8: s.isM3U8,
-      isMP4: false,
-    }));
-    return { site, episodeId, sources, subtitles: [] };
   }
 
   return { site, episodeId, sources: [], subtitles: [] };

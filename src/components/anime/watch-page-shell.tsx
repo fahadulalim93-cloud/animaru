@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "./store";
 
 // ============================================================
@@ -21,6 +22,9 @@ const ACCENT = "#A78BFA";
 const ACCENT_SOLID = "#7C3AED";
 
 // ─── Tiny dropdown (click to open, backdrop to close) ───────────
+// Fixed for mobile: uses ref to measure trigger position, positions
+// dropdown below trigger on mobile via inline style.
+// On desktop, sm:top-full handles positioning (inline top NOT applied).
 function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
   label?: string;
   value: string;
@@ -29,13 +33,38 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
   disabledIds?: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [mobileTop, setMobileTop] = useState<number | null>(null);
   const current = options.find(o => o.id === value);
+
+  const handleToggle = useCallback(() => {
+    if (!open && triggerRef.current) {
+      // Only measure for mobile — desktop uses sm:top-full (CSS relative positioning)
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+      if (isMobile) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setMobileTop(rect.bottom + 4);
+      }
+    }
+    setOpen(prev => !prev);
+  }, [open]);
+
+  const handleSelect = useCallback((id: string) => {
+    onChange(id);
+    setOpen(false);
+  }, [onChange]);
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+  }, []);
 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-white/85 transition-all w-full sm:w-auto"
+        ref={triggerRef}
+        onClick={handleToggle}
+        style={{ touchAction: 'manipulation' }}
+        className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] border border-white/[0.08] text-xs font-bold text-white/85 transition-all w-full sm:w-auto select-none"
       >
         {label && <span className="text-[9px] font-bold text-white/35 uppercase tracking-wider">{label}</span>}
         <span className="max-w-[110px] truncate flex-1 sm:flex-none text-left">{current?.label || value || "—"}</span>
@@ -43,15 +72,20 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
       </button>
       {open && (
         <>
-          {/* Backdrop — fixed to cover entire viewport */}
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          {/* Dropdown — absolute positioned below the button.
-              Uses absolute (not fixed) to avoid CSS transform bugs where
-              fixed-positioned elements detach from the viewport when a
-              parent has transform/filter/will-change. */}
+          {/* Backdrop — fixed to cover entire viewport, below dropdown */}
           <div
-            className="absolute top-full left-0 sm:left-auto sm:right-0 mt-1 bg-[#0a0a0a] border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl z-40 max-h-[280px] overflow-y-auto min-w-[140px] w-max sm:w-auto"
-            style={{ maxWidth: "min(90vw, 320px)" }}
+            className="fixed inset-0"
+            style={{ zIndex: 9998 }}
+            onClick={handleClose}
+            onTouchEnd={(e) => { e.preventDefault(); handleClose(); }}
+          />
+          {/* Dropdown — fixed on mobile (positioned below trigger via mobileTop),
+              absolute on desktop (below trigger via sm:top-full).
+              CRITICAL: Only set inline 'top' on mobile — on desktop, sm:top-full
+              must be allowed to work (inline style overrides CSS classes). */}
+          <div
+            className="fixed left-3 right-3 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-1 bg-[#0a0a0a] border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl max-h-[50vh] sm:max-h-[280px] overflow-y-auto min-w-[140px] w-auto sm:w-max"
+            style={{ zIndex: 9999, ...(mobileTop != null ? { top: mobileTop } : {}) }}
           >
             {options.map(o => {
               const disabled = disabledIds.includes(o.id);
@@ -59,9 +93,9 @@ function MenuSelect({ label, value, options, onChange, disabledIds = [] }: {
                 <button
                   key={o.id}
                   disabled={disabled}
-                  onClick={() => { if (!disabled) { onChange(o.id); setOpen(false); } }}
-                  className={`block w-full text-left px-3 py-2.5 sm:py-2 text-xs sm:text-xs transition-colors whitespace-nowrap ${o.id === value ? "font-bold" : "text-white/60 hover:bg-white/10 hover:text-white"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
-                  style={o.id === value ? { color: ACCENT } : undefined}
+                  onClick={() => { if (!disabled) handleSelect(o.id); }}
+                  style={{ touchAction: 'manipulation' }}
+                  className={`block w-full text-left px-3 py-3 sm:py-2 text-xs transition-colors whitespace-nowrap select-none ${o.id === value ? "font-bold" : "text-white/60 active:bg-white/10 hover:bg-white/10 hover:text-white"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}
                 >
                   {o.label}
                 </button>
@@ -150,6 +184,7 @@ export function WatchPageShell({
   prevEp, nextEp,
   autoPlay, setAutoPlay, autoSkip, setAutoSkip, autoNext, setAutoNext,
   skipFiller, setSkipFiller,
+  fullscreenRetain, setFullscreenRetain,
   navigate, relations, recommendations, subCount, dubCount,
   HLSPlayerNew, EmbedPlayerWithFallback, DashPlayer, proxifyM3u8, proxify,
   AnimeComments,
@@ -157,6 +192,7 @@ export function WatchPageShell({
   failedProviders, providersForCurrentEp,
   setScraperFallbackToken, showShortcuts, setShowShortcuts,
   lightsOff, setLightsOff,
+  theaterMode, setTheaterMode,
   synopsisExpanded, setSynopsisExpanded, animeId,
   playerReady, onCanPlay, animeBackdrop,
 }: any) {
@@ -176,27 +212,82 @@ export function WatchPageShell({
     ? currentEp.title
     : `Episode ${episodeNum}`;
 
+  // ── Allowed sources for Sub/Dub/HardSub tabs ──
+  // On Vercel ALL sources (except Hindi) were shown in sub/dub/hardsub.
+  // Replicate that: only Hindi sources are excluded from sub/dub/hardsub.
+  const HINDI_ONLY_SOURCES = new Set(["animesalt"]);
+  // Indian languages — AnimeSalt servers with these providers go in Hindi tab.
+  // English/Japanese AnimeSalt servers go to Dub/Sub tabs.
+  const INDIAN_LANGS = new Set([
+    "hindi", "tamil", "telugu", "malayalam", "bengali", "marathi", "kannada",
+  ]);
+  const SOURCE_PRIORITY: Record<string, number> = {
+    reanime: 0,   // flixcloud.cc embed — fastest (no proxy, browser loads directly)
+    anineko: 0, "anineko-to": 0,
+    anidao: 1,
+    animex: 2,
+    anidap: 3,
+    anikoto: 5, anichi: 5,
+    anidb: 7,
+    anipm: 8,
+    miruro: 9,
+    animepahe: 10,
+    anikuro: 11,
+    mioanime: 12,
+    anistream: 13,
+    animeonsen: 14,
+    anivexa: 15,
+    anivault: 16,
+    senshi: 17,
+    animo4: 18,
+    anibd: 19,
+    byse: 20,       // self-hosted Hindi/multi-audio (bysejikuar.com embed)
+    uniquestream: 21,
+  }; // removed: animeheaven (Shanks — unreliable), luna
+
   // Servers available for the current audio mode
-  // Per user request:
-  //   - AnixTV (all 10 providers) → Hindi tab ONLY
-  //   - AnimoStream (Hindi dub)   → Hindi tab ONLY
-  //   - 4animo (sub + dub)        → Sub + Dub + Hardsub tabs
-  //   - Other providers           → Sub/Dub/Hardsub per their type
+  // Vercel behavior: ALL sources shown in sub/dub/hardsub except Hindi-only ones.
+  // Hindi tab: AnimeSalt + Byse Hindi servers
+  // AniKoto/AniChi: sub servers REMOVED (unreliable) — only dub shown
   const serversForMode = (serverList || []).filter((s: any) => {
+    // Do NOT filter out AniKoto/AniChi sub servers anymore — the new
+    // anikoto-direct.ts (port of anikoto.py) returns reliable sub streams
+    // via Megaplay + VidWish. The old dub-only filter was a workaround for
+    // the previous broken implementation. Now sub streams work fine.
     if (translation === "hindi") {
-      // Hindi tab: ALL AnixTV servers + AnimoStream + WatchAnimeWorld + DesiDubAnime
-      return s.source === "anixtv" || s.source === "animostream" || s.source === "watchanimeworld" || s.source === "desidub";
+      // Hindi tab: only Indian-language AnimeSalt servers (Hindi/Tamil/Telugu/
+      // Malayalam/Bengali/Marathi/Kannada). English + Japanese AnimeSalt
+      // servers go to the Dub / Sub tabs respectively.
+      if (s.source === "animesalt") {
+        return INDIAN_LANGS.has((s.provider || "").toLowerCase());
+      }
+      return s.source === "byse" && s.type === "hindi";
+    }
+    // Sub/Dub/HardSub tabs: exclude Indian-language AnimeSalt (those are in
+    // Hindi tab) but INCLUDE non-Indian AnimeSalt servers (English→Dub,
+    // Japanese→Sub).
+    if (s.source === "animesalt" && INDIAN_LANGS.has((s.provider || "").toLowerCase())) {
+      return false;
     }
     if (translation === "dub") {
-      // Dub tab: English dub only — exclude ALL Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld + DesiDubAnime)
-      return s.type === "dub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub";
+      return s.type === "dub";
     }
     if (translation === "hardsub") {
-      // Hardsub tab: true hardsub servers + 4animo (user wants 4animo here too)
-      return s.type === "sub" && (s.hardsub === true || s.source === "animo4");
+      return s.type === "sub" && s.hardsub === true;
     }
-    // Sub tab: soft sub servers — exclude ALL Hindi sources (AnixTV + AnimoStream + WatchAnimeWorld + DesiDubAnime)
-    return s.type === "sub" && s.source !== "anixtv" && s.source !== "animostream" && s.source !== "watchanimeworld" && s.source !== "desidub";
+    // Sub tab: all non-Hindi sub servers — INCLUDING hardsub servers.
+    // Hardsub servers have subtitles burned into video but are still sub-type
+    // and should be available in the Sub tab too.
+    return s.type === "sub";
+  }).sort((a: any, b: any) => {
+    // Sort by user-specified priority order
+    const pa = SOURCE_PRIORITY[a.source] ?? 99;
+    const pb = SOURCE_PRIORITY[b.source] ?? 99;
+    if (pa !== pb) return pa - pb;
+    // Within same source, sub before dub, non-embed before embed
+    if (a.type !== b.type) return a.type === "sub" ? -1 : 1;
+    if (!!a.isEmbed !== !!b.isEmbed) return a.isEmbed ? 1 : -1;
+    return 0;
   });
 
   const audioOptions = [
@@ -213,11 +304,6 @@ export function WatchPageShell({
 
   // Alt servers for the 404 quick-switch row (up to 3 that aren't selected)
   const altServers = serversForMode.filter((s: any) => s.id !== selectedServer).slice(0, 3);
-
-  // Download link for direct streams
-  const downloadUrl = streamData && streamData.video_link && streamData.source_type !== "embed"
-    ? (streamData.source_type === "hls" ? proxifyM3u8(streamData.video_link) : proxify(streamData.video_link, "raw"))
-    : null;
 
   const handleReport = () => {
     setShowReportModal(true);
@@ -258,48 +344,178 @@ export function WatchPageShell({
     }
   };
 
+  // ── Watch Together: dispatches global event, modal is in separate component ──
+  const handleWatchTogether = () => {
+    window.dispatchEvent(new Event("w2g:open"));
+  };
+
   return (
     <div className="min-h-screen bg-black text-white" style={{ fontFamily: "var(--font-inter), Inter, sans-serif" }}>
 
-      {/* Lights Off overlay */}
+      {/* DNS prefetch + preconnect for faster stream loading.
+          Same-domain /p/{token} proxy doesn't need preconnect (browser already
+          has HTTP/2 connection from page load), but the upstream CDNs still
+          benefit from preconnect for the player's direct requests. */}
+      <link rel="dns-prefetch" href="https://vivibebe.site" />
+      <link rel="preconnect" href="https://vivibebe.site" crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href="https://cdn.kryntal.top" />
+      <link rel="preconnect" href="https://cdn.kryntal.top" crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href="https://cdn.anizara.store" />
+      <link rel="preconnect" href="https://cdn.anizara.store" crossOrigin="anonymous" />
+
+      {/* Lights Off — hides sidebar + topbar (search bar) via CSS opacity:0 */}
       {lightsOff && (
-        <div className="fixed inset-0 bg-black/90 z-30 pointer-events-none" style={{ backdropFilter: "blur(8px)" }} />
+        <style dangerouslySetInnerHTML={{ __html: `
+          aside[class*="fixed left-0"][class*="z-[70]"] {
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+          header[class*="fixed top-0"][class*="z-[65]"] {
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+          nav[class*="fixed bottom-0"][class*="z-[75]"] {
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+        `}} />
       )}
 
-      {/* ══ TWO-COLUMN LAYOUT ══ */}
-      {/* Desktop: the player column is widened to 74% for a larger stage.
-          The rest keeps its comfortable side padding; only the player itself
-          breaks out to edge-to-edge on mobile (see the -mx breakout below). */}
-      <div className="flex w-full max-lg:flex-col gap-4 items-start px-2 lg:px-3 pt-2 pb-12">
+      {/* ══ LAYOUT ══ */}
+      {/* Normal mode: two-column (player 74% | sidebar 26%) side by side.
+          Theater mode: player is centered + wider (full width), all other
+          content (toggles, episode title, sidebar, comments) drops BELOW
+          the player. Nothing is hidden — just reflowed into a single column. */}
+      <div className={`flex w-full gap-4 items-start px-2 lg:px-3 pt-2 pb-12 ${theaterMode ? "flex-col" : "max-lg:flex-col"}`}>
 
         {/* ══ LEFT COLUMN — Player + everything under it ══ */}
-        <div className="w-full lg:w-[74%] shrink-0 flex flex-col gap-3 min-w-0">
+        {/* Normal mode: 74% width. Theater mode: 86% width + centered. */}
+        <div className={`w-full shrink-0 flex flex-col gap-3 min-w-0 ${theaterMode ? "lg:w-[86%] lg:mx-auto" : "lg:w-[74%]"}`}>
 
-          {/* ─── PLAYER ─── (edge-to-edge on mobile → biggest possible stage) */}
-          <div className={`relative w-full max-sm:w-[calc(100%+1rem)] max-sm:-mx-2 shrink-0 overflow-hidden bg-black rounded-none sm:rounded-xl border-x-0 border-y sm:border border-white/[0.06] ${lightsOff ? "z-40" : ""}`} style={{ aspectRatio: "16 / 9" }}>
+          {/* ─── PLAYER ─── */}
+          {/* Normal mode: 74% width, aspect-ratio 16/9.
+              Theater mode: 86% width (wider), content drops below. */}
+          <div
+            className={`relative w-full max-sm:w-[calc(100%+1rem)] max-sm:-mx-2 shrink-0 overflow-hidden bg-black rounded-none sm:rounded-xl border-x-0 border-y sm:border border-white/[0.06] ${lightsOff ? "z-40" : ""}`}
+            style={{ aspectRatio: "16 / 9" }}
+          >
+            {/* Inner wrapper — fills the parent in both modes. The outer div
+                handles the centering + max-width in theater mode. */}
+            <div className="absolute inset-0">
             {streamData && streamData.source_type === "hls" && streamData.video_link && (
               <HLSPlayerNew
-                key={selectedServer}
+                key={`hls-${animeId}-${episodeNum}-${selectedServer}`}
                 url={proxifyM3u8(streamData.video_link)}
                 animeId={animeId}
                 episodeNum={episodeNum}
+                animeTitle={animeTitle}
                 sourceType="hls"
                 intro={streamData.intro}
                 outro={streamData.outro}
                 allStreams={streamData.hls_sources?.map((s: any) => ({
                   url: proxifyM3u8(s.url), quality: s.quality || "Auto", label: s.label || s.quality || "Auto",
                 })) || []}
-                subtitleTracks={(streamData.subtitle_tracks || []).map((s: any) => ({ url: s.url, lang: s.label || "en", label: s.label || "English" }))}
+                subtitleTracks={(() => {
+                  // HARDSUB SERVERS: subtitles are burned into the video.
+                  // Don't show external subtitle tracks — they'd overlap with
+                  // the burned-in ones and the user can't disable the burned-in
+                  // subs. Return empty so no CC button appears.
+                  if (streamData.hardsub) {
+                    console.log(`[Subtitles] Server is hardsub (subs burned into video) — hiding external subs`);
+                    return [];
+                  }
+
+                  // Get subtitle tracks from the current server
+                  let tracks = (streamData.subtitle_tracks || []).filter(
+                    (t: any) => {
+                      // Defensive: drop subtitles on Cloudflare-blocked hosts
+                      // that 403 even with correct Referer (server IP triggers
+                      // CF bot challenge). Better to show no subs than a broken
+                      // CC button that silently fails.
+                      if (typeof t.url === "string" && t.url.includes("kryntal.top")) return false;
+                      return true;
+                    }
+                  );
+                  
+                  // If no subtitles, try to find subtitles from other servers in serverList
+                  // (e.g. Chopper HD-2 has working subtitles on cdn.anizara.store)
+                  // BUT only if the current server is NOT hardsub (checked above).
+                  if (tracks.length === 0 && serverList) {
+                    const serverWithSubs = serverList.find(
+                      (s: any) => s.subtitleTracks && s.subtitleTracks.length > 0
+                    );
+                    if (serverWithSubs) {
+                      tracks = serverWithSubs.subtitleTracks;
+                      console.log(`[Subtitles] No subs on current server, using ${serverWithSubs.name}'s subtitles (${tracks.length} tracks)`);
+                    }
+                  }
+
+                  return tracks.map((s: any) => {
+                    // Defensive URL normalization:
+                    // 1. If URL already starts with /api/, /, blob:, data: → use as-is
+                    // 2. If URL is the broken "https://api.luffytv.live/sub?url=..." format
+                    //    (which returns Next.js HTML instead of VTT) → extract the inner
+                    //    url + ref params and re-wrap through /api/stream with the right referer
+                    // 3. Otherwise → wrap through /api/stream?url={encoded}
+                    let finalUrl = s.url;
+                    if (finalUrl && typeof finalUrl === "string") {
+                      if (
+                        String(finalUrl).startsWith("/api/") ||
+                        String(finalUrl).startsWith("/") ||
+                        String(finalUrl).startsWith("blob:") ||
+                        String(finalUrl).startsWith("data:")
+                      ) {
+                        // Already a local/proxied URL — use as-is
+                      } else if (finalUrl.includes("/sub?url=") && finalUrl.includes("api.luffytv.live")) {
+                        // Broken /sub endpoint format — extract inner url + ref params
+                        try {
+                          const subUrl = new URL(finalUrl);
+                          const innerUrl = subUrl.searchParams.get("url");
+                          const innerRef = subUrl.searchParams.get("ref");
+                          if (innerUrl) {
+                            finalUrl = `/api/stream?url=${encodeURIComponent(innerUrl)}${innerRef ? `&referer=${encodeURIComponent(innerRef)}` : ""}`;
+                          }
+                        } catch {
+                          // URL parse failed — fall through to default wrapping
+                          finalUrl = `/api/stream?url=${encodeURIComponent(finalUrl)}`;
+                        }
+                      } else {
+                        // Standard case — wrap through /api/stream with referer.
+                        // The referer from the server's data is stored in streamData
+                        // but the subtitle URL might come from a different host that
+                        // needs a specific referer. Use megaplay.buzz as default
+                        // for Inazuma/megaplay subtitles.
+                        const subReferer = streamData?.megaplayFileId
+                          ? "https://megaplay.buzz/"
+                          : "https://anikoto.to/";
+                        finalUrl = `/api/stream?url=${encodeURIComponent(finalUrl)}&referer=${encodeURIComponent(subReferer)}`;
+                      }
+                    }
+                    return {
+                      url: finalUrl,
+                      lang: s.label || "en",
+                      label: s.label || "English",
+                    };
+                  });
+                })()}
                 onEnded={handleVideoEnded}
                 onProviderFailed={() => handleProviderFailed(activeProvider)}
                 onCanPlay={onCanPlay}
                 autoplay={autoPlay}
                 autoSkip={autoSkip}
+                megaplayFileId={streamData?.megaplayFileId}
+                megaplayAudio={streamData?.megaplayAudio as 'sub' | 'dub' | undefined}
+                prevEp={prevEp}
+                nextEp={nextEp}
+                onPrevEp={() => prevEp && switchEpisode(prevEp)}
+                onNextEp={() => nextEp && switchEpisode(nextEp)}
+                onTheaterMode={(active: boolean) => setTheaterMode(active)}
+                theaterMode={theaterMode}
               />
             )}
             {streamData && streamData.source_type === "mp4" && streamData.video_link && (
               <HLSPlayerNew
-                key={`mp4-${selectedServer}`}
+                key={`mp4-${animeId}-${episodeNum}-${selectedServer}`}
                 url={proxify(streamData.video_link, "raw")}
                 animeId={animeId}
                 episodeNum={episodeNum}
@@ -329,7 +545,7 @@ export function WatchPageShell({
             )}
             {streamData && streamData.source_type === "dash" && streamData.video_link && (
               <DashPlayer
-                key={`dash-${selectedServer}`}
+                key={`dash-${animeId}`}
                 url={streamData.video_link}
                 subtitleTracks={streamData.subtitle_tracks || []}
                 onEnded={handleVideoEnded}
@@ -343,6 +559,18 @@ export function WatchPageShell({
             {!streamData && streamLoading && !streamError && (
               <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="w-12 h-12 border-2 border-white/10 rounded-full animate-spin border-t-white" style={{ animationDuration: '0.8s' }} />
+              </div>
+            )}
+
+            {/* Episode switch overlay — solid black, covers old video completely.
+                Old episode PAUSES (bg-black/90 + pointer-events-auto) so user
+                doesn't see/hear old episode while new one loads. */}
+            {streamData && streamLoading && !streamError && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/90 backdrop-blur-sm pointer-events-auto">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-10 h-10 border-2 border-white/10 rounded-full animate-spin border-t-white" style={{ animationDuration: '0.8s' }} />
+                  <p className="text-xs text-white/60 font-medium">Loading episode {episodeNum}...</p>
+                </div>
               </div>
             )}
 
@@ -382,22 +610,25 @@ export function WatchPageShell({
               </div>
             )}
           </div>
+          {/* Close inner wrapper (theater mode centered box) */}
+          </div>
 
           {/* ─── TOGGLES BAR — right under player ─── */}
-          <div className="flex items-center gap-2 sm:gap-3.5 py-2 sm:py-2.5 px-2.5 sm:px-3.5 bg-white/[0.03] border border-white/[0.08] rounded-xl flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3.5 py-2 sm:py-2.5 px-2.5 sm:px-3.5 bg-white/[0.03] border border-white/[0.08] rounded-xl overflow-x-auto scrollbar-hide">
             <ToggleCheck label="Autoplay" state={autoPlay} onToggle={() => setAutoPlay(!autoPlay)} />
             <ToggleCheck label="Auto Next" state={autoNext} onToggle={() => setAutoNext(!autoNext)} />
-            <div className="hidden sm:block w-px h-5 bg-white/[0.08]" />
+            <div className="hidden sm:block w-px h-5 bg-white/[0.08] shrink-0" />
             <ToggleCheck label="Auto Skip" state={autoSkip} onToggle={() => setAutoSkip(!autoSkip)} />
             <ToggleCheck label="Skip Filler" state={skipFiller} onToggle={() => setSkipFiller(!skipFiller)} />
             <ToggleCheck label="Shortcuts" state={showShortcuts} onToggle={() => setShowShortcuts(!showShortcuts)} />
             <ToggleCheck label="Lights Off" state={lightsOff} onToggle={() => setLightsOff(!lightsOff)} />
+            <ToggleCheck label="Retain Fullscreen" state={fullscreenRetain} onToggle={() => setFullscreenRetain(!fullscreenRetain)} />
 
-            <div className="flex-1" />
+            <div className="flex-1 shrink-0" />
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               {prevEp && (
-                <button onClick={() => switchEpisode(prevEp)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-white/70 hover:text-white text-xs font-medium transition-colors" title="Previous episode (P)">
+                <button onClick={() => switchEpisode(prevEp)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-white/70 hover:text-white text-xs font-medium transition-colors shrink-0" title="Previous episode (P)">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M15 19l-7-7 7-7" /></svg>
                   <span className="hidden sm:inline">Prev</span>
                 </button>
@@ -439,12 +670,19 @@ export function WatchPageShell({
                   <span className="text-[9px] font-bold text-white/35 uppercase tracking-widest flex items-center gap-1">
                     <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zm2-6v2h2V7H6zm0 8v2h2v-2H6z"/></svg>
                     Server ({serversForMode.length})
+                    {streamLoading && (
+                      <span className="inline-flex items-center gap-1 ml-1">
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: ACCENT }} />
+                        <span className="text-white/50 normal-case tracking-normal">loading…</span>
+                      </span>
+                    )}
                   </span>
                   <MenuSelect
                     value={selectedServer}
                     options={serversForMode.map((s: any) => ({ id: s.id, label: `⚡ ${s.name}` }))}
                     onChange={(id) => { setSelectedServer(id); setStreamError(null); }}
                   />
+
                 </div>
               </div>
             </div>
@@ -473,6 +711,14 @@ export function WatchPageShell({
               <button onClick={handleShare} className="flex items-center gap-1 h-7 sm:h-8 px-2 sm:px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70 hover:text-white transition-all">
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                 {shareCopied ? "Copied!" : "Share"}
+              </button>
+              <button
+                onClick={() => window.dispatchEvent(new Event("w2g:open"))}
+                className="flex items-center gap-1.5 h-7 sm:h-8 px-2 sm:px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[10px] sm:text-[11px] font-bold text-amber-300 hover:text-amber-200 transition-all"
+                title="Watch this episode together with friends"
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Watch Together
               </button>
               {/* Report — opens modal with problem description */}
               <button onClick={handleReport} className="flex items-center gap-1.5 h-7 sm:h-8 px-2 sm:px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07] text-[10px] sm:text-[11px] font-bold text-white/70 hover:text-white transition-all" title="Report a playback issue">
@@ -575,9 +821,6 @@ export function WatchPageShell({
           </div>
 
           {/* ─── COMMENTS — shown inside left column only on desktop ─── */}
-          {/* On mobile, comments are rendered separately BELOW both columns
-              so episodes appear before comments. We use a duplicate render approach
-              with lg:block / hidden to control which version is visible. */}
           {animeId && (
             <div className="w-full flex flex-col gap-4 mt-2 hidden lg:block">
               <AnimeComments animeId={String(animeId)} animeTitle={animeTitle || "this anime"} episode={episodeNum} />
@@ -586,7 +829,9 @@ export function WatchPageShell({
         </div>{/* end left column */}
 
         {/* ══ RIGHT COLUMN — Episodes + Related + Recommendations ══ */}
-        <aside className="w-full lg:w-[26%] shrink-0 flex flex-col gap-5 min-w-0">
+        {/* In theater mode: 86% width + centered (matches player).
+            In normal mode: 26% sidebar beside the player. */}
+        <aside className={`w-full shrink-0 flex flex-col gap-5 min-w-0 ${theaterMode ? "lg:w-[86%] lg:mx-auto" : "lg:w-[26%]"}`}>
 
           {/* Episodes panel — fixed height so Related shows below */}
           <div className="h-[min(78vh,820px)]">
@@ -641,8 +886,6 @@ export function WatchPageShell({
         </aside>
 
         {/* ─── MOBILE-ONLY COMMENTS ─── */}
-        {/* On mobile (<lg), comments appear AFTER the episode sidebar
-            so the episode list comes first, then comments below. */}
         {animeId && (
           <div className="w-full flex flex-col gap-4 mt-2 lg:hidden">
             <AnimeComments animeId={String(animeId)} animeTitle={animeTitle || "this anime"} episode={episodeNum} />
@@ -724,170 +967,15 @@ export function WatchPageShell({
         </div>
       )}
 
-      {/* Download modal — fetches real download links from AnimeX API */}
+      {/* Download modal — black, real AnimeX download links (Google Drive, Mega, etc.) */}
       {showDownloadModal && (
         <WatchPageDownloadModal
-          animeTitle={animeTitle}
-          animeId={animeId}
-          episodeNum={episodeNum}
-          downloadUrl={downloadUrl}
-          streamData={streamData}
-          serverList={serverList}
+          animeId={String(animeId || '')}
+          animeTitle={animeTitle || ''}
+          episodeNum={episodeNum || 1}
           onClose={() => setShowDownloadModal(false)}
         />
       )}
-    </div>
-  );
-}
-
-// ============================================================
-// WatchPageDownloadModal — Black theme, fetches REAL download links
-// from AnimeX API (Google Drive, Mega, etc.) — NO proxy URLs
-// Matches the HLS player download modal style exactly
-// ============================================================
-
-function WatchPageDownloadModal({
-  animeTitle, animeId, episodeNum, downloadUrl, streamData, serverList, onClose
-}: {
-  animeTitle: string; animeId: number; episodeNum: number;
-  downloadUrl: string | null; streamData: any; serverList: any[]; onClose: () => void;
-}) {
-  const [loading, setLoading] = useState(true);
-  const [links, setLinks] = useState<Array<{ text: string; decodedUrl: string }>>([]);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const fetchDownloads = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        let title = animeTitle || '';
-        // If no title, try AniList
-        if (!title && animeId) {
-          try {
-            const titleRes = await fetch('https://graphql.anilist.co', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
-                variables: { id: animeId },
-              }),
-            });
-            if (titleRes.ok) {
-              const titleData = await titleRes.json();
-              title = titleData?.data?.Media?.title?.english || titleData?.data?.Media?.title?.romaji || '';
-            }
-          } catch { /* ignore */ }
-        }
-        if (!title) {
-          setError('Could not determine anime title');
-          setLoading(false);
-          return;
-        }
-        const res = await fetch(`/api/anime/download?title=${encodeURIComponent(title)}&auto=1`);
-        if (!res.ok) {
-          setError('Failed to fetch download links');
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
-        if (data.links && data.links.length > 0) {
-          setLinks(data.links);
-        } else {
-          setError('No download links found');
-        }
-      } catch (e: any) {
-        setError(e?.message || 'Failed to load downloads');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDownloads();
-  }, [animeId, animeTitle]);
-
-  const quickLinks = links.slice(0, 2);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
-      <div className="bg-black border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
-            <h3 className="text-sm font-bold text-white">Download</h3>
-          </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-4 py-4 overflow-y-auto">
-          {/* Episode info */}
-          <div className="text-xs text-white/40 mb-3">{animeTitle} — Episode {episodeNum}</div>
-
-          {loading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              <span className="ml-2.5 text-xs text-white/50">Finding links...</span>
-            </div>
-          )}
-
-          {error && !loading && (
-            <div className="text-center py-6">
-              <p className="text-xs text-white/40 mb-3">{error}</p>
-              <button
-                onClick={() => { onClose(); window.location.href = '/download'; }}
-                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline cursor-pointer"
-              >
-                Want to explore downloads?
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </button>
-            </div>
-          )}
-
-          {!loading && !error && quickLinks.length > 0 && (
-            <div>
-              {/* Top 2 download links — same style as HLS player */}
-              <div className="space-y-2">
-                {quickLinks.map((link, i) => (
-                  <a
-                    key={i}
-                    href={link.decodedUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/15 transition-all group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-white/10 transition-colors">
-                        <svg className="w-3 h-3 text-white/50" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-white/80 truncate">
-                          {link.text.split('|').pop()?.trim() || link.text}
-                        </p>
-                        <p className="text-[9px] text-white/30 truncate">{link.decodedUrl}</p>
-                      </div>
-                      <svg className="w-3 h-3 text-white/30 group-hover:text-white/60 transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </div>
-                  </a>
-                ))}
-              </div>
-
-              {/* "Want to explore downloads?" link at bottom */}
-              <div className="mt-3 pt-3 border-t border-white/8 text-center">
-                <button
-                  onClick={() => { onClose(); window.location.href = '/download'; }}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1E88FF] hover:underline cursor-pointer"
-                >
-                  Want to explore downloads?
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -922,7 +1010,18 @@ function MiruroEpisodeSidebar({
   const [page, setPage] = useState(() => Math.max(0, Math.floor((episodeNum - 1) / EPS_PER_PAGE)));
   const [showPageMenu, setShowPageMenu] = useState(false);
   const pageMenuBtnRef = useRef<HTMLButtonElement>(null);
-  const [pageMenuPos, setPageMenuPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+  // Compute dropdown position at render time from the trigger ref
+  // (avoids state race condition where dropdown renders before position is set)
+  const pageMenuPos = useMemo(() => {
+    if (!showPageMenu || !pageMenuBtnRef.current) return { top: 0, left: 0, width: 0 };
+    const rect = pageMenuBtnRef.current.getBoundingClientRect();
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    return {
+      top: rect.bottom + 4,
+      left: isMobile ? 8 : rect.left,
+      width: isMobile ? Math.min(200, (typeof window !== 'undefined' ? window.innerWidth : 375) - 16) : Math.max(100, rect.width),
+    };
+  }, [showPageMenu]);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // When search is opened, focus the input
@@ -957,12 +1056,21 @@ function MiruroEpisodeSidebar({
 
   // Countdown footer: "Episode 1170 in 6d 17h · Sun, Jul 12, 06:22"
   const countdownShort = (countdown || "").split(" ").slice(0, 2).join(" ");
-  const airDateLabel = animeNextAiring?.airingAt
-    ? new Date(animeNextAiring.airingAt * 1000).toLocaleString("en-US", {
+  // ── Fix hydration mismatch: new Date().toLocaleString() uses different
+  // timezones on server vs client → React error #418 → modal state updates
+  // don't work. Compute airDateLabel ONLY on the client (after mount).
+  // ──
+  const [airDateLabel, setAirDateLabel] = useState("");
+  useEffect(() => {
+    if (animeNextAiring?.airingAt) {
+      setAirDateLabel(new Date(animeNextAiring.airingAt * 1000).toLocaleString("en-US", {
         weekday: "short", month: "short", day: "numeric",
         hour: "2-digit", minute: "2-digit", hour12: false,
-      })
-    : "";
+      }));
+    } else {
+      setAirDateLabel("");
+    }
+  }, [animeNextAiring?.airingAt]);
 
   return (
     <div className="flex flex-col w-full h-full bg-white/[0.02] rounded-xl border border-white/[0.06] overflow-hidden">
@@ -1039,36 +1147,31 @@ function MiruroEpisodeSidebar({
             <div className="relative shrink-0">
               <button
                 ref={pageMenuBtnRef}
-                onClick={() => {
-                  if (!showPageMenu && pageMenuBtnRef.current) {
-                    const rect = pageMenuBtnRef.current.getBoundingClientRect();
-                    const isMobile = window.innerWidth < 640;
-                    setPageMenuPos({
-                      top: rect.bottom + 4,
-                      left: isMobile ? 8 : rect.left,
-                      width: isMobile ? Math.min(200, window.innerWidth - 16) : Math.max(100, rect.width),
-                    });
-                  }
-                  setShowPageMenu(!showPageMenu);
-                }}
-                className="flex items-center gap-1 bg-white/[0.06] hover:bg-white/[0.1] h-8 px-3 rounded-lg text-xs font-bold text-white/80 transition-all"
+                onClick={() => setShowPageMenu(!showPageMenu)}
+                style={{ touchAction: 'manipulation' }}
+                className="flex items-center gap-1 bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] h-8 px-3 rounded-lg text-xs font-bold text-white/80 transition-all select-none"
               >
                 {pageLabel}
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
               </button>
               {showPageMenu && (
                 <>
-                  <button className="fixed inset-0 z-30 cursor-default" onClick={() => setShowPageMenu(false)} aria-label="Close page menu" />
                   <div
-                    className="fixed bg-black/80 backdrop-blur-xl border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl z-40 max-h-[300px] overflow-y-auto"
-                    style={{ top: pageMenuPos.top, left: pageMenuPos.left, width: pageMenuPos.width }}
+                    className="fixed inset-0"
+                    style={{ zIndex: 9998 }}
+                    onClick={() => setShowPageMenu(false)}
+                    onTouchEnd={(e) => { e.preventDefault(); setShowPageMenu(false); }}
+                  />
+                  <div
+                    className="fixed bg-black/80 backdrop-blur-xl border border-white/15 rounded-lg overflow-hidden py-1 shadow-2xl max-h-[300px] overflow-y-auto"
+                    style={{ zIndex: 9999, top: pageMenuPos.top, left: pageMenuPos.left, width: pageMenuPos.width }}
                   >
                     {Array.from({ length: totalPages }, (_, i) => (
                       <button
                         key={i}
                         onClick={() => { setPage(i); setShowPageMenu(false); listRef.current?.scrollTo({ top: 0 }); }}
-                        className={`block w-full text-left px-3 py-2.5 sm:py-1.5 text-xs hover:bg-white/10 transition-colors ${page === i ? 'font-bold' : 'text-white/60'}`}
-                        style={page === i ? { color: ACCENT } : undefined}
+                        style={{ touchAction: 'manipulation' }}
+                        className={`block w-full text-left px-3 py-3 sm:py-1.5 text-xs hover:bg-white/10 active:bg-white/10 transition-colors select-none ${page === i ? 'font-bold' : 'text-white/60'}`}
                       >
                         {i * EPS_PER_PAGE + 1} - {Math.min((i + 1) * EPS_PER_PAGE, totalEps)}
                       </button>
@@ -1356,5 +1459,252 @@ function EpisodeListRow({ ep, isActive, onClick }: any) {
         <svg className="w-3 h-3 text-[#A78BFA] shrink-0" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
       )}
     </button>
+  );
+}
+
+// ─── Watch Page Download Modal ──────────────────────────────────
+// Black modal, fetches real download links from AnimeX API
+// (Google Drive, Mega, Private Drive, etc.) — NO purple, NO proxy URLs
+function WatchPageDownloadModal({ animeId, animeTitle, episodeNum, onClose }: {
+  animeId: string; animeTitle: string; episodeNum: number; onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [links, setLinks] = useState<Array<{ text: string; decodedUrl: string }>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; title: string }>>([]);
+  const [error, setError] = useState('');
+  const [selectedId, setSelectedId] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
+
+  useEffect(() => {
+    const fetchDownloads = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        setDebugInfo('');
+        let title = animeTitle;
+
+        // If no title, try AniList lookup
+        if (!title && animeId) {
+          try {
+            const titleRes = await fetch('/api/anilist', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: `query($id:Int){Media(id:$id,type:ANIME){title{english romaji}}}`,
+                variables: { id: parseInt(animeId) },
+              }),
+            });
+            if (titleRes.ok) {
+              const titleData = await titleRes.json();
+              title = titleData?.data?.Media?.title?.english || titleData?.data?.Media?.title?.romaji || '';
+            }
+          } catch { /* ignore */ }
+        }
+
+        if (!title) {
+          setDebugInfo(`animeId=${animeId}, animeTitle="${animeTitle}"`);
+          setError('Could not determine anime title');
+          setLoading(false);
+          return;
+        }
+
+        setDebugInfo(`Searching: "${title}"`);
+
+        // Method 1: One-shot auto mode (search + get links in one call)
+        try {
+          const autoRes = await fetch(`/api/anime/download?title=${encodeURIComponent(title)}&auto=1`);
+          if (autoRes.ok) {
+            const autoData = await autoRes.json();
+            if (autoData.links && autoData.links.length > 0) {
+              setLinks(autoData.links);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch { /* fallthrough to search mode */ }
+
+        // Method 2: Search mode — get results, then fetch links for first result
+        const res = await fetch(`/api/anime/download?q=${encodeURIComponent(title)}`);
+        if (!res.ok) {
+          setError('Download API unavailable');
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        const results = data.results || [];
+
+        if (results.length === 0) {
+          setError('No download links found for this anime');
+          setLoading(false);
+          return;
+        }
+
+        setSearchResults(results);
+
+        // Auto-fetch links for the first (best) result
+        const best = results[0];
+        setSelectedId(best.id);
+        setDebugInfo(`Found ${results.length} results, loading: "${best.title}"`);
+        const linkRes = await fetch(`/api/anime/download?id=${encodeURIComponent(best.id)}`);
+        if (linkRes.ok) {
+          const linkData = await linkRes.json();
+          if (linkData.links && linkData.links.length > 0) {
+            setLinks(linkData.links);
+          } else {
+            setError('No download links available for this selection');
+          }
+        } else {
+          setError('Failed to fetch download links');
+        }
+      } catch (e: any) {
+        setError(e?.message || 'Failed to load downloads');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDownloads();
+  }, [animeId, animeTitle]);
+
+  const quickLinks = links.slice(0, 8);
+
+  const getLinkType = (url: string) => {
+    if (url.includes('drive.google.com')) return { label: 'Google Drive', color: '#4285F4' };
+    if (url.includes('mega.')) return { label: 'Mega', color: '#D9271E' };
+    if (url.includes('1fichier')) return { label: '1Fichier', color: '#00AAFF' };
+    if (url.includes('mediafire')) return { label: 'MediaFire', color: '#54A621' };
+    if (url.includes('dropbox')) return { label: 'Dropbox', color: '#0061FF' };
+    if (url.includes('animewat.ch') || url.includes('animeout')) return { label: 'AnimeOut', color: '#FF6B6B' };
+    return { label: 'Direct Link', color: '#888' };
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-black border border-white/10 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[85vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg className="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+            <h3 className="text-sm font-bold text-white shrink-0">Download</h3>
+            {animeTitle && <span className="text-[10px] text-white/30 font-medium truncate">{animeTitle}</span>}
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 ml-2">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        </div>
+
+        {/* Search results selector (if multiple) */}
+        {searchResults.length > 1 && (
+          <div className="px-4 py-2 border-b border-white/5 shrink-0">
+            <select
+              value={selectedId}
+              onChange={async (e) => {
+                const id = e.target.value;
+                setSelectedId(id);
+                setLoading(true);
+                setError('');
+                setLinks([]);
+                try {
+                  const res = await fetch(`/api/anime/download?id=${encodeURIComponent(id)}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data.links?.length > 0) {
+                      setLinks(data.links);
+                    } else {
+                      setError('No links for this selection');
+                    }
+                  }
+                } catch { setError('Failed to fetch links'); }
+                setLoading(false);
+              }}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/80 focus:outline-none focus:border-white/20"
+            >
+              {searchResults.map((r) => (
+                <option key={r.id} value={r.id} className="bg-black text-white">{r.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Body */}
+        <div className="px-4 py-4 overflow-y-auto flex-1">
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              <span className="mt-2.5 text-xs text-white/50">Finding download links...</span>
+              {debugInfo && <span className="mt-1 text-[9px] text-white/20">{debugInfo}</span>}
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="text-center py-6">
+              <svg className="w-8 h-8 mx-auto text-white/10 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              <p className="text-xs text-white/40 mb-3">{error}</p>
+              {debugInfo && <p className="text-[9px] text-white/15 mb-3">{debugInfo}</p>}
+              <button
+                onClick={() => { onClose(); useAppStore.getState().navigate({ page: 'download' }); }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1E88FF]/15 text-[11px] font-semibold text-[#1E88FF] hover:bg-[#1E88FF]/25 transition-all"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+                Browse Downloads
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && quickLinks.length > 0 && (
+            <div>
+              <div className="space-y-2">
+                {quickLinks.map((link, i) => {
+                  const type = getLinkType(link.decodedUrl);
+                  return (
+                    <a
+                      key={i}
+                      href={link.decodedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/15 transition-all group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${type.color}15` }}>
+                          <svg className="w-3 h-3" style={{ color: type.color }} viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-6 6v3h-2v-3H8l4-4 4 4h-3z" /></svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-medium text-white/80 truncate">
+                            {link.text.split('|').pop()?.trim() || link.text}
+                          </p>
+                          <p className="text-[9px] truncate" style={{ color: type.color }}>{type.label}</p>
+                        </div>
+                        <svg className="w-3 h-3 text-white/30 group-hover:text-white/60 transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+
+              {links.length > 8 && (
+                <p className="text-center text-[10px] text-white/25 mt-2">+ {links.length - 8} more links</p>
+              )}
+
+              <div className="mt-3 pt-3 border-t border-white/8 text-center">
+                <button
+                  onClick={() => { onClose(); useAppStore.getState().navigate({ page: 'download' }); }}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/40 hover:text-white/60 transition-colors"
+                >
+                  Browse all downloads
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 17L17 7M7 7h10v10" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+    </div>
   );
 }

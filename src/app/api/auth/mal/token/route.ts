@@ -33,7 +33,19 @@ export async function POST(request: NextRequest) {
     });
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
-      return NextResponse.json({ error: `MAL token exchange failed: ${text}` }, { status: 502 });
+      // Parse MAL's error JSON: {"error":"invalid_client","message":"Client authentication failed"}
+      // The most common cause is a missing/wrong MAL_CLIENT_SECRET env var on the server.
+      let detail = text;
+      let hint = "";
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed?.error === "invalid_client" || parsed?.message?.includes("Client authentication")) {
+          hint = " (This usually means MAL_CLIENT_SECRET is missing or wrong on the server. Double-check the value in your Railway/Vercel env vars — it must match the Client Secret shown at https://myanimelist.net/apiconfig exactly.)";
+          detail = `${parsed.error}: ${parsed.message}`;
+        }
+      } catch {}
+      console.error("[MAL OAuth] token exchange failed:", detail);
+      return NextResponse.json({ error: `MAL token exchange failed: ${detail}${hint}` }, { status: 502 });
     }
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token as string;

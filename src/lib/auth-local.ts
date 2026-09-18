@@ -409,7 +409,7 @@ export function listUsersSafe(): Omit<StoredUser, "passwordHash">[] {
 }
 
 /** True if the given user is the site owner/admin (earliest signup or allow-listed). */
-const ADMIN_EMAILS = ["aznayeem2012@gmail.com"];
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "").split(",").filter(Boolean);
 export function isAdminUser(user: { id?: string; email?: string } | null | undefined): boolean {
   if (!user) return false;
   if (user.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) return true;

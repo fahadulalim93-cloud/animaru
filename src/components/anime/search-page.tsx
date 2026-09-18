@@ -338,7 +338,7 @@ export default function SearchPage({ initialQuery }: SearchPageProps) {
         {/* Description snippet */}
         {result.description && (
           <p className="hidden sm:block text-[11px] text-white/25 line-clamp-1 mt-1.5">
-            {result.description.replace(/<[^>]+>/g, "").slice(0, 120)}
+            {String(result.description || "").replace(/<[^>]+>/g, "").slice(0, 120)}
           </p>
         )}
       </div>

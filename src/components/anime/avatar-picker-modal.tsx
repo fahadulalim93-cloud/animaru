@@ -92,9 +92,9 @@ export default function AvatarPickerModal({
         characters(perPage: 12, sort: ROLE) { edges { role node { id name { full } image { large medium } } } }
       }`).join("")}
     }`;
-    fetch("https://graphql.anilist.co", {
+    fetch("/api/anilist", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
     })
       .then((r) => r.json())
@@ -119,9 +119,9 @@ export default function AvatarPickerModal({
   useEffect(() => {
     if (!open || tab !== "banner" || banners.length > 0 || loadingBanners) return;
     setLoadingBanners(true);
-    fetch("https://graphql.anilist.co", {
+    fetch("/api/anilist", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: "query{Page(perPage:24){media(sort:TRENDING_DESC,type:ANIME,isAdult:false){bannerImage}}}" }),
     })
       .then((r) => r.json())

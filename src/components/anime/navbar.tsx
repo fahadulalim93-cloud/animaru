@@ -260,7 +260,7 @@ export default function Navbar() {
       <div className={`ltv-nav-right-icons${scrolled ? " scrolled" : ""}`}>
         {/* Discord — hidden on mobile (moved into the hamburger dropdown) */}
         <a
-          href="https://discord.gg/GEVes3uhtM"
+          href="https://discord.gg/SdFB3HxDH5"
           target="_blank"
           rel="noopener noreferrer"
           className="ltv-nav-icon-btn ltv-nav-discord ltv-nav-icon-hide-mobile"
@@ -545,7 +545,7 @@ export default function Navbar() {
             History
           </button>
           <a
-            href="https://discord.gg/GEVes3uhtM"
+            href="https://discord.gg/SdFB3HxDH5"
             target="_blank"
             rel="noopener noreferrer"
             className="ltv-nav-link"

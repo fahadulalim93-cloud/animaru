@@ -52,7 +52,7 @@ const PROXY_HOSTS = new Set([
 
 function proxyImageUrl(url: string): string {
   if (!url) return "";
-  const PROXY_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+  const PROXY_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://api.luffytv.live";
   if (url.startsWith("/api/image-proxy")) return url;
   if (PROXY_BASE && url.startsWith(PROXY_BASE)) return url;
   try {

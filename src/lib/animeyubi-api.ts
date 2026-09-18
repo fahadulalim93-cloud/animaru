@@ -23,6 +23,7 @@
  */
 
 import { wrapStreamUrl } from "./proxy";
+import { getTitle } from "./anilist-cache";
 
 const ANIMEYUBI_API = "https://animeyubi.com/api/v4";
 
@@ -101,23 +102,8 @@ export async function resolveAniYubiId(
   }
 
   try {
-    // Step 1: Get anime title from AniList
-    const anilistRes = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": UA },
-      body: JSON.stringify({
-        query: `query($id:Int){Media(id:$id,type:ANIME){id title{english romaji native}}}`,
-        variables: { id: anilistId },
-      }),
-      cache: "no-store",
-    });
-    if (!anilistRes.ok) {
-      anilistToAniYubiCache.set(anilistId, null);
-      return null;
-    }
-    const anilistData = await anilistRes.json();
-    const title = anilistData?.data?.Media?.title?.english
-      || anilistData?.data?.Media?.title?.romaji;
+    // Step 1: Get anime title from AniList (via centralized cache)
+    const title = await getTitle(anilistId);
     if (!title) {
       anilistToAniYubiCache.set(anilistId, null);
       return null;

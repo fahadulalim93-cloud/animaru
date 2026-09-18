@@ -96,6 +96,20 @@ function beacon(params: Record<string, string>) {
     fetch(`/api/analytics/track?${qs}`, { method: "GET", keepalive: true, cache: "no-store" }).catch(() => {});
   } catch {}
 }
+
+/** Server-side visitor tracking — records a unique (visitorKey, date) row in PostgreSQL. */
+function trackVisitorServer(path: string) {
+  try {
+    fetch("/api/visitors/track", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ page: path }),
+      keepalive: true,
+      cache: "no-store",
+      credentials: "include",
+    }).catch(() => {});
+  } catch {}
+}
 /** Fire once when a new account is created (real signup counter). */
 export function trackSignup() {
   if (typeof window === "undefined" || isOwnerBrowser()) return;
@@ -113,6 +127,8 @@ export function trackPageview(path: string) {
     let ref = "direct";
     try { const r = document.referrer; if (r && !r.includes(location.host)) ref = new URL(r).hostname.replace(/^www\./, ""); } catch {}
     beacon({ p: path, vid: getVisitorId(), r: ref, s: newSess ? "1" : "0" });
+    // Server-side visitor record for admin "Views Today/Week/Month" cards
+    trackVisitorServer(path);
   }
 
   const data = loadAnalytics();

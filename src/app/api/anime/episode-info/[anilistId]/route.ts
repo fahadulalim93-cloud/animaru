@@ -12,6 +12,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { fetchRawEpisodes } from "@/lib/miruro-direct";
+import { cachedQuery } from "@/lib/anilist-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,17 +47,13 @@ export async function GET(
 
   // ── 1. Fetch AniList airing schedule + idMal + main synopsis ──
   try {
-    const alRes = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `query($id: Int){ Media(id: $id, type: ANIME){ idMal description(asHtml: false) airingSchedule(perPage: 1000){ nodes { episode airingAt } } } }`,
-        variables: { id },
-      }),
-    });
-    if (alRes.ok) {
-      const alData = await alRes.json();
-      const media = alData?.data?.Media;
+    const alData = await cachedQuery(
+      `query($id: Int){ Media(id: $id, type: ANIME){ idMal description(asHtml: false) airingSchedule(perPage: 1000){ nodes { episode airingAt } } } }`,
+      { id },
+      { ttl: 2 * 60 * 60 * 1000, timeoutMs: 5000, revalidate: 3600 },
+    );
+    if (alData) {
+      const media = alData?.Media;
       malId = media?.idMal || null;
       animeSynopsis = media?.description || null;
       const nodes = media?.airingSchedule?.nodes || [];

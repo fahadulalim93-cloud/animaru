@@ -48,6 +48,7 @@
  */
 
 import { wrapM3u8Url, wrapM3u8UrlWithReferer } from "./proxy";
+import { getTitle } from "./anilist-cache";
 
 const KYREN_API = "https://kyren.moe/api";
 
@@ -69,7 +70,7 @@ const HEADERS: Record<string, string> = {
  * Fetch a URL using our Cloudflare Worker proxy (legacy /proxy?url= endpoint).
  * Used for API JSON calls. Stream URLs use wrapKyrenStream() (token endpoint).
  */
-const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://api.luffytv.live";
 
 async function workerFetchJson<T = any>(url: string, timeoutMs = 15000): Promise<T | null> {
   try {
@@ -109,20 +110,18 @@ export type KyrenServer =
 /**
  * Working Kyren HLS servers.
  *
- * NOTE: As of 2026-07-13, Kyren's backend returns permanent errors for
- * pahe, vidnest, vidnest-pahe ("AnimePahe entry not found") and
- * vidnest-direct ("upstream 403"). These servers are broken UPSTREAM —
- * Kyren's own backend can't reach AnimePahe or vidnest's CDN.
- * We've removed them from the default list so we don't waste 4 broken
- * HTTP requests per episode load (was adding ~3-4s to instant-servers
- * resolution time).
- *
- * Only `senshi` and `megaplay-direct` work reliably. If Kyren fixes
- * pahe/vidnest upstream, re-add them here.
+ * NOTE: As of 2026-08-10, Kyren's senshi backend returns 502 ("senshi API 502").
+ * pahe/vidnest/vidnest-pahe return "animeheaven: every mirror host served the stub".
+ * vidnest-direct returns "upstream 403".
+ * 
+ * Only `megaplay-direct` works reliably. We include senshi as a fallback
+ * in case Kyren fixes their backend. pahe is also included as Kyren may
+ * fix their AnimePahe integration.
  */
 export const KYREN_HLS_SERVERS: KyrenServer[] = [
-  "senshi",
   "megaplay-direct",
+  "senshi",
+  "pahe",
 ];
 
 export const KYREN_SERVER_NAMES: Record<KyrenServer, string> = {
@@ -193,45 +192,32 @@ export interface KyrenStreamResponse {
 
 // ─── Search (returns items with AniList IDs) ──────────────────────────────────
 
-const searchCache = new Map<string, KyrenSearchItem | null>();
+// TTL cache: success entries expire after 1h, null entries after 5min
+// so we retry instead of caching failure forever.
+const searchCache = new Map<string, { data: KyrenSearchItem | null; ts: number }>();
+const KYREN_CACHE_TTL = 60 * 60 * 1000;    // 1 hour for success
+const KYREN_NULL_TTL = 5 * 60 * 1000;       // 5 minutes for null
 
 export async function resolveKyrenAnime(
   anilistId: number,
   timeoutMs = 8000
 ): Promise<KyrenSearchItem | null> {
   const cacheKey = `id:${anilistId}`;
-  if (searchCache.has(cacheKey)) return searchCache.get(cacheKey)!;
+  const cached = searchCache.get(cacheKey);
+  if (cached) {
+    const ttl = cached.data ? KYREN_CACHE_TTL : KYREN_NULL_TTL;
+    if (Date.now() - cached.ts < ttl) return cached.data;
+    searchCache.delete(cacheKey); // expired
+  }
 
   // Kyren's search doesn't match by `id` field directly when we pass a number.
   // We need to search by the anime title instead. Use AniList GraphQL to get
   // the title, then search Kyren by that title.
   try {
-    // Step 1: Get the anime title from AniList
-    const anilistRes = await Promise.race([
-      fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: "query($id:Int){Media(id:$id,type:ANIME){id title{romaji english} idMal}}",
-          variables: { id: anilistId },
-        }),
-        cache: "no-store",
-      }),
-      new Promise<Response | null>(r => setTimeout(() => r(null), timeoutMs)),
-    ]);
-    if (!anilistRes || !anilistRes.ok) {
-      searchCache.set(cacheKey, null);
-      return null;
-    }
-    const anilistData = await anilistRes.json();
-    const media = anilistData?.data?.Media;
-    if (!media) {
-      searchCache.set(cacheKey, null);
-      return null;
-    }
-    const title = media.title?.english || media.title?.romaji;
+    // Step 1: Get the anime title from AniList (via centralized cache)
+    const title = await getTitle(anilistId);
     if (!title) {
-      searchCache.set(cacheKey, null);
+      searchCache.set(cacheKey, { data: null, ts: Date.now() });
       return null;
     }
 
@@ -241,7 +227,7 @@ export async function resolveKyrenAnime(
       timeoutMs
     );
     if (!data) {
-      searchCache.set(cacheKey, null);
+      searchCache.set(cacheKey, { data: null, ts: Date.now() });
       return null;
     }
     const items = data?.items || [];
@@ -249,15 +235,15 @@ export async function resolveKyrenAnime(
     const match = items.find(i => i.id === anilistId);
     if (!match) {
       console.log(`[Kyren] anilistId=${anilistId} not found in ${items.length} results for "${title}"`);
-      searchCache.set(cacheKey, null);
+      searchCache.set(cacheKey, { data: null, ts: Date.now() });
       return null;
     }
     console.log(`[Kyren] anilistId=${anilistId} → slug=${match.slug}, title=${match.titleEnglish || match.titleRomaji}`);
-    searchCache.set(cacheKey, match);
+    searchCache.set(cacheKey, { data: match, ts: Date.now() });
     return match;
   } catch (e: any) {
     console.error(`[Kyren] resolveKyrenAnime failed:`, e?.message || e);
-    searchCache.set(cacheKey, null);
+    searchCache.set(cacheKey, { data: null, ts: Date.now() });
     return null;
   }
 }

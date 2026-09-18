@@ -176,7 +176,7 @@ export default function SignInPage() {
             </div>
             <div className="ltv-cine-hairline my-8 max-w-sm ml-0" />
             <a
-              href="https://discord.gg/GEVes3uhtM"
+              href="https://discord.gg/SdFB3HxDH5"
               target="_blank"
               rel="noopener noreferrer"
               className="ltv-cine-btn-secondary inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs"

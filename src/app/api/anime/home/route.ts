@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTrending, getPopular } from "@/lib/anilist-api";
-import { miruroTrending, miruroPopular, miruroRecent } from "@/lib/miruro-api";
-import { malTopAnime, malSeasonNow } from "@/lib/mal-api";
+import { rewriteAnimeArray } from "@/lib/cdn/rewrite-urls";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Normalize any anime item to a consistent MiruroAnimeResult shape.
- * When the item came from MAL, prefix the ID with "mal_" so the detail
- * page routes to MAL directly instead of trying AniList first (which 404s
- * with a MAL numeric ID because AniList IDs ≠ MAL IDs).
+ * GET /api/anime/home
+ *
+ * Returns trending / popular / topRated / recent / upcoming sections.
+ *
+ * ALL data comes from our LOCAL SQLite database (anime-db.sqlite).
+ * Does NOT use AniList API. The DB is kept fresh by the daily scraper
+ * (scrape-anilist-fill.mjs runs at 4 AM + auto-sync-airing.cjs runs hourly).
+ *
+ * This is faster (0ms network latency — local file) and more reliable
+ * (no dependency on AniList's uptime).
  */
-function normalizeItem(item: any, source?: string): Record<string, any> {
+function normalizeItem(item: any): Record<string, any> {
   let title: { romaji?: string; english?: string; native?: string };
   if (item.title && typeof item.title === "object") {
     title = {
@@ -22,8 +26,6 @@ function normalizeItem(item: any, source?: string): Record<string, any> {
     };
   } else if (typeof item.title === "string" && item.title) {
     title = { romaji: item.title, english: item.title };
-  } else if (item.name) {
-    title = { romaji: item.name, english: item.englishName || item.name };
   } else {
     title = { romaji: "Unknown" };
   }
@@ -38,12 +40,10 @@ function normalizeItem(item: any, source?: string): Record<string, any> {
     };
   } else if (item.thumbnail) {
     coverImage = { extraLarge: item.thumbnail, large: item.thumbnail, medium: item.thumbnail };
-  } else {
-    coverImage = undefined;
   }
 
   return {
-    id: source === "mal" ? `mal_${item.id || item._id || 0}` : (item.id || item._id || 0),
+    id: item.id || item._id || 0,
     title,
     coverImage,
     bannerImage: item.bannerImage || undefined,
@@ -56,7 +56,7 @@ function normalizeItem(item: any, source?: string): Record<string, any> {
     episodes: item.episodes ?? undefined,
     duration: item.duration ?? undefined,
     genres: Array.isArray(item.genres) ? item.genres.filter((g: any) => typeof g === "string") : undefined,
-    averageScore: item.averageScore ?? (item.score ? Math.round(item.score * 10) : undefined),
+    averageScore: item.averageScore ?? undefined,
     popularity: item.popularity ?? undefined,
     trending: item.trending ?? undefined,
     countryOfOrigin: item.countryOfOrigin || undefined,
@@ -64,62 +64,50 @@ function normalizeItem(item: any, source?: string): Record<string, any> {
   };
 }
 
-/**
- * GET /api/anime/home
- * PARALLEL 3-LAYER FALLBACK: AniList (primary) → Miruro (backup 1) → MAL API (backup 2)
- *
- * All 3 layers are raced in parallel — first successful response wins.
- * This is dramatically faster than sequential fallback.
- */
 export async function GET(request: NextRequest) {
   try {
-    // ---- TRENDING: Race all 3 sources in parallel ----
-    const trendingRace = await Promise.any([
-      getTrending(1, 20).then(d => d && d.length > 0 ? { data: d, source: "anilist" } : Promise.reject("anilist empty")),
-      miruroTrending(1, 20).then(d => d && d.length > 0 ? { data: d, source: "miruro" } : Promise.reject("miruro empty")),
-      malTopAnime(1, 20, "airing").then(d => d && d.length > 0 ? { data: d, source: "mal" } : Promise.reject("mal empty")),
-    ]).catch(() => ({ data: [], source: "none" }));
+    const sqlite = await import("@/lib/anime-db-sqlite");
 
-    // ---- POPULAR: Race all 3 sources in parallel ----
-    const popularRace = await Promise.any([
-      getPopular(1, 20).then(d => d && d.length > 0 ? { data: d, source: "anilist" } : Promise.reject("anilist empty")),
-      miruroPopular(1, 20).then(d => d && d.length > 0 ? { data: d, source: "miruro" } : Promise.reject("miruro empty")),
-      malTopAnime(1, 20, "bypopularity").then(d => d && d.length > 0 ? { data: d, source: "mal" } : Promise.reject("mal empty")),
-    ]).catch(() => ({ data: [], source: "none" }));
+    // ── Pull all sections from SQLite in parallel ──
+    const [trendingRaw, popularRaw, topRatedRaw, recentRaw, upcomingRaw] = await Promise.all([
+      Promise.resolve(sqlite.getTrendingFromSqlite(20)).catch(() => []),
+      Promise.resolve(sqlite.getPopularFromSqlite(20)).catch(() => []),
+      Promise.resolve(sqlite.getTopRatedFromSqlite(20)).catch(() => []),
+      Promise.resolve(sqlite.getRecentFromSqlite(20)).catch(() => []),
+      Promise.resolve(sqlite.getUpcomingFromSqlite(20)).catch(() => []),
+    ]);
 
-    // ---- RECENT: Race all 3 sources in parallel ----
-    const recentRace = await Promise.any([
-      miruroRecent(1, 20).then(d => d && d.length > 0 ? { data: d, source: "miruro" } : Promise.reject("miruro empty")),
-      getTrending(1, 20).then(d => d && d.length > 0 ? { data: d, source: "anilist" } : Promise.reject("anilist empty")),
-      malSeasonNow(1, 20).then(d => d && d.length > 0 ? { data: d, source: "mal" } : Promise.reject("mal empty")),
-    ]).catch(() => ({ data: [], source: "none" }));
+    let trendingList = trendingRaw.map((m: any) => normalizeItem(m));
+    let popularList = popularRaw.map((m: any) => normalizeItem(m));
+    let topRatedList = topRatedRaw.map((m: any) => normalizeItem(m));
+    let recentList = recentRaw.map((m: any) => normalizeItem(m));
+    let upcomingList = upcomingRaw.map((m: any) => normalizeItem(m));
 
-    // Also kick off top-rated in parallel
-    const topRatedRace = await Promise.any([
-      getPopular(1, 20).then(d => d && d.length > 0 ? { data: d, source: "anilist" } : Promise.reject("anilist empty")),
-      miruroPopular(1, 20).then(d => d && d.length > 0 ? { data: d, source: "miruro" } : Promise.reject("miruro empty")),
-      malTopAnime(1, 20, "all").then(d => d && d.length > 0 ? { data: d, source: "mal" } : Promise.reject("mal empty")),
-    ]).catch(() => ({ data: [], source: "none" }));
-
-    const trendingData = (trendingRace.data || []).map((item: any) => normalizeItem(item, trendingRace.source));
-    const popularData = (popularRace.data || []).map((item: any) => normalizeItem(item, popularRace.source));
-    const recentData = (recentRace.data || []).map((item: any) => normalizeItem(item, recentRace.source));
-    const topRatedData = (topRatedRace.data || []).map((item: any) => normalizeItem(item, topRatedRace.source));
+    // ── Rewrite all image URLs to use cdn.luffytv.live ──
+    trendingList = rewriteAnimeArray(trendingList);
+    popularList = rewriteAnimeArray(popularList);
+    recentList = rewriteAnimeArray(recentList);
+    topRatedList = rewriteAnimeArray(topRatedList);
+    upcomingList = rewriteAnimeArray(upcomingList);
 
     return NextResponse.json({
-      trending: trendingData,
-      popular: popularData,
-      recent: recentData,
-      topRated: topRatedData,
-      miruroTrending: trendingData,
-      miruroPopular: popularData,
-      miruroRecent: recentData,
+      trending: trendingList,
+      popular: popularList,
+      recent: recentList,
+      topRated: topRatedList,
+      upcoming: upcomingList,
+      miruroTrending: trendingList,
+      miruroPopular: popularList,
+      miruroRecent: recentList,
       _sources: {
-        trending: trendingRace.source,
-        popular: popularRace.source,
-        recent: recentRace.source,
-        topRated: topRatedRace.source,
+        trending: "sqlite",
+        popular: "sqlite",
+        recent: "sqlite",
+        topRated: "sqlite",
+        upcoming: "sqlite",
       },
+    }, {
+      headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
     });
   } catch (error) {
     console.error("[home] Error:", error);
@@ -128,6 +116,7 @@ export async function GET(request: NextRequest) {
       popular: [],
       recent: [],
       topRated: [],
+      upcoming: [],
       miruroTrending: [],
       miruroPopular: [],
       miruroRecent: [],

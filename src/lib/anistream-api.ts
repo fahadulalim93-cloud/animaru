@@ -26,6 +26,7 @@
  */
 
 import { wrapStreamUrl, wrapM3u8Url } from "./proxy";
+import { getTitle } from "./anilist-cache";
 
 const ANISTREAM_API = "https://api.anistream.one/rest/api";
 const GRAPHQL_API = "https://graphql.animex.one/graphql";
@@ -44,7 +45,7 @@ const HEADERS: Record<string, string> = {
 // api.anistream.one is Cloudflare-protected — returns {"error":"bot_detected"}
 // when fetched from Vercel IPs. Route ALL API calls through our Cloudflare
 // Worker, which runs on Cloudflare's network and bypasses bot detection.
-const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev";
+const WORKER_BASE = process.env.NEXT_PUBLIC_PROXY_BASE || "https://api.luffytv.live";
 
 function workerWrap(url: string): string {
   if (!WORKER_BASE) return url;  // fallback: try direct (works locally, fails on Vercel)
@@ -115,29 +116,28 @@ export interface AnistreamVerifiedResult {
 
 // ─── Slug cache (AniList ID → anistream slug) ────────────────────────────────
 
-const slugCache = new Map<number, string | null>();
+// TTL cache: success entries expire after 1h, null entries after 5min
+// so we retry instead of caching failure forever.
+const slugCache = new Map<number, { data: string | null; ts: number }>();
+const ANISTREAM_CACHE_TTL = 60 * 60 * 1000;    // 1 hour for success
+const ANISTREAM_NULL_TTL = 5 * 60 * 1000;       // 5 minutes for null
 
 /**
  * Resolve AniList ID → anistream.one slug via graphql.animex.one search.
  * e.g. anilistId=21 → "one-piece-p8k27"
  */
 export async function resolveAnistreamSlug(anilistId: number): Promise<string | null> {
-  if (slugCache.has(anilistId)) return slugCache.get(anilistId)!;
+  const cached = slugCache.get(anilistId);
+  if (cached) {
+    const ttl = cached.data ? ANISTREAM_CACHE_TTL : ANISTREAM_NULL_TTL;
+    if (Date.now() - cached.ts < ttl) return cached.data;
+    slugCache.delete(anilistId); // expired
+  }
 
   try {
-    // Step 1: Get anime title from AniList
-    const titleRes = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": UA },
-      body: JSON.stringify({
-        query: `query($id:Int){Media(id:$id,type:ANIME){id title{english romaji native}}}`,
-        variables: { id: anilistId },
-      }),
-    });
-    if (!titleRes.ok) { slugCache.set(anilistId, null); return null; }
-    const titleData = await titleRes.json();
-    const title = titleData?.data?.Media?.title?.english || titleData?.data?.Media?.title?.romaji;
-    if (!title) { slugCache.set(anilistId, null); return null; }
+    // Step 1: Get anime title from AniList (via centralized cache)
+    const title = await getTitle(anilistId);
+    if (!title) { slugCache.set(anilistId, { data: null, ts: Date.now() }); return null; }
 
     // Step 2: Search graphql.animex.one for the slug
     const res = await fetch(GRAPHQL_API, {
@@ -147,17 +147,17 @@ export async function resolveAnistreamSlug(anilistId: number): Promise<string | 
         query: `{ searchAnime(query: "${title.replace(/"/g, '\\"')}") { items { id anilistId } } }`,
       }),
     });
-    if (!res.ok) { slugCache.set(anilistId, null); return null; }
+    if (!res.ok) { slugCache.set(anilistId, { data: null, ts: Date.now() }); return null; }
     const data = await res.json();
     const items = data?.data?.searchAnime?.items || [];
     const match = items.find((i: any) => i.anilistId === anilistId) || items[0];
-    if (!match?.id) { slugCache.set(anilistId, null); return null; }
+    if (!match?.id) { slugCache.set(anilistId, { data: null, ts: Date.now() }); return null; }
 
-    slugCache.set(anilistId, match.id);
+    slugCache.set(anilistId, { data: match.id, ts: Date.now() });
     console.log(`[Anistream] anilistId=${anilistId} → slug=${match.id}`);
     return match.id;
   } catch {
-    slugCache.set(anilistId, null);
+    slugCache.set(anilistId, { data: null, ts: Date.now() });
     return null;
   }
 }

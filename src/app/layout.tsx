@@ -1,44 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Space_Mono, Inter, Space_Grotesk, Outfit, Karla } from "next/font/google";
+import Script from "next/script";
+import { Inter, Karla } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// Google Analytics 4 measurement ID.
+// Pasted directly per Google's "Install manually" instructions; can be overridden via env.
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || "G-NNHNJM8RV4";
+const GA_ENABLED = GA_MEASUREMENT_ID && GA_MEASUREMENT_ID.startsWith("G-");
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const spaceMono = Space_Mono({
-  variable: "--font-space-mono",
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
+// ── PERFORMANCE: Reduced from 7 fonts to 2 ──
+// Previously loaded: Geist, Geist_Mono, Space_Mono, Inter, Space_Grotesk, Outfit, Karla
+// Each font = 1 network request + render-blocking CSS. 7 fonts = 7 requests.
+// Now only 2 fonts: Inter (UI) + Karla (display/headings).
+// The CSS variables for the removed fonts are kept for backward compatibility
+// but point to Inter (so existing CSS that uses --font-geist-sans etc still works).
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-});
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
-});
-
-// Karla — Shiroko's hero font (used for title, badges, genre tags)
 const karla = Karla({
   variable: "--font-karla",
   subsets: ["latin"],
-  weight: ["200", "300", "400", "500", "600", "700", "800"],
+  weight: ["400", "700"],
+  display: "swap",
 });
 
 const SITE_URL = "https://luffytv.live";
@@ -148,8 +134,8 @@ const JSON_LD = {
       sameAs: [
         "https://x.com/TheLuffyTV",
         "https://twitch.tv/theluffytv",
-        "https://discord.gg/luffytv",
-        "https://discord.gg/GEVes3uhtM",
+        "https://discord.gg/SdFB3HxDH5",
+        "https://discord.gg/SdFB3HxDH5",
         "https://youtube.com/@LuffyTV",
         "https://instagram.com/luffytv",
         "https://kick.com/luffytv",
@@ -205,9 +191,15 @@ export default function RootLayout({
         <meta name="google" content="notranslate" />
         {/* canonical is set per-page via generateMetadata — do NOT set a global canonical here */}
         <link rel="home" href={SITE_URL} />
-        {/* Preconnect to proxy worker — saves ~200ms TLS handshake on first m3u8 request */}
-        <link rel="preconnect" href={process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev"} />
-        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_PROXY_BASE || "https://luffytv-proxy.ggy892767.workers.dev"} />
+        {/* Proxy preconnect — only needed when using cross-domain proxy (api.luffytv.live).
+            In same-domain mode (default), the proxy is at /p/{token} on luffytv.live,
+            so the browser already has a connection open from the page load. */}
+        {process.env.NEXT_PUBLIC_PROXY_BASE && (
+          <>
+            <link rel="preconnect" href={process.env.NEXT_PUBLIC_PROXY_BASE} />
+            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_PROXY_BASE} />
+          </>
+        )}
         {/* Preconnect to AniList GraphQL API — used for metadata on every page */}
         <link rel="preconnect" href="https://graphql.anilist.co" />
         <link rel="dns-prefetch" href="https://graphql.anilist.co" />
@@ -220,8 +212,28 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} ${spaceMono.variable} ${inter.variable} ${spaceGrotesk.variable} ${outfit.variable} ${karla.variable} antialiased bg-[#000000] text-[#fafafa] selection:bg-[#E63946]/30 selection:text-white`}
+        className={`${inter.variable} ${karla.variable} antialiased bg-[#000000] text-[#fafafa] selection:bg-[#E63946]/30 selection:text-white`}
       >
+        {/* Google tag (gtag.js) — Google Analytics 4 (Measurement ID: G-NNHNJM8RV4).
+            Equivalent to pasting the manual install snippet on every page.
+            next/script with strategy="afterInteractive" hydrates the gtag loader
+            once on first paint, then automatically tracks SPA route changes. */}
+        {GA_ENABLED && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: true });
+              `}
+            </Script>
+          </>
+        )}
         {children}
       </body>
     </html>

@@ -89,8 +89,8 @@ export default function MusicPage() {
         setSelectedAnime(animeDetails);
         const animethemes = animeDetails.animethemes || [];
         setThemes(animethemes);
-        const ops = animethemes.filter((t: any) => t.type?.startsWith("OP"));
-        const eds = animethemes.filter((t: any) => t.type?.startsWith("ED"));
+        const ops = animethemes.filter((t: any) => String(t?.type).startsWith("OP"));
+        const eds = animethemes.filter((t: any) => String(t?.type).startsWith("ED"));
         if (ops.length > 0) { setActiveTab("OP"); setCurrentTheme(ops[0]); }
         else if (eds.length > 0) { setActiveTab("ED"); setCurrentTheme(eds[0]); }
         else if (animethemes.length > 0) { setActiveTab("OP"); setCurrentTheme(animethemes[0]); }
@@ -124,7 +124,7 @@ export default function MusicPage() {
     return "";
   };
 
-  const filteredThemes = themes.filter((t) => activeTab === "OP" ? t.type?.startsWith("OP") : t.type?.startsWith("ED"));
+  const filteredThemes = themes.filter((t) => activeTab === "OP" ? String(t?.type).startsWith("OP") : String(t?.type).startsWith("ED"));
   const currentVideoUrl = currentTheme?.animethemeentries?.[0]?.videos?.[0]?.link || "";
   const currentCover = getCoverImage(selectedAnime);
 
@@ -415,7 +415,7 @@ export default function MusicPage() {
                       >
                         {tab === "OP" ? "Openings" : "Endings"}
                         <span className="ml-1.5 text-[10px] text-white/30 font-medium">
-                          ({themes.filter(t => t.type?.startsWith(tab)).length})
+                          ({themes.filter(t => String(t?.type).startsWith(tab)).length})
                         </span>
                         {activeTab === tab && (
                           <span

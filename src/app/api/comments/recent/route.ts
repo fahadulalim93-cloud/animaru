@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { cachedQuery } from "@/lib/anilist-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,17 +27,13 @@ export async function GET(request: Request) {
 
     if (animeIds.length > 0) {
       try {
-        const res = await fetch("https://graphql.anilist.co", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: `query($ids:[Int]){Page(page:1,perPage:50){media(id_in:$ids,type:ANIME){id title{english romaji}}}}`,
-            variables: { ids: animeIds.slice(0, 50) },
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          for (const m of data?.data?.Page?.media || []) {
+        const data = await cachedQuery(
+          `query($ids:[Int]){Page(page:1,perPage:50){media(id_in:$ids,type:ANIME){id title{english romaji}}}}`,
+          { ids: animeIds.slice(0, 50) },
+          { ttl: 2 * 60 * 60 * 1000, timeoutMs: 5000, revalidate: 3600 },
+        );
+        if (data) {
+          for (const m of data?.Page?.media || []) {
             titleMap[String(m.id)] = m.title?.english || m.title?.romaji || "Unknown";
           }
         }

@@ -24,7 +24,7 @@
 
 const ANIYUBI_API = "https://animeyubi.com/api/v4";
 
-const ANILIST_GRAPHQL = "https://graphql.anilist.co";
+import { cachedQuery } from "./anilist-cache";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
@@ -94,19 +94,14 @@ export async function resolveAniYubiId(
 
   try {
     // Step 1: Get title from AniList
-    const titleRes = await fetch(ANILIST_GRAPHQL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": UA },
-      body: JSON.stringify({
-        query: `query($id:Int){Media(id:$id,type:ANIME){id title{english romaji native}}}`,
-        variables: { id: anilistId },
-      }),
-      cache: "no-store",
-    });
-    if (!titleRes.ok) { anilistToAniyubiCache.set(anilistId, null); return null; }
-    const titleData = await titleRes.json();
-    const title = titleData?.data?.Media?.title?.english
-               || titleData?.data?.Media?.title?.romaji;
+    const titleData = await cachedQuery(
+      `query($id:Int){Media(id:$id,type:ANIME){id title{english romaji native}}}`,
+      { id: anilistId },
+      { ttl: 2 * 60 * 60 * 1000, timeoutMs: 5000, revalidate: 3600 },
+    );
+    if (!titleData) { anilistToAniyubiCache.set(anilistId, null); return null; }
+    const title = titleData?.Media?.title?.english
+               || titleData?.Media?.title?.romaji;
     if (!title) { anilistToAniyubiCache.set(anilistId, null); return null; }
 
     // Step 2: Search animeyubi by title (use 'title' param — 'search' doesn't filter)

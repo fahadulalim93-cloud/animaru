@@ -7,7 +7,7 @@
  *
  * Features:
  *   - Full AniList metadata (cover, banner, title, description, genres, score)
- *   - Site switcher: Miruro, Animex, Lunar (shows what each supports)
+ *   - Site switcher: Miruro, Animex (shows what each supports)
  *   - Episode list with sub/dub/hardsub/harddub variant badges
  *   - Click episode → /scraper/watch/{site}/{anilistId}/{episodeId}
  */
@@ -152,7 +152,7 @@ export default function ScraperAnimePage({ anilistId }: { anilistId: string }) {
             {meta.format && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded">{meta.format}</span>}
             {meta.episodes && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded">{meta.episodes} eps</span>}
             {meta.seasonYear && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded">{meta.season} {meta.seasonYear}</span>}
-            {meta.status && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded">{meta.status.replace("_", " ")}</span>}
+            {meta.status && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded">{String(meta.status || "").replace("_", " ")}</span>}
             {mainStudio && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded">{mainStudio.name}</span>}
           </div>
 
@@ -168,7 +168,7 @@ export default function ScraperAnimePage({ anilistId }: { anilistId: string }) {
           {/* Description */}
           {meta.description && (
             <p className="text-sm text-white/70 leading-relaxed line-clamp-4 mb-4 max-w-2xl">
-              {meta.description.replace(/<[^>]+>/g, "")}
+              {String(meta.description || "").replace(/<[^>]+>/g, "")}
             </p>
           )}
 

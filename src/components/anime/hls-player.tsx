@@ -149,11 +149,15 @@ export default function HLSPlayer({
     hls.on(Hls.Events.ERROR, (_event, data) => {
       if (data.fatal) {
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          // Limit retries to prevent infinite loop on dead streams
-          if (retryCountRef.current < 3) {
+          // CDN rate-limits cause intermittent 403s on fragments.
+          // Retry aggressively (6 attempts with backoff) before giving up.
+          if (retryCountRef.current < 6) {
             retryCountRef.current++;
-            setTimeout(() => hls.startLoad(), 1000);
+            const delay = Math.min(1000 * Math.pow(1.5, retryCountRef.current), 5000);
+            console.warn(`[HLS] Fatal network error (retry ${retryCountRef.current}/6 in ${delay}ms): ${data.details}`);
+            setTimeout(() => hls.startLoad(), delay);
           } else {
+            console.error(`[HLS] Stream failed after 6 retries — triggering server fallback`);
             handleError("Stream failed after retries. Try another server.");
             hls.destroy();
             hlsRef.current = null;

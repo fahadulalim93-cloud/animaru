@@ -1,11 +1,29 @@
+# Nixpacks build config for LuffyTV (Next.js + Prisma)
+# Uses npm (package-lock.json present, no bun.lock/yarn.lock)
+
 [phases.setup]
 nixPkgs = ["nodejs_22"]
+aptPkgs = []
 
 [phases.install]
-cmd = "npm install --legacy-peer-deps"
+cmds = [
+  # Clean old build artifacts + npm cache to free disk space before installing
+  "rm -rf .next .turbo node_modules/.cache 2>/dev/null || true",
+  "npm cache clean --force 2>/dev/null || true",
+  "npm install --legacy-peer-deps"
+]
+cacheDirectories = ["/root/.npm"]
 
 [phases.build]
-cmd = "node scripts/generate-frames.mjs || true && (npx prisma generate || true) && npx next build"
+cmds = [
+  "node scripts/generate-frames.mjs",
+  "npx prisma generate || echo 'Prisma generate skipped'",
+  # Clean .next/cache before build to prevent disk-full errors
+  "rm -rf .next/cache 2>/dev/null || true",
+  "npx next build",
+  # Post-build cleanup: remove .next/cache + source maps to shrink image
+  "rm -rf .next/cache .next/**/*.map 2>/dev/null || true"
+]
 
 [start]
-cmd = "(npx prisma db push --accept-data-loss 2>/dev/null || true) && npx next start -p 3000"
+cmd = "npx prisma db push --accept-data-loss 2>/dev/null; node --experimental-sqlite --experimental-strip-types server.ts"

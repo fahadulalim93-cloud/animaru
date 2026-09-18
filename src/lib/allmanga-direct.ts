@@ -15,6 +15,8 @@
  */
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0";
+
+import { getCachedTitle } from "./anilist-cache";
 // Use api.mkissa.net instead of api.allanime.day — same API, NOT Cloudflare-protected
 const API = "https://api.mkissa.net";
 const API_PATH = "/api/graphql"; // mkissa uses /api/graphql (allanime uses /api)
@@ -205,15 +207,9 @@ async function getEpisodeSources(showId: string, epNum: number, audio = "sub"): 
   return data?.episode ?? null;
 }
 
-// ── AniList title resolution ──
-async function fetchAniListMedia(anilistId: number): Promise<any | null> {
-  try {
-    const q = "query ($id: Int) { Media (id: $id, type: ANIME) { seasonYear startDate { year } title { romaji english native } } }";
-    const res = await fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": UA, "Origin": "https://anilist.co" }, body: JSON.stringify({ query: q, variables: { id: anilistId } }), signal: AbortSignal.timeout(15000) });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.data?.Media ?? null;
-  } catch { return null; }
+// ── AniList title resolution (via centralized cache) ──
+async function fetchAniListTitleInfo(anilistId: number) {
+  return getCachedTitle(anilistId);
 }
 
 async function fetchAniZip(anilistId: number): Promise<any> {
@@ -255,21 +251,21 @@ function findBestMatch(results: any[], titles: string[], targetYear: number | nu
 }
 
 async function resolveAllAnimeId(anilistId: number): Promise<{ showId: string; show: any; anizip: any } | null> {
-  const [anizipRes, alMedia] = await Promise.all([
+  const [anizipRes, alInfo] = await Promise.all([
     fetchAniZip(anilistId),
-    fetchAniListMedia(anilistId),
+    fetchAniListTitleInfo(anilistId),
   ]);
 
   let titlesToTry: string[] = [];
   if (anizipRes?.titles) {
     titlesToTry = [anizipRes.titles.en, anizipRes.titles.ja, anizipRes.titles["x-jat"], ...Object.values(anizipRes.titles)].filter(Boolean);
   }
-  if (alMedia?.title) {
-    titlesToTry = [...new Set([alMedia.title.english, alMedia.title.romaji, alMedia.title.native, ...titlesToTry].filter(Boolean))];
+  if (alInfo) {
+    titlesToTry = [...new Set([alInfo.english, alInfo.romaji, alInfo.native, ...titlesToTry].filter((t): t is string => !!t))];
   }
   if (!titlesToTry.length) return null;
 
-  const targetYear = alMedia?.seasonYear || alMedia?.startDate?.year || null;
+  const targetYear = null;
   let allResults: any[] = [];
   for (const title of titlesToTry.slice(0, 3)) {
     try {

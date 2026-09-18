@@ -15,6 +15,7 @@
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 import { wrapStreamUrl } from "./proxy";
+import { getTitle, cachedQuery } from "./anilist-cache";
 
 const HEADERS: Record<string, string> = {
   "User-Agent": UA,
@@ -40,22 +41,9 @@ const titleCache = new Map<number, string | null>();
 
 async function resolveTitle(anilistId: number): Promise<string | null> {
   if (titleCache.has(anilistId)) return titleCache.get(anilistId)!;
-  try {
-    const res = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: "query($id:Int){Media(id:$id,type:ANIME){id title{romaji english}}}",
-        variables: { id: anilistId },
-      }),
-      cache: "no-store",
-    });
-    if (!res.ok) { titleCache.set(anilistId, null); return null; }
-    const data = await res.json();
-    const title = data?.data?.Media?.title?.english || data?.data?.Media?.title?.romaji;
-    titleCache.set(anilistId, title || null);
-    return title || null;
-  } catch { titleCache.set(anilistId, null); return null; }
+  const title = await getTitle(anilistId);
+  titleCache.set(anilistId, title || null);
+  return title || null;
 }
 
 // ─── 1. AniZone ───────────────────────────────────────────────────────────────
@@ -255,60 +243,7 @@ async function fetchAllAnime(title: string, epNum: number, timeoutMs: number): P
 }
 
 
-// ─── 5. Re:Anime (embed URLs) ─────────────────────────────────────────────────
-
-const REANIME_API = "https://reanime-scraper-api.sapis.workers.dev";
-
-async function fetchReAnime(title: string, epNum: number, timeoutMs: number): Promise<MioSource[]> {
-  try {
-    const searchRes = await fetch(`${REANIME_API}/api/search?q=${encodeURIComponent(title)}`, {
-      headers: HEADERS, cache: "no-store",
-    });
-    if (!searchRes.ok) return [];
-    const searchData = await searchRes.json();
-    const results = searchData?.results || [];
-    if (!results.length) return [];
-
-    const anime = results.find((r: any) => 
-      r.title?.english?.toLowerCase() === title.toLowerCase() ||
-      r.title?.romaji?.toLowerCase() === title.toLowerCase()
-    ) || results[0];
-    if (!anime?.anime_id) return [];
-
-    const watchRes = await fetch(`${REANIME_API}/api/watch/${anime.anime_id}/episodes/${epNum}`, {
-      headers: HEADERS, cache: "no-store",
-    });
-    if (!watchRes.ok) return [];
-    const watchData = await watchRes.json();
-    const streams = watchData?.streams || [];
-
-    const results2: MioSource[] = [];
-    const seen = new Set<string>();
-    for (const s of streams) {
-      if (!s.embedUrl) continue;
-      const key = `${s.embedUrl}:${s.dataType}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      const isDub = s.dataType === "dub";
-      results2.push({
-        id: `reanime:${s.serverName}:${s.dataType}:${epNum}`,
-        name: `Re:Anime ${s.serverName}`,
-        type: isDub ? "dub" : "sub",
-        streamUrl: wrapStreamUrl(s.embedUrl), // Wrap flixcloud.cc through aniwatchtv proxy (403 direct)
-        quality: "auto",
-        isM3U8: false,
-        isMP4: false,
-        isEmbed: true, // ← NEW: mark as embed so watch page uses iframe player
-        hardsub: false,
-        subtitleTracks: [],
-      });
-    }
-    return results2;
-  } catch { return []; }
-}
-
-// ─── 6. 123Anime (HLS + MP4) ─────────────────────────────────────────────────
+// ─── 5. 123Anime (HLS + MP4) ─────────────────────────────────────────────────
 // Source: https://github.com/Varomine/MioAnime/blob/main/src/services/123animeApi.js
 const ANIME123_API = "https://123anime-api-bice.vercel.app";
 
@@ -517,28 +452,22 @@ export async function fetchMioAnimeSources(
   // Get MAL ID for Senshi (needs MAL ID, not AniList)
   let malId: number | null = null;
   try {
-    const res = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: "query($id:Int){Media(id:$id,type:ANIME){id idMal}}",
-        variables: { id: anilistId },
-      }),
-      cache: "no-store",
-    });
-    const data = await res.json();
-    malId = data?.data?.Media?.idMal || null;
+    const data = await cachedQuery(
+      "query($id:Int){Media(id:$id,type:ANIME){id idMal}}",
+      { id: anilistId },
+      { ttl: 2 * 60 * 60 * 1000, timeoutMs: 5000, revalidate: 3600 },
+    );
+    malId = data?.Media?.idMal || null;
   } catch {}
 
-  console.log(`[MioAnime] fetching 8 sources for "${title}" ep${epNum} (malId=${malId})`);
+  console.log(`[MioAnime] fetching 7 sources for "${title}" ep${epNum} (malId=${malId})`);
 
-  // Fetch ALL sources in parallel (8 sources from MioAnime repo)
-  const [anizone, verse, senshi, allanime, reanime, anime123, hanime, onsen] = await Promise.allSettled([
+  // Fetch ALL sources in parallel (7 sources from MioAnime repo)
+  const [anizone, verse, senshi, allanime, anime123, hanime, onsen] = await Promise.allSettled([
     fetchAniZone(title, epNum, timeoutMs),
     fetchVerse(title, epNum, timeoutMs),
     malId ? fetchSenshi(malId, epNum, timeoutMs) : Promise.resolve([]),
     fetchAllAnime(title, epNum, timeoutMs),
-    fetchReAnime(title, epNum, timeoutMs),
     fetch123Anime(title, epNum, timeoutMs),
     fetchHAnime(title, epNum, timeoutMs),
     fetchOnsen(malId, epNum, timeoutMs),
@@ -549,11 +478,10 @@ export async function fetchMioAnimeSources(
   if (verse.status === "fulfilled") results.push(...verse.value);
   if (senshi.status === "fulfilled") results.push(...senshi.value);
   if (allanime.status === "fulfilled") results.push(...allanime.value);
-  if (reanime.status === "fulfilled") results.push(...reanime.value);
   if (anime123.status === "fulfilled") results.push(...anime123.value);
   if (hanime.status === "fulfilled") results.push(...hanime.value);
   if (onsen.status === "fulfilled") results.push(...onsen.value);
 
-  console.log(`[MioAnime] ${results.length} sources (AniZone=${anizone.status === "fulfilled" ? anizone.value.length : 0}, Verse=${verse.status === "fulfilled" ? verse.value.length : 0}, Senshi=${senshi.status === "fulfilled" ? senshi.value.length : 0}, AllAnime=${allanime.status === "fulfilled" ? allanime.value.length : 0}, ReAnime=${reanime.status === "fulfilled" ? reanime.value.length : 0}, 123Anime=${anime123.status === "fulfilled" ? anime123.value.length : 0}, HAnime=${hanime.status === "fulfilled" ? hanime.value.length : 0}, Onsen=${onsen.status === "fulfilled" ? onsen.value.length : 0})`);
+  console.log(`[MioAnime] ${results.length} sources (AniZone=${anizone.status === "fulfilled" ? anizone.value.length : 0}, Verse=${verse.status === "fulfilled" ? verse.value.length : 0}, Senshi=${senshi.status === "fulfilled" ? senshi.value.length : 0}, AllAnime=${allanime.status === "fulfilled" ? allanime.value.length : 0}, 123Anime=${anime123.status === "fulfilled" ? anime123.value.length : 0}, HAnime=${hanime.status === "fulfilled" ? hanime.value.length : 0}, Onsen=${onsen.status === "fulfilled" ? onsen.value.length : 0})`);
   return results;
 }

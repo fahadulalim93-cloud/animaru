@@ -36,15 +36,11 @@ const ALLOWED_HOSTS = [
   "img3.ak.crunchyroll.com",
   "img4.ak.crunchyroll.com",
   "static.crunchyroll.com",
-  // Lunar scraper episode thumbnails (real per-episode scene stills)
-  "fetch.flixcloud.cc",
 ];
 
 // Some hosts require a specific Referer to return images.
 // Default uses parsedUrl.origin, but those overrides take priority.
 const REFERER_OVERRIDES: Record<string, string> = {
-  // Lunar CDN rejects requests without lunaranime.org referer (403)
-  "fetch.flixcloud.cc": "https://lunaranime.org/",
 };
 
 // Check if a hostname should be allowed for image proxying

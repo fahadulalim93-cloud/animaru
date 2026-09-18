@@ -143,7 +143,8 @@ type Route =
   | { page: "discover" }
   | { page: "search"; query?: string }
   | { page: "anime"; id: string }
-  | { page: "watch"; id: string; episode: number; title?: string; image?: string }
+  | { page: "watch"; id: string; episode: number; title?: string; image?: string; language?: string }
+  | { page: "watch-together"; code?: string }
   | { page: "genre"; genre: string }
   | { page: "bookmarks" }
   | { page: "history" }
@@ -251,6 +252,14 @@ interface AppState {
   connectListModalOpen: boolean;
   openConnectListModal: () => void;
   closeConnectListModal: () => void;
+  // ── Auth error toast (shown when MAL/AniList OAuth fails) ──
+  authError: string | null;
+  setAuthError: (msg: string | null) => void;
+  // ── Auth notice toast (info / success states) ──
+  // Used to tell the user "Connecting to AniList..." then "Successfully
+  // connected!" so they have feedback that the OAuth flow is working.
+  authNotice: { type: "info" | "success"; message: string } | null;
+  setAuthNotice: (n: { type: "info" | "success"; message: string } | null) => void;
   // ── Edit list entry modal (shown from "+" buttons once AniList/MAL is
   //     linked — status/score/progress/dates/notes, synced to AniList) ──
   editListTarget: { id: number; title: string; cover?: string } | null;
@@ -271,7 +280,8 @@ export interface AppPrefs {
   titleLanguage: "english" | "romaji";
   episodeThumbnails: boolean;
   episodeSortAsc: boolean;
-  preferredLanguage: "sub" | "dub";
+  preferredLanguage: "sub" | "dub" | "hindi";
+  preferredServer: string; // server id to auto-select (empty = auto-select best)
   nsfw: boolean;
   comments: boolean;
   // Player defaults
@@ -286,6 +296,7 @@ export interface AppPrefs {
   skipFillers: boolean;
   ambientMode: boolean;
   volume: number; // 0-100
+  fullscreenRetain: boolean; // keep fullscreen on episode change
   // Account
   privacyPublic: boolean;
   incognito: boolean;
@@ -298,6 +309,7 @@ export const DEFAULT_PREFS: AppPrefs = {
   episodeThumbnails: true,
   episodeSortAsc: true,
   preferredLanguage: "sub",
+  preferredServer: "",
   nsfw: false,
   comments: true,
   autoNext: true,
@@ -311,6 +323,7 @@ export const DEFAULT_PREFS: AppPrefs = {
   skipFillers: false,
   ambientMode: false,
   volume: 100,
+  fullscreenRetain: true,
   privacyPublic: true,
   incognito: false,
 };
@@ -380,7 +393,9 @@ export const useAppStore = create<AppState>()(
       else if (route.page === "anime")
         path = `/anime/${route.id}`;
       else if (route.page === "watch")
-        path = `/watch/${route.id}/${route.episode}`;
+        path = `/watch/${route.id}/${route.episode}${route.language ? `/${route.language}` : ""}`;
+      else if (route.page === "watch-together")
+        path = route.code ? `/watch-together/${route.code}` : "/watch-together";
       else if (route.page === "genre")
         path = `/genre/${encodeURIComponent(route.genre)}`;
       else if (route.page === "bookmarks") path = "/bookmarks";
@@ -500,7 +515,16 @@ export const useAppStore = create<AppState>()(
     // Close the auth modal automatically on successful sign-in / sign-up
     if (user) set({ authModal: null });
   },
-  logout: () => set({ user: null }),
+  logout: () => {
+    // Notify server to destroy the session cookie (best-effort, no await —
+    // we don't want to block the UI on a network request).
+    try {
+      if (typeof window !== "undefined") {
+        fetch("/api/users/logout", { method: "POST", credentials: "include" }).catch(() => {});
+      }
+    } catch {}
+    set({ user: null });
+  },
   // ── Auth modal actions ──
   authModal: null,
   openAuthModal: (mode, message) => set({ authModal: { mode, message } }),
@@ -520,6 +544,10 @@ export const useAppStore = create<AppState>()(
   connectListModalOpen: false,
   openConnectListModal: () => set({ connectListModalOpen: true }),
   closeConnectListModal: () => set({ connectListModalOpen: false }),
+  authError: null,
+  setAuthError: (msg) => set({ authError: msg }),
+  authNotice: null,
+  setAuthNotice: (n) => set({ authNotice: n }),
   // ── Edit list entry modal ──
   editListTarget: null,
   openEditListModal: (anime) => set({ editListTarget: anime }),
@@ -675,8 +703,16 @@ export function parseHash(hash: string): Route {
   if (!h) return { page: "home" };
   const parts = h.split("/");
   if (parts[0] === "anime" && parts[1]) return { page: "anime", id: parts[1] };
-  if (parts[0] === "watch" && parts[1] && parts[2])
-    return { page: "watch", id: parts[1], episode: parseInt(parts[2], 10) || 1 };
+  if (parts[0] === "watch" && parts[1] && parts[2]) {
+    // /watch/{id}/{ep}[/{language}]
+    // parts[3] (optional) = language hint (hindi/tamil/telugu/...)
+    const episode = parseInt(parts[2], 10) || 1;
+    const language = parts[3] ? parts[3].toLowerCase() : undefined;
+    return { page: "watch", id: parts[1], episode, language };
+  }
+  if (parts[0] === "watch-together") {
+    return parts[1] ? { page: "watch-together", code: parts[1] } : { page: "watch-together" };
+  }
   return { page: "home" };
 }
 

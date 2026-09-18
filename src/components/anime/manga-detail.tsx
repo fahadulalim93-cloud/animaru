@@ -388,7 +388,7 @@ export default function MangaDetailPage({ mangaId }: MangaDetailProps) {
         if (titleForSearch && titleForSearch !== "Unknown Title" && serverLangs.size <= 1) {
           (async () => {
             try {
-              if (mangaId.startsWith("mb:")) {
+              if (String(mangaId).startsWith("mb:")) {
                 // Mangaball manga → search atsumaru for English chapters
                 const searchRes = await fetch(
                   `/api/manga/search?q=${encodeURIComponent(titleForSearch)}`
@@ -431,7 +431,7 @@ export default function MangaDetailPage({ mangaId }: MangaDetailProps) {
                     }
                   }
                 }
-              } else if (mangaId.startsWith("at:")) {
+              } else if (String(mangaId).startsWith("at:")) {
                 // Atsumaru manga → search mangaball for ALL chapters (English + non-English)
                 // Note: mangaball's English chapters are also appended (not just
                 // non-English) so users get a wider selection of English scans.
@@ -442,7 +442,7 @@ export default function MangaDetailPage({ mangaId }: MangaDetailProps) {
                   const searchData = await searchRes.json();
                   const results = searchData.results || [];
                   // Find mangaball result (mb: prefix)
-                  const mbMatch = results.find((r: any) => r.id?.startsWith("mb:"));
+                  const mbMatch = results.find((r: any) => String(r?.id).startsWith("mb:"));
 
                   if (mbMatch) {
                     const mbRes = await fetch(`/api/manga/detail?id=${encodeURIComponent(mbMatch.id)}`);
@@ -459,7 +459,7 @@ export default function MangaDetailPage({ mangaId }: MangaDetailProps) {
                     }
                   }
                 }
-              } else if (mangaId.startsWith("cx:")) {
+              } else if (String(mangaId).startsWith("cx:")) {
                 // Comix manga → search BOTH atsumaru (English) + mangaball (multi-lang)
                 // and append their chapters. Comix is English-only, so this gives
                 // users access to other languages via the other providers.
@@ -469,8 +469,8 @@ export default function MangaDetailPage({ mangaId }: MangaDetailProps) {
                 if (searchRes.ok) {
                   const searchData = await searchRes.json();
                   const results = searchData.results || [];
-                  const atMatch = results.find((r: any) => r.id?.startsWith("at:"));
-                  const mbMatch = results.find((r: any) => r.id?.startsWith("mb:"));
+                  const atMatch = results.find((r: any) => String(r?.id).startsWith("at:"));
+                  const mbMatch = results.find((r: any) => String(r?.id).startsWith("mb:"));
 
                   const merges: any[] = [];
                   // Atsumaru English chapters
@@ -636,7 +636,7 @@ export default function MangaDetailPage({ mangaId }: MangaDetailProps) {
     if (ch.id && ch.id.length === 24) {
       // Mangaball translation ID
       chapterId = ch.id;
-    } else if (ch.id && ch.id.startsWith("at:")) {
+    } else if (ch.id && String(ch.id).startsWith("at:")) {
       // Cross-provider merge format — pass as-is
       chapterId = ch.id;
     } else if (ch.id && /^[A-Za-z0-9_-]{3,20}$/.test(ch.id) && !/^\d+$/.test(ch.id)) {
@@ -984,7 +984,7 @@ export default function MangaDetailPage({ mangaId }: MangaDetailProps) {
                   </div>
                 )}
                 <div className="flex flex-col justify-center gap-1.5 px-4 py-3 min-w-0">
-                  <span className="text-white/40 text-xs font-bold uppercase tracking-wider">{r.relationType.replace(/_/g, " ")}</span>
+                  <span className="text-white/40 text-xs font-bold uppercase tracking-wider">{String(r.relationType || "").replace(/_/g, " ")}</span>
                   <span className="text-white font-bold text-base line-clamp-2">{r.title}</span>
                   {r.format && <span className="text-white/40 text-xs font-semibold uppercase tracking-wider">{r.format}</span>}
                 </div>

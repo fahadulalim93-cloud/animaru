@@ -2,6 +2,16 @@ import type { Metadata } from "next";
 import MainPageClient from "./main-page-client";
 import { generateStructuredData } from "@/lib/structured-data";
 
+// ── CACHING: force-static + ISR ──
+// force-static tells Next.js to ALWAYS serve cached HTML (never dynamic).
+// This overrides the default where catch-all routes + async generateMetadata
+// → dynamic → Cache-Control: no-store → CDN can't cache → 1.2s TTFB.
+// revalidate=30 means the cache refreshes every 30 seconds.
+// fetchCache=force-cache tells fetch() calls to use cache (not no-store).
+export const revalidate = 30;
+export const dynamic = "force-static";
+export const fetchCache = "force-cache";
+
 // ═══════════════════════════════════════════════════════════════
 // SEO: Per-page metadata via generateMetadata
 //
@@ -15,7 +25,7 @@ import { generateStructuredData } from "@/lib/structured-data";
 // ═══════════════════════════════════════════════════════════════
 
 const SITE_URL = "https://luffytv.live";
-const ANILIST_API = "https://graphql.anilist.co";
+import { cachedQuery } from "@/lib/anilist-cache";
 
 // ── Fetch with 6s timeout (prevents SEO render from hanging) ──
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 6000): Promise<Response> {
@@ -42,31 +52,27 @@ async function fetchAnimeTitleForSeo(id: number): Promise<{
   coverImage: string;
 } | null> {
   try {
-    const res = await fetchWithTimeout(ANILIST_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `
-          query ($id: Int) {
-            Media(id: $id, type: ANIME) {
-              title { romaji english }
-              description(asHtml: false)
-              genres
-              coverImage { large }
-            }
+    const data = await cachedQuery(
+      `
+        query ($id: Int) {
+          Media(id: $id, type: ANIME) {
+            title { romaji english }
+            description(asHtml: false)
+            genres
+            coverImage { large }
           }
-        `,
-        variables: { id },
-      }),
-    }, 6000);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const m = data?.data?.Media;
+        }
+      `,
+      { id },
+      { ttl: 2 * 60 * 60 * 1000, timeoutMs: 6000, revalidate: 3600 },
+    );
+    if (!data) return null;
+    const m = data?.Media;
     if (!m) return null;
     const title = m.title?.english || m.title?.romaji || "";
     return {
       title,
-      description: (m.description || "").replace(/<[^>]+>/g, "").slice(0, 200),
+      description: (String(m.description || "")).replace(/<[^>]+>/g, "").slice(0, 200),
       genres: m.genres || [],
       coverImage: m.coverImage?.large || "",
     };
@@ -293,7 +299,7 @@ const PAGE_SEO: Record<string, { title: string; description: string; path: strin
 };
 
 // ── Parse the slug to determine the page type ──
-function parseSlugForSeo(slug: string[]): { page: string; id?: string; episode?: number; genreName?: string } {
+function parseSlugForSeo(slug: string[]): { page: string; id?: string; episode?: number; genreName?: string; language?: string } {
   if (!slug || slug.length === 0) return { page: "home" };
 
   const first = slug[0];
@@ -336,9 +342,42 @@ function parseSlugForSeo(slug: string[]): { page: string; id?: string; episode?:
     return { page: "anime", id: slug[1] };
   }
 
-  // /watch/{slug-or-id}/{ep} → watch page
+  // /watch/{slug-or-id}/{ep}[/{language}] → watch page
+  // Optional 3rd slug is a language hint (hindi/tamil/telugu/etc.) — when
+  // present, the player auto-selects a server of that language on load.
+  // e.g. /watch/101922/1/hindi → loads AnimeSalt Hindi (or other Hindi dub)
+  //      /watch/101922/1/tamil → loads AnimeSalt Tamil
+  //      /watch/101922/1       → default behavior (auto-pick best server)
   if (first === "watch" && slug.length >= 2) {
-    return { page: "watch", id: slug[1], episode: slug[2] ? parseInt(slug[2], 10) : undefined };
+    const episode = slug[2] ? parseInt(slug[2], 10) : undefined;
+    // Validate language: only accept known Indian languages (case-insensitive)
+    const KNOWN_LANGS = new Set([
+      "hindi", "tamil", "telugu", "malayalam", "bengali", "marathi", "kannada",
+      "english", "japanese",
+    ]);
+    let language: string | undefined;
+    // /watch/{id}/{ep}/{lang} — 3rd segment is the language
+    if (slug[3]) {
+      const lc = slug[3].toLowerCase();
+      if (KNOWN_LANGS.has(lc)) language = lc;
+    }
+    // /watch/{id}/{lang} — 2nd segment is a language (no episode number)
+    // e.g. /watch/101922/hindi → episode 1 + Hindi (only when 2nd seg is NOT a number)
+    else if (slug[2] && !/^\d+$/.test(slug[2])) {
+      const lc = slug[2].toLowerCase();
+      if (KNOWN_LANGS.has(lc)) {
+        language = lc;
+        // episode defaults to 1
+      }
+    }
+    return { page: "watch", id: slug[1], episode, language };
+  }
+
+  // /watch-together/[code] → Watch Together room (real-time co-watch with sync)
+  // /watch-together → landing page (create a new room)
+  if (first === "watch-together") {
+    if (slug.length >= 2) return { page: "watch-together", code: slug[1] };
+    return { page: "watch-together" };
   }
 
   // /manga/{id} → manga detail
@@ -410,7 +449,7 @@ export async function generateMetadata({
   params: Promise<{ slug?: string[] }>;
 }): Promise<Metadata> {
   const { slug = [] } = await params;
-  const { page, id, episode, genreName } = parseSlugForSeo(slug);
+  const { page, id, episode, genreName, language } = parseSlugForSeo(slug);
 
   let title: string;
   let description: string;
@@ -538,7 +577,7 @@ export default async function Page({
   params: Promise<{ slug?: string[] }>;
 }) {
   const { slug = [] } = await params;
-  const { page, id, episode, genreName } = parseSlugForSeo(slug);
+  const { page, id, episode, genreName, language } = parseSlugForSeo(slug);
 
   // Determine structured data type
   let sdType: "tvseries" | "video" | "collection" | "webpage";
@@ -572,7 +611,7 @@ export default async function Page({
       sdDescription = "Watch anime free in HD on LuffyTV.";
     }
     sdType = "video";
-    sdUrl = `${SITE_URL}/watch/${id}${episode ? `/${episode}` : ""}`;
+    sdUrl = `${SITE_URL}/watch/${id}${episode ? `/${episode}` : ""}${language ? `/${language}` : ""}`;
   } else if (page === "genre" || page === "year" || page === "season") {
     const seo = PAGE_SEO[page];
     sdType = "collection";

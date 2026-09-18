@@ -11,7 +11,7 @@
  *      → stream URLs proxied through proxy.anikuro.ru (base64-encoded)
  *
  * Supported providers:
- *   animepahe, anikoto, reanime, animedao, animegg, anidb, animedunya,
+ *   animepahe, anikoto, animedao, animegg, anidb, animedunya,
  *   animeverse, allani, senshi, animix
  *
  * Stream URL format:
@@ -35,7 +35,6 @@ const HEADERS: Record<string, string> = {
 export const ANIKURO_PROVIDERS = [
   "animepahe",
   "anikoto",
-  "reanime",
   "animedao",
   "animegg",
   "anidb",
@@ -52,7 +51,6 @@ export type AnikuroProvider = typeof ANIKURO_PROVIDERS[number];
 export const ANIKURO_PROVIDER_NAMES: Record<string, string> = {
   animepahe: "Ivankov",
   anikoto: "Inazuma",
-  reanime: "Bartolomeo",
   animedao: "Cavendish",
   animegg: "Oden",
   anidb: "Crocus",
@@ -106,12 +104,28 @@ export async function getAnikuroEpisodes(
 ): Promise<AnikuroEpisode[]> {
   const url = `${ANIKURO_API}/anime/${anilistId}/episodes`;
   try {
-    const res = await Promise.race([
-      fetch(url, { headers: HEADERS, cache: "no-store" }),
-      new Promise<Response | null>(r => setTimeout(() => r(null), timeoutMs)),
-    ]);
-    if (!res || !res.ok) return [];
-    const data = await res.json();
+    // Use curl to bypass Cloudflare bot_detection on VPS IPs
+    let data: any = null;
+    try {
+      const { execFile } = await import("node:child_process");
+      const args = ["-s", "--max-time", String(Math.ceil(timeoutMs / 1000)), "--compressed", "-L"];
+      for (const [k, v] of Object.entries(HEADERS)) args.push("-H", `${k}: ${v}`);
+      args.push(url);
+      const result = await new Promise<string>((resolve, reject) => {
+        execFile("curl", args, { timeout: timeoutMs + 2000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+          if (err) reject(err); else resolve(stdout);
+        });
+      });
+      data = JSON.parse(result);
+    } catch { /* curl failed */ }
+    if (!data) {
+      const res = await Promise.race([
+        fetch(url, { headers: HEADERS, cache: "no-store" }),
+        new Promise<Response | null>(r => setTimeout(() => r(null), timeoutMs)),
+      ]);
+      if (!res || !res.ok) return [];
+      data = await res.json();
+    }
     const payload = data?.ok ? data.data : data;
     return Array.isArray(payload?.episodes) ? payload.episodes : [];
   } catch {
@@ -142,12 +156,28 @@ export async function getAnikuroSources(
   const episodeId = `${anilistId}:${epNum}`;
   const url = `${ANIKURO_API}/sources/${provider}/${episodeId}`;
   try {
-    const res = await Promise.race([
-      fetch(url, { headers: HEADERS, cache: "no-store" }),
-      new Promise<Response | null>(r => setTimeout(() => r(null), timeoutMs)),
-    ]);
-    if (!res || !res.ok) return null;
-    const data = await res.json();
+    // Use curl to bypass Cloudflare bot_detection on VPS IPs
+    let data: any = null;
+    try {
+      const { execFile } = await import("node:child_process");
+      const args = ["-s", "--max-time", String(Math.ceil(timeoutMs / 1000)), "--compressed", "-L"];
+      for (const [k, v] of Object.entries(HEADERS)) args.push("-H", `${k}: ${v}`);
+      args.push(url);
+      const result = await new Promise<string>((resolve, reject) => {
+        execFile("curl", args, { timeout: timeoutMs + 2000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+          if (err) reject(err); else resolve(stdout);
+        });
+      });
+      data = JSON.parse(result);
+    } catch { /* curl failed */ }
+    if (!data) {
+      const res = await Promise.race([
+        fetch(url, { headers: HEADERS, cache: "no-store" }),
+        new Promise<Response | null>(r => setTimeout(() => r(null), timeoutMs)),
+      ]);
+      if (!res || !res.ok) return null;
+      data = await res.json();
+    }
     // Response shape: { ok: true, data: { provider, normalized: [...] } }
     const payload = data?.ok ? data.data : data;
     const variants = Array.isArray(payload?.normalized) ? payload.normalized : [];

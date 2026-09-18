@@ -245,7 +245,7 @@ html { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) var(--bg-c
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* ===== FLOATING NAVBAR — LunarAnime style ===== */
+/* ===== FLOATING NAVBAR ===== */
 .floating-nav {
   transition: all 0.3s ease;
 }
@@ -2634,7 +2634,7 @@ video:fullscreen::cue {
 }
 
 /* ================================================================
-   CINEMATIC LANDING PAGE — Lunar Anime / Netflix / Crunchyroll
+   CINEMATIC LANDING PAGE — Netflix / Crunchyroll
    ================================================================ */
 
 /* ===== SECTION WRAPPER with fade-in ===== */
@@ -2911,7 +2911,7 @@ video:fullscreen::cue {
 .cin-hero-stagger-5 { animation-delay: 0.7s; }
 
 /* ================================================================
-   LUNARANIME DESIGN SYSTEM — Minimal, Monospace, Monochrome
+   DESIGN SYSTEM — Minimal, Monospace, Monochrome
    ================================================================ */
 
 /* ===== ANIME TICKER — infinite scroll ===== */
@@ -2948,17 +2948,17 @@ video:fullscreen::cue {
 
 /* ===== FADE IN UP — staggered entrance ===== */
 
-/* ===== LUNAR CARD — minimal border, hover lift ===== */
+/* ===== CARD — minimal border, hover lift ===== */
 
-/* ===== LUNAR STAT CARD ===== */
+/* ===== STAT CARD ===== */
 
 /* ===== COUNT-UP POP ANIMATION (for "Zero" text) ===== */
 
-/* ===== LUNAR FEATURE CARD ===== */
+/* ===== FEATURE CARD ===== */
 
-/* ===== LUNAR BREAKDOWN CARD ===== */
+/* ===== BREAKDOWN CARD ===== */
 
-/* ===== SCREENSHOT-STYLE FEATURE CARD — LunarAnime look ===== */
+/* ===== SCREENSHOT-STYLE FEATURE CARD ===== */
 .screenshot-feature-card {
   background: #0a0a0a;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -2990,21 +2990,21 @@ video:fullscreen::cue {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
-/* ===== LUNAR PRIMARY BUTTON — white on black ===== */
+/* ===== PRIMARY BUTTON — white on black ===== */
 
-/* ===== LUNAR GHOST BUTTON ===== */
+/* ===== GHOST BUTTON ===== */
 
-/* ===== LUNAR DIVIDER ===== */
+/* ===== DIVIDER ===== */
 .lunar-divider {
   width: 100%;
   height: 1px;
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* ===== LUNAR SECTION — fade in on scroll ===== */
+/* ===== SECTION — fade in on scroll ===== */
 
 /* ================================================================
-   VIDEO BEHIND TEXT EFFECT — LunarAnime style
+   VIDEO BEHIND TEXT EFFECT
    mix-blend-mode: multiply technique
    Video plays through the "LUFFY TV" letters
    ================================================================ */
@@ -3181,9 +3181,9 @@ video:fullscreen::cue {
   transform: translateY(-1px);
 }
 
-/* ===== Lunar Buttons ===== */
+/* ===== Buttons ===== */
 
-/* ===== Lunar Divider ===== */
+/* ===== Divider ===== */
 .lunar-divider {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(230, 57, 70, 0.15), transparent);
@@ -5560,7 +5560,7 @@ video:fullscreen::cue {
 
 /* ====================================================================
    MANGA PAGE v3 — Full Structural Redesign
-   Inspiration: MangaFire + Comix.to + Atsu.moe + Onisaga + LunarAnime
+   Inspiration: MangaFire + Comix.to + Atsu.moe + Onisaga
    New: Parallax Spotlight + Sidebar + Bento Grid + New Cards + Tabs
    ==================================================================== */
 
@@ -11954,71 +11954,6 @@ footer {
 }
 
 
-/* ================================================================
-   ANIMATED CORNER FRAMES — bold SVG anime-style corners
-   Top: gold spiky angular shapes. Bottom: blue with rivet circles.
-   ================================================================ */
-
-.ltv-corner-frame {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 15;
-}
-
-.ltv-corner {
-  position: absolute;
-  width: 80px;
-  height: 80px;
-}
-
-.ltv-corner-tl {
-  top: 0;
-  left: 0;
-  animation: ltv-corner-glow-gold 3s ease-in-out infinite;
-}
-
-.ltv-corner-tr {
-  top: 0;
-  right: 0;
-  transform: scaleX(-1);
-  animation: ltv-corner-glow-gold 3s ease-in-out infinite 0.5s;
-}
-
-.ltv-corner-bl {
-  bottom: 0;
-  left: 0;
-  animation: ltv-corner-glow-blue 3s ease-in-out infinite 1s;
-}
-
-.ltv-corner-br {
-  bottom: 0;
-  right: 0;
-  transform: scaleX(-1);
-  animation: ltv-corner-glow-blue 3s ease-in-out infinite 1.5s;
-}
-
-@keyframes ltv-corner-glow-gold {
-  0%, 100% { opacity: 0.5; filter: drop-shadow(0 0 6px rgba(212, 160, 23, 0.4)); }
-  50% { opacity: 0.9; filter: drop-shadow(0 0 16px rgba(212, 160, 23, 0.7)); }
-}
-
-@keyframes ltv-corner-glow-blue {
-  0%, 100% { opacity: 0.4; filter: drop-shadow(0 0 5px rgba(30, 136, 255, 0.3)); }
-  50% { opacity: 0.75; filter: drop-shadow(0 0 12px rgba(30, 136, 255, 0.6)); }
-}
-
-@media (max-width: 768px) {
-  .ltv-corner { width: 50px; height: 50px; }
-}
-@media (max-width: 480px) {
-  .ltv-corner { width: 36px; height: 36px; }
-}
-:fullscreen .ltv-corner {
-  width: 100px;
-  height: 100px;
-}
-
 /* ─── Anti-Scrape: DevTools Detection Overlay ─── */
 /* When DevTools is detected open, add a subtle watermark */
 html.devtools-open::before {
@@ -12049,4 +11984,32 @@ html.headless-detected body {
 /* Prevent easy text selection for scraping (production only) */
 html.dark body {
   -webkit-touch-callout: none;
+}
+
+/* Hide scrollbar for the toggles bar (horizontal scroll on mobile) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Subtitle language picker scroll container */
+.ltv-subtitle-lang-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+.ltv-subtitle-lang-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.ltv-subtitle-lang-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ltv-subtitle-lang-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+.ltv-subtitle-lang-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
