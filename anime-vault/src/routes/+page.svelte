@@ -2,8 +2,10 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
   import HeroBanner from '$lib/components/HeroBanner.svelte';
   import AnimeRow from '$lib/components/AnimeRow.svelte';
+  import type { AnimeWithTMDB } from '$lib/tmdb';
 
   let { data } = $props();
+  // data.trending/recent/popular are now AnimeWithTMDB[] (TMDB images + AniList info)
 </script>
 
 <svelte:head>
@@ -14,7 +16,7 @@
 <div class="app">
   <Sidebar />
   <main class="main">
-    <HeroBanner anime={data.trending} banners={data.banners} />
+    <HeroBanner anime={data.trending} />
     <div class="rows">
       <AnimeRow title="Recently Added" anime={data.recent} />
       <AnimeRow title="Popular Now" anime={data.popular} />

@@ -1,20 +1,22 @@
-import { getTrending, getRecent, getPopular } from '$lib/anilist';
-import { getBackdrops } from '$lib/tmdb';
+import { getTrending, getRecent, getPopular, type AnimeMedia } from '$lib/anilist';
+import { enrichWithTMDB, type AnimeWithTMDB } from '$lib/tmdb';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-  const [trending, recent, popular] = await Promise.all([
+  // 1. Fetch anime INFO from AniList (title, description, status, episodes, genres, score)
+  const [trendingRaw, recentRaw, popularRaw] = await Promise.all([
     getTrending(6),
     getRecent(20),
     getPopular(20),
   ]);
 
-  // Fetch TMDB backdrop images for trending anime (higher quality than AniList banners)
-  const bannerTitles = trending.map(a => ({
-    id: a.id,
-    title: a.title.english || a.title.romaji || '',
-  }));
-  const banners = await getBackdrops(bannerTitles);
+  // 2. Enrich with TMDB images (backdrop for banner, poster for cards)
+  // TMDB is the PRIMARY image source — AniList images are only fallback
+  const [trending, recent, popular] = await Promise.all([
+    enrichWithTMDB(trendingRaw),
+    enrichWithTMDB(recentRaw),
+    enrichWithTMDB(popularRaw),
+  ]);
 
-  return { trending, recent, popular, banners };
+  return { trending, recent, popular };
 };

@@ -1,5 +1,6 @@
 // src/lib/anilist.ts
-// AniList GraphQL API — for anime banners, cover images, metadata
+// AniList GraphQL API — for anime INFO only (title, description, status, episodes, genres, score)
+// Images come from TMDB (see tmdb.ts)
 
 const ANILIST_API = 'https://graphql.anilist.co';
 
@@ -60,7 +61,7 @@ async function anilistQuery<T = any>(query: string, variables: Record<string, un
   }
 }
 
-export async function getTrending(limit = 5): Promise<AnimeMedia[]> {
+export async function getTrending(limit = 6): Promise<AnimeMedia[]> {
   const data = await anilistQuery<{ Page: { media: AnimeMedia[] } }>(
     `query { Page(page: 1, perPage: ${limit}) { media(sort: TRENDING_DESC, type: ANIME, isAdult: false) { ${MEDIA_FIELDS} } } }`
   );
