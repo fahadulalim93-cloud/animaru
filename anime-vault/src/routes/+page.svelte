@@ -2,20 +2,19 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
   import HeroBanner from '$lib/components/HeroBanner.svelte';
   import AnimeRow from '$lib/components/AnimeRow.svelte';
-  import { getTrending, getRecent, getPopular } from '$lib/anilist';
 
   let { data } = $props();
 </script>
 
 <svelte:head>
-  <title>AnimeVault — Watch Anime Free in HD</title>
-  <meta name="description" content="Stream anime online in HD with English sub & dub." />
+  <title>Animaru — Watch Anime Free in HD</title>
+  <meta name="description" content="Stream anime online in HD with English sub & dub. Browse trending, popular, and recently added anime." />
 </svelte:head>
 
 <div class="app">
   <Sidebar />
   <main class="main">
-    <HeroBanner anime={data.trending} />
+    <HeroBanner anime={data.trending} banners={data.banners} />
     <div class="rows">
       <AnimeRow title="Recently Added" anime={data.recent} />
       <AnimeRow title="Popular Now" anime={data.popular} />
