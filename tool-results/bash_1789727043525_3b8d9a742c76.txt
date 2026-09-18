@@ -1,0 +1,645 @@
+2026-Sep-18 10:14:24 Docker 29.7.2 with BuildKit and Buildx detected on deployment server (localhost).
+2026-Sep-18 10:14:24 Starting deployment of fahadulalim93-cloud/animaru:main to localhost.
+2026-Sep-18 10:14:24 Preparing container with helper image: docker.io/coollabsio/coolify-helper:1.0.17
+2026-Sep-18 10:14:25 [CMD]: docker stop --timeout=30 jw79wpg6cwhx2phulvm2ebi5
+2026-Sep-18 10:14:25 Error response from daemon: No such container: jw79wpg6cwhx2phulvm2ebi5
+2026-Sep-18 10:14:25 [CMD]: docker run -d --network 'coolify' --name jw79wpg6cwhx2phulvm2ebi5 --rm -v /root/.docker/buildx:/root/.docker/buildx -v /var/run/docker.sock:/var/run/docker.sock docker.io/coollabsio/coolify-helper:1.0.17
+2026-Sep-18 10:14:25 e2b35af8bc74b1d75260de6a92ae4cbdd2c396bff3d7a2cbb579ed35888bf833
+2026-Sep-18 10:14:27 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'GIT_SSH_COMMAND="ssh -o ConnectTimeout=30 -p 22 -o Port=22 -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote '\''https://x-access-token:<REDACTED>@github.com/fahadulalim93-cloud/animaru.git'\'' '\''refs/heads/main'\'''
+2026-Sep-18 10:14:27 dc32c675a69f7d7566efef3abf7b66d8a224ae5c refs/heads/main
+2026-Sep-18 10:14:27 Image not found (d953gxrfmjdyjqxcv8lwpmve:dc32c675a69f7d7566efef3abf7b66d8a224ae5c). Building new image.
+2026-Sep-18 10:14:28 ----------------------------------------
+2026-Sep-18 10:14:28 Importing fahadulalim93-cloud/animaru:main (commit sha dc32c675a69f7d7566efef3abf7b66d8a224ae5c) to /artifacts/jw79wpg6cwhx2phulvm2ebi5.
+2026-Sep-18 10:14:28 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'git -c '\''url.https://x-access-token:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 clone --depth=1 --recurse-submodules --shallow-submodules -b '\''main'\'' '\''https:<REDACTED>@github.com/fahadulalim93-cloud/animaru.git'\'' '\''/artifacts/jw79wpg6cwhx2phulvm2ebi5'\'' && cd '\''/artifacts/jw79wpg6cwhx2phulvm2ebi5'\'' && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git -c '\''url.https://x-access-token:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 fetch --depth=1 origin '\''dc32c675a69f7d7566efef3abf7b66d8a224ae5c'\'' && git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 -c advice.detachedHead=false checkout '\''dc32c675a69f7d7566efef3abf7b66d8a224ae5c'\'' >/dev/null 2>&1 && cd '\''/artifacts/jw79wpg6cwhx2phulvm2ebi5'\'' && if [ -f .gitmodules ]; then git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 submodule sync && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 submodule update --init --recursive --depth=1; fi && cd '\''/artifacts/jw79wpg6cwhx2phulvm2ebi5'\'' && GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git -c '\''url.https:<REDACTED>@github.com/.insteadOf=https://github.com/'\'' -c http.version=HTTP/1.1 lfs pull'
+2026-Sep-18 10:14:28 Cloning into '/artifacts/jw79wpg6cwhx2phulvm2ebi5'...
+2026-Sep-18 10:17:12 From https://github.com/fahadulalim93-cloud/animaru
+2026-Sep-18 10:17:12 * branch dc32c675a69f7d7566efef3abf7b66d8a224ae5c -> FETCH_HEAD
+2026-Sep-18 10:17:14 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'cd /artifacts/jw79wpg6cwhx2phulvm2ebi5 && git log -1 '\''dc32c675a69f7d7566efef3abf7b66d8a224ae5c'\'' --pretty=%B'
+2026-Sep-18 10:17:14 Animaru — LuffyTV codebase copied, ready for redesign
+2026-Sep-18 10:17:14
+2026-Sep-18 10:17:14 Full LuffyTV Next.js codebase:
+2026-Sep-18 10:17:14 - 58+ anime API routes (Miruro, AnimeX, AniDap, DesiDub, etc.)
+2026-Sep-18 10:17:14 - 60+ components (watch-page, hls-player, anime-card, etc.)
+2026-Sep-18 10:17:14 - 85+ lib files (all provider integrations)
+2026-Sep-18 10:17:14 - Cloudflare Worker proxy (luffytv-proxy.js)
+2026-Sep-18 10:17:14 - Prisma schema (PostgreSQL)
+2026-Sep-18 10:17:14 - Cloudflare Worker subtitle proxy
+2026-Sep-18 10:17:14 - DesiDubAnime scraper database (494 anime, 2379 server URLs)
+2026-Sep-18 10:17:14 - Full watch page with multi-source server loading
+2026-Sep-18 10:17:14 - Hindi/Tamil/Telugu/Bengali dub pages
+2026-Sep-18 10:17:14 - Admin panel, mod panel, comments, bookmarks, history
+2026-Sep-18 10:17:14 - TMDB + AniList + MAL integrations
+2026-Sep-18 10:17:14 - Google + AniList + MAL OAuth
+2026-Sep-18 10:17:14 - XP tracker, leaderboard, donate page
+2026-Sep-18 10:17:14 - Manga + Novel readers
+2026-Sep-18 10:17:14
+2026-Sep-18 10:17:14 Ready to redesign step by step.
+2026-Sep-18 10:17:14 Generating nixpacks configuration with: nixpacks plan -f json --env 'COOLIFY_URL=https://demo.luffytv.online' --env 'COOLIFY_FQDN=demo.luffytv.online' --env 'COOLIFY_BRANCH=main' --env 'COOLIFY_RESOURCE_UUID=d953gxrfmjdyjqxcv8lwpmve' /artifacts/jw79wpg6cwhx2phulvm2ebi5
+2026-Sep-18 10:17:14 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'nixpacks plan -f json --env '\''COOLIFY_URL=https://demo.luffytv.online'\'' --env '\''COOLIFY_FQDN=demo.luffytv.online'\'' --env '\''COOLIFY_BRANCH=main'\'' --env '\''COOLIFY_RESOURCE_UUID=d953gxrfmjdyjqxcv8lwpmve'\'' /artifacts/jw79wpg6cwhx2phulvm2ebi5'
+2026-Sep-18 10:17:14 {
+2026-Sep-18 10:17:14 "providers": [],
+2026-Sep-18 10:17:14 "buildImage": "ghcr.io/railwayapp/nixpacks:ubuntu-1745885067",
+2026-Sep-18 10:17:14 "variables": {
+2026-Sep-18 10:17:14 "CI": "true",
+2026-Sep-18 10:17:14 "COOLIFY_BRANCH": "main",
+2026-Sep-18 10:17:14 "COOLIFY_FQDN": "demo.luffytv.online",
+2026-Sep-18 10:17:14 "COOLIFY_RESOURCE_UUID": "d953gxrfmjdyjqxcv8lwpmve",
+2026-Sep-18 10:17:14 "COOLIFY_URL": "https://demo.luffytv.online",
+2026-Sep-18 10:17:14 "NIXPACKS_METADATA": "node",
+2026-Sep-18 10:17:14 "NODE_ENV": "production",
+2026-Sep-18 10:17:14 "NPM_CONFIG_PRODUCTION": "false"
+2026-Sep-18 10:17:14 },
+2026-Sep-18 10:17:14 "phases": {
+2026-Sep-18 10:17:14 "build": {
+2026-Sep-18 10:17:14 "dependsOn": [
+2026-Sep-18 10:17:14 "install"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "cmds": [
+2026-Sep-18 10:17:14 "bun run build"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "cacheDirectories": [
+2026-Sep-18 10:17:14 ".next/cache",
+2026-Sep-18 10:17:14 "node_modules/.cache"
+2026-Sep-18 10:17:14 ]
+2026-Sep-18 10:17:14 },
+2026-Sep-18 10:17:14 "install": {
+2026-Sep-18 10:17:14 "dependsOn": [
+2026-Sep-18 10:17:14 "setup"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "cmds": [
+2026-Sep-18 10:17:14 "npm ci"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "cacheDirectories": [
+2026-Sep-18 10:17:14 "/root/.bun"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "paths": [
+2026-Sep-18 10:17:14 "/app/node_modules/.bin"
+2026-Sep-18 10:17:14 ]
+2026-Sep-18 10:17:14 },
+2026-Sep-18 10:17:14 "setup": {
+2026-Sep-18 10:17:14 "nixPkgs": [
+2026-Sep-18 10:17:14 "nodejs_22"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "nixLibs": [
+2026-Sep-18 10:17:14 "gcc-unwrapped"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "nixOverlays": [
+2026-Sep-18 10:17:14 "https://github.com/railwayapp/nix-npm-overlay/archive/main.tar.gz"
+2026-Sep-18 10:17:14 ],
+2026-Sep-18 10:17:14 "nixpkgsArchive": "31fb21469e34b6b5c7be77b9a35bae43d0c598e9"
+2026-Sep-18 10:17:14 }
+2026-Sep-18 10:17:14 },
+2026-Sep-18 10:17:14 "start": {
+2026-Sep-18 10:17:14 "cmd": "(prisma db push --accept-data-loss 2>/dev/null || true) && next start -p 3000"
+2026-Sep-18 10:17:14 }
+2026-Sep-18 10:17:14 }
+2026-Sep-18 10:17:15 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'nixpacks detect /artifacts/jw79wpg6cwhx2phulvm2ebi5'
+2026-Sep-18 10:17:15 node
+2026-Sep-18 10:17:15 Found application type: node.
+2026-Sep-18 10:17:15 If you need further customization, please check the documentation of Nixpacks: https://nixpacks.com/docs/providers/node
+2026-Sep-18 10:17:15 ----------------------------------------
+2026-Sep-18 10:17:15 ⚠️ NIXPACKS_NODE_VERSION not set. Nixpacks will use Node.js 18 by default, which is EOL.
+2026-Sep-18 10:17:15 You can override this by setting NIXPACKS_NODE_VERSION=22 in your environment variables.
+2026-Sep-18 10:17:15 Final Nixpacks plan: {
+2026-Sep-18 10:17:15 "providers": [],
+2026-Sep-18 10:17:15 "buildImage": "ghcr.io\/railwayapp\/nixpacks:ubuntu-1745885067",
+2026-Sep-18 10:17:15 "phases": {
+2026-Sep-18 10:17:15 "build": {
+2026-Sep-18 10:17:15 "dependsOn": [
+2026-Sep-18 10:17:15 "install"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "cmds": [
+2026-Sep-18 10:17:15 "bun run build"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "cacheDirectories": [
+2026-Sep-18 10:17:15 ".next\/cache",
+2026-Sep-18 10:17:15 "node_modules\/.cache"
+2026-Sep-18 10:17:15 ]
+2026-Sep-18 10:17:15 },
+2026-Sep-18 10:17:15 "install": {
+2026-Sep-18 10:17:15 "dependsOn": [
+2026-Sep-18 10:17:15 "setup"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "cmds": [
+2026-Sep-18 10:17:15 "npm ci"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "cacheDirectories": [
+2026-Sep-18 10:17:15 "\/root\/.bun"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "paths": [
+2026-Sep-18 10:17:15 "\/app\/node_modules\/.bin"
+2026-Sep-18 10:17:15 ]
+2026-Sep-18 10:17:15 },
+2026-Sep-18 10:17:15 "setup": {
+2026-Sep-18 10:17:15 "nixPkgs": [
+2026-Sep-18 10:17:15 "nodejs_22"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "nixLibs": [
+2026-Sep-18 10:17:15 "gcc-unwrapped"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "nixOverlays": [
+2026-Sep-18 10:17:15 "https:\/\/github.com\/railwayapp\/nix-npm-overlay\/archive\/main.tar.gz"
+2026-Sep-18 10:17:15 ],
+2026-Sep-18 10:17:15 "nixpkgsArchive": "31fb21469e34b6b5c7be77b9a35bae43d0c598e9",
+2026-Sep-18 10:17:15 "aptPkgs": [
+2026-Sep-18 10:17:15 "curl",
+2026-Sep-18 10:17:15 "wget"
+2026-Sep-18 10:17:15 ]
+2026-Sep-18 10:17:15 }
+2026-Sep-18 10:17:15 },
+2026-Sep-18 10:17:15 "start": {
+2026-Sep-18 10:17:15 "cmd": "(prisma db push --accept-data-loss 2>\/dev\/null || true) && next start -p 3000"
+2026-Sep-18 10:17:15 }
+2026-Sep-18 10:17:15 }
+2026-Sep-18 10:17:16 Creating build-time .env file in /artifacts (outside Docker context).
+2026-Sep-18 10:17:17 ----------------------------------------
+2026-Sep-18 10:17:17 Building docker image started.
+2026-Sep-18 10:17:17 To check the current progress, click on Show Debug Logs.
+2026-Sep-18 10:17:17 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'nixpacks build -c /artifacts/thegameplan.json --cache-key '\''d953gxrfmjdyjqxcv8lwpmve'\'' --no-error-without-start -n d953gxrfmjdyjqxcv8lwpmve:dc32c675a69f7d7566efef3abf7b66d8a224ae5c /artifacts/jw79wpg6cwhx2phulvm2ebi5 -o /artifacts/jw79wpg6cwhx2phulvm2ebi5'
+2026-Sep-18 10:17:17
+2026-Sep-18 10:17:17 ╔══════════════════════════════ Nixpacks v1.41.0 ══════════════════════════════╗
+2026-Sep-18 10:17:17 ║ setup │ nodejs_22, curl, wget ║
+2026-Sep-18 10:17:17 ║──────────────────────────────────────────────────────────────────────────────║
+2026-Sep-18 10:17:17 ║ install │ npm ci ║
+2026-Sep-18 10:17:17 ║──────────────────────────────────────────────────────────────────────────────║
+2026-Sep-18 10:17:17 ║ build │ bun run build ║
+2026-Sep-18 10:17:17 ║──────────────────────────────────────────────────────────────────────────────║
+2026-Sep-18 10:17:17 ║ start │ (prisma db push --accept-data-loss 2>/dev/null || true) && next ║
+2026-Sep-18 10:17:17 ║ │ start -p 3000 ║
+2026-Sep-18 10:17:17 ╚══════════════════════════════════════════════════════════════════════════════╝
+2026-Sep-18 10:17:17 Saved output to:
+2026-Sep-18 10:17:17 /artifacts/jw79wpg6cwhx2phulvm2ebi5
+2026-Sep-18 10:17:18 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'cat /artifacts/jw79wpg6cwhx2phulvm2ebi5/.nixpacks/Dockerfile'
+2026-Sep-18 10:17:18 FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 ENTRYPOINT ["/bin/bash", "-l", "-c"]
+2026-Sep-18 10:17:18 WORKDIR /app/
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 COPY .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix
+2026-Sep-18 10:17:18 RUN nix-env -if .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix && nix-collect-garbage -d
+2026-Sep-18 10:17:18 RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends curl wget
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 ARG ADMIN_PASSWORD ADMIN_USERNAME ANILIST_CLIENT_SECRET CI COOLIFY_BRANCH COOLIFY_FQDN COOLIFY_RESOURCE_UUID COOLIFY_URL DATABASE_URL KLIPY_API_KEY MAL_CLIENT_SECRET NEXT_PUBLIC_ANILIST_CLIENT_ID NEXT_PUBLIC_FALLBACK_PROXY_BASE NEXT_PUBLIC_GOOGLE_CLIENT_ID NEXT_PUBLIC_MAL_CLIENT_ID NEXT_PUBLIC_PROXY_BASE NEXT_PUBLIC_SUBS_PROXY_BASE NEXT_PUBLIC_USE_CROSS_DOMAIN_PROXY NIXPACKS_METADATA NODE_ENV NPM_CONFIG_PRODUCTION STREAM_TIMEOUT_MS TMDB_API_KEY TMDB_READ_ACCESS_TOKEN XOR_KEY
+2026-Sep-18 10:17:18 ENV ADMIN_PASSWORD=$ADMIN_PASSWORD ADMIN_USERNAME=$ADMIN_USERNAME ANILIST_CLIENT_SECRET=$ANILIST_CLIENT_SECRET CI=$CI COOLIFY_BRANCH=$COOLIFY_BRANCH COOLIFY_FQDN=$COOLIFY_FQDN COOLIFY_RESOURCE_UUID=$COOLIFY_RESOURCE_UUID COOLIFY_URL=$COOLIFY_URL DATABASE_URL=$DATABASE_URL KLIPY_API_KEY=$KLIPY_API_KEY MAL_CLIENT_SECRET=$MAL_CLIENT_SECRET NEXT_PUBLIC_ANILIST_CLIENT_ID=$NEXT_PUBLIC_ANILIST_CLIENT_ID NEXT_PUBLIC_FALLBACK_PROXY_BASE=$NEXT_PUBLIC_FALLBACK_PROXY_BASE NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID NEXT_PUBLIC_MAL_CLIENT_ID=$NEXT_PUBLIC_MAL_CLIENT_ID NEXT_PUBLIC_PROXY_BASE=$NEXT_PUBLIC_PROXY_BASE NEXT_PUBLIC_SUBS_PROXY_BASE=$NEXT_PUBLIC_SUBS_PROXY_BASE NEXT_PUBLIC_USE_CROSS_DOMAIN_PROXY=$NEXT_PUBLIC_USE_CROSS_DOMAIN_PROXY NIXPACKS_METADATA=$NIXPACKS_METADATA NODE_ENV=$NODE_ENV NPM_CONFIG_PRODUCTION=$NPM_CONFIG_PRODUCTION STREAM_TIMEOUT_MS=$STREAM_TIMEOUT_MS TMDB_API_KEY=$TMDB_API_KEY TMDB_READ_ACCESS_TOKEN=$TMDB_READ_ACCESS_TOKEN XOR_KEY=$XOR_KEY
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 # setup phase
+2026-Sep-18 10:17:18 # noop
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 # install phase
+2026-Sep-18 10:17:18 ENV NIXPACKS_PATH=/app/node_modules/.bin:$NIXPACKS_PATH
+2026-Sep-18 10:17:18 COPY . /app/.
+2026-Sep-18 10:17:18 RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-/root/bun,target=/root/.bun npm ci
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 # build phase
+2026-Sep-18 10:17:18 COPY . /app/.
+2026-Sep-18 10:17:18 RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-next/cache,target=/app/.next/cache --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-node_modules/cache,target=/app/node_modules/.cache bun run build
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 RUN printf '\nPATH=/app/node_modules/.bin:$PATH' >> /root/.profile
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 # start
+2026-Sep-18 10:17:18 COPY . /app
+2026-Sep-18 10:17:18
+2026-Sep-18 10:17:18 CMD ["(prisma db push --accept-data-loss 2>/dev/null || true) && next start -p 3000"]
+2026-Sep-18 10:17:18 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'cat /artifacts/build.sh'
+2026-Sep-18 10:17:18 cd /artifacts/jw79wpg6cwhx2phulvm2ebi5 && set -a && source /artifacts/build-time.env && set +a && DOCKER_BUILDKIT=1 docker build --add-host aixm1ctoco2id34ujrkbshnv:10.0.1.7 --add-host coolify:10.0.1.8 --add-host coolify-db:10.0.1.4 --add-host coolify-realtime:10.0.1.3 --add-host coolify-redis:10.0.1.5 --network host -f /artifacts/jw79wpg6cwhx2phulvm2ebi5/.nixpacks/Dockerfile --progress plain -t d953gxrfmjdyjqxcv8lwpmve:dc32c675a69f7d7566efef3abf7b66d8a224ae5c --build-arg 'CI' --build-arg 'COOLIFY_BRANCH' --build-arg 'COOLIFY_FQDN' --build-arg 'COOLIFY_RESOURCE_UUID' --build-arg 'COOLIFY_URL' --build-arg 'NIXPACKS_METADATA' --build-arg 'NODE_ENV' --build-arg 'NPM_CONFIG_PRODUCTION' --build-arg 'DATABASE_URL' --build-arg 'KLIPY_API_KEY' --build-arg 'TMDB_API_KEY' --build-arg 'TMDB_READ_ACCESS_TOKEN' --build-arg 'MAL_CLIENT_SECRET' --build-arg 'NEXT_PUBLIC_PROXY_BASE' --build-arg 'NEXT_PUBLIC_SUBS_PROXY_BASE' --build-arg 'NEXT_PUBLIC_GOOGLE_CLIENT_ID' --build-arg 'NEXT_PUBLIC_ANILIST_CLIENT_ID' --build-arg 'ANILIST_CLIENT_SECRET' --build-arg 'NEXT_PUBLIC_MAL_CLIENT_ID' --build-arg 'ADMIN_PASSWORD' --build-arg 'NEXT_PUBLIC_USE_CROSS_DOMAIN_PROXY' --build-arg 'NEXT_PUBLIC_FALLBACK_PROXY_BASE' --build-arg 'XOR_KEY' --build-arg 'STREAM_TIMEOUT_MS' --build-arg 'ADMIN_USERNAME' --build-arg COOLIFY_BUILD_SECRETS_HASH=b8579a4bbc0faa6e9a29c465dba3b9c5db59df831f36588ef2bb8255f0399fa8 --build-arg 'COOLIFY_URL' --build-arg 'COOLIFY_FQDN' --build-arg 'COOLIFY_BRANCH' --build-arg 'COOLIFY_RESOURCE_UUID' /artifacts/jw79wpg6cwhx2phulvm2ebi5
+2026-Sep-18 10:17:20 [CMD]: docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'bash /artifacts/build.sh'
+2026-Sep-18 10:17:20 #0 building with "default" instance using docker driver
+2026-Sep-18 10:17:20
+2026-Sep-18 10:17:20 #1 [internal] load build definition from Dockerfile
+2026-Sep-18 10:17:20 #1 transferring dockerfile: 2.53kB 0.0s done
+2026-Sep-18 10:17:20 #1 DONE 0.1s
+2026-Sep-18 10:17:20
+2026-Sep-18 10:17:20 #2 [internal] load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+2026-Sep-18 10:17:21 #2 DONE 0.5s
+2026-Sep-18 10:17:21 #3 [internal] load .dockerignore
+2026-Sep-18 10:17:21 #3 transferring context: 2B done
+2026-Sep-18 10:17:21 #3 DONE 0.0s
+2026-Sep-18 10:17:21
+2026-Sep-18 10:17:21 #4 [internal] load build context
+2026-Sep-18 10:17:21 #4 ...
+2026-Sep-18 10:17:21
+2026-Sep-18 10:17:21 #5 [stage-0 1/11] FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+2026-Sep-18 10:17:21 #5 resolve ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de 0.1s done
+2026-Sep-18 10:17:21 #5 CACHED
+2026-Sep-18 10:17:21
+2026-Sep-18 10:17:21 #6 [stage-0 2/11] WORKDIR /app/
+2026-Sep-18 10:17:21 #6 DONE 0.1s
+2026-Sep-18 10:17:21
+2026-Sep-18 10:17:21 #4 [internal] load build context
+2026-Sep-18 10:17:22 #4 transferring context: 101.95MB 1.4s done
+2026-Sep-18 10:17:22 #4 DONE 1.5s
+2026-Sep-18 10:17:22
+2026-Sep-18 10:17:22 #7 [stage-0 3/11] COPY .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix
+2026-Sep-18 10:17:22 #7 DONE 0.1s
+2026-Sep-18 10:17:23 #8 [stage-0 4/11] RUN nix-env -if .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix && nix-collect-garbage -d
+2026-Sep-18 10:17:23 #8 0.940 unpacking 'https://github.com/NixOS/nixpkgs/archive/31fb21469e34b6b5c7be77b9a35bae43d0c598e9.tar.gz' into the Git cache...
+2026-Sep-18 10:18:22 #8 59.31 unpacking 'https://github.com/railwayapp/nix-npm-overlay/archive/main.tar.gz' into the Git cache...
+2026-Sep-18 10:18:23 #8 60.70 installing '31fb21469e34b6b5c7be77b9a35bae43d0c598e9-env'
+2026-Sep-18 10:18:25 #8 62.09 these 3 derivations will be built:
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/l53bwr725gp7k4831cygqrihvaxv36b9-libraries.drv
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/rnx340l87dgcfkzagwjqjbgdgyg1bi1b-31fb21469e34b6b5c7be77b9a35bae43d0c598e9-env.drv
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/3mdp9h3lm6n01ryvxq2snxs5vm2gnsr5-31fb21469e34b6b5c7be77b9a35bae43d0c598e9-env.drv
+2026-Sep-18 10:18:25 #8 62.09 these 50 paths will be fetched (57.90 MiB download, 292.01 MiB unpacked):
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/jj3knbpiiwbwmplin208h775gzm86rc3-acl-2.3.2
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/2mwbf3viqfqd3lr946slqby9y4k7d9lw-attr-2.5.2
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/cl2gkgnh26mmpka81pc2g5bzjfrili92-bash-5.3p3
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/2j7r5np0vaz4cnqkymp1mqivmjj1x9xl-bash-interactive-5.3p3
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/1dw13nzqf9v8w7jcy205hkp7s7ggi0cc-builder.pl
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/j59qq0cqb364kzzrx2r32swfljwklxlq-bzip2-1.0.8
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/xnd0ld68fzj1g1qr19gg0va486snwj22-bzip2-1.0.8-bin
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/00bc157nm93q5fjz551fwk60ihlbilvj-coreutils-9.7
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/c7qlkpbivy2znqxd25prgh9pwjxdri6w-diffutils-3.12
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/wgvx9p6h00aijb9jw95am7095wjzm9mv-ed-1.22.2
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/5qm0vivgc7lmiyfbf5d5a55s40d996bd-file-5.45
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/wq1cxh4s8rz8vs4ssp2z49v96m0nhxhj-findutils-4.10.0
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/swbmnc2s8g2zxzxh62hx1vbbcg6i2r5b-gawk-5.3.2
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/xp989kyfg52803fmkzbz5py35jphcpgd-gcc-14.3.0-lib
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/8b9srwwmrwmh1yl613cwwj7gydl87br6-gcc-14.3.0-libgcc
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/qhw0sp183mqd04x5jp75981kwya64npv-glibc-2.40-66
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/78xkc7z5m21chq7p6awrzgznz83xyml0-gmp-with-cxx-6.3.0
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/2j08vib6rf81vwi6mv3s544wi8rj3xn7-gnu-config-2024-01-01
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/6q57mnfak3q8ss656qgp245qzqvnniyr-gnugrep-3.12
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/lmn1m0giq5bkgdqvdpiryb9a2ly28w6g-gnumake-4.4.1
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/7zy6jnnpqh16b18j6ar289vhwp17msh0-gnused-4.9
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/n09s57l86zxyjydkxagawxpkhh3d3dlh-gnutar-1.35
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/wd4i398mh329vhw93mvmamw3hrnhl257-gzip-1.14
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/hpyfq2n0qr4qj3z1f7d2diw8sql5m84f-icu4c-76.1
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/zc7w3ii28j4kagmlznjdajf0nzd0z60a-icu4c-76.1-dev
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/wwqyxsvmg41q5ckfvvv6wa50nwvz9dv4-libidn2-2.3.8
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/7ndy5820h69n1pgd13viph1qjq6zhhkj-libunistring-1.3
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/2pi0ddhdi6m4fnxw9w42qksz9jk1ja1i-libuv-1.51.0
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/adklcnjpc31n6jabha2qd60y2s9wm133-libuv-1.51.0-dev
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/nkn950vf2i29k4v3z6w9717pjrg483ng-libxcrypt-4.4.38
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/lm4wm3f4ynilxw8yvgqq0hj2ng8ky9xy-ncurses-6.5
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/cwxxy2is6hb4dcqsx8rhnvwic3hfzpcd-nodejs-22.19.0
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/0837wpkjb27cr70bi3pc4g2rw5v9r63l-openssl-3.5.2
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/3kasb92ri5cmp7gwxgj8jgk87pr83y7p-openssl-3.5.2-bin
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/cz9k6nhxjppa1kmyf5npd0g8l89xzilw-openssl-3.5.2-dev
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/r9lif1a0naanr8kdapwnbnr39lr7d56a-patch-2.8
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/0032synbfqd0ylgf9szgp724nmw2fq89-patchelf-0.15.2
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/wqlkv0cjacnm7arca156p3d3vh0kdbmk-pcre2-10.46
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/k2y9xpcdqxma66kag80nhbv0pq2bznzf-perl-5.40.0
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/zqkjn730gir222v3mkp82c1pmqfb2j0l-readline-8.3p1
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/jqrf546vxc6nzf4575m4am3w4ywq765i-sqlite-3.50.4
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/7p5yg8li32wgxxsydbzblnjgs8hvl9wd-sqlite-3.50.4-bin
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/3a7y8k7fh6xldnpvd3bx3ygnx5044xw6-sqlite-3.50.4-dev
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/x1d0ad98h92lp5g59pfryjzk4ca84i3r-stdenv-linux
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/ka03rs4a3bybjhqpvg388sdszbybvbff-update-autotools-gnu-config-scripts-hook
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/0ja5daq2yay3svg6f48spyfby7pgy5bm-xgcc-14.3.0-libgcc
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/swqs30pymm3ymv2qnkzs353xmpgr80jr-xz-5.8.1
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/77jyjqy2b9l2a0139im9ds28zkdv0ybc-xz-5.8.1-bin
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/6qi8skh85ci2k9gvl27nnh3kiy32qnsz-zlib-1.3.1
+2026-Sep-18 10:18:25 #8 62.09 /nix/store/6fqij3sy1mlsnq1n679bzbl5bkqs7yvk-zlib-1.3.1-dev
+2026-Sep-18 10:18:25 #8 62.10 copying path '/nix/store/1dw13nzqf9v8w7jcy205hkp7s7ggi0cc-builder.pl' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.11 copying path '/nix/store/8b9srwwmrwmh1yl613cwwj7gydl87br6-gcc-14.3.0-libgcc' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.11 copying path '/nix/store/2j08vib6rf81vwi6mv3s544wi8rj3xn7-gnu-config-2024-01-01' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.11 copying path '/nix/store/0ja5daq2yay3svg6f48spyfby7pgy5bm-xgcc-14.3.0-libgcc' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.11 copying path '/nix/store/7ndy5820h69n1pgd13viph1qjq6zhhkj-libunistring-1.3' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.12 copying path '/nix/store/ka03rs4a3bybjhqpvg388sdszbybvbff-update-autotools-gnu-config-scripts-hook' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.16 copying path '/nix/store/wwqyxsvmg41q5ckfvvv6wa50nwvz9dv4-libidn2-2.3.8' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.19 copying path '/nix/store/qhw0sp183mqd04x5jp75981kwya64npv-glibc-2.40-66' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/2mwbf3viqfqd3lr946slqby9y4k7d9lw-attr-2.5.2' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/cl2gkgnh26mmpka81pc2g5bzjfrili92-bash-5.3p3' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/j59qq0cqb364kzzrx2r32swfljwklxlq-bzip2-1.0.8' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/wgvx9p6h00aijb9jw95am7095wjzm9mv-ed-1.22.2' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/swbmnc2s8g2zxzxh62hx1vbbcg6i2r5b-gawk-5.3.2' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/xp989kyfg52803fmkzbz5py35jphcpgd-gcc-14.3.0-lib' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/7zy6jnnpqh16b18j6ar289vhwp17msh0-gnused-4.9' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/nkn950vf2i29k4v3z6w9717pjrg483ng-libxcrypt-4.4.38' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/lm4wm3f4ynilxw8yvgqq0hj2ng8ky9xy-ncurses-6.5' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/0837wpkjb27cr70bi3pc4g2rw5v9r63l-openssl-3.5.2' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/wqlkv0cjacnm7arca156p3d3vh0kdbmk-pcre2-10.46' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/swqs30pymm3ymv2qnkzs353xmpgr80jr-xz-5.8.1' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/2pi0ddhdi6m4fnxw9w42qksz9jk1ja1i-libuv-1.51.0' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/lmn1m0giq5bkgdqvdpiryb9a2ly28w6g-gnumake-4.4.1' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.84 copying path '/nix/store/6qi8skh85ci2k9gvl27nnh3kiy32qnsz-zlib-1.3.1' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.89 copying path '/nix/store/jj3knbpiiwbwmplin208h775gzm86rc3-acl-2.3.2' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.90 copying path '/nix/store/jqrf546vxc6nzf4575m4am3w4ywq765i-sqlite-3.50.4' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.90 copying path '/nix/store/5qm0vivgc7lmiyfbf5d5a55s40d996bd-file-5.45' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.90 copying path '/nix/store/6fqij3sy1mlsnq1n679bzbl5bkqs7yvk-zlib-1.3.1-dev' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.90 copying path '/nix/store/7p5yg8li32wgxxsydbzblnjgs8hvl9wd-sqlite-3.50.4-bin' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.91 copying path '/nix/store/xnd0ld68fzj1g1qr19gg0va486snwj22-bzip2-1.0.8-bin' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:25 #8 62.95 copying path '/nix/store/adklcnjpc31n6jabha2qd60y2s9wm133-libuv-1.51.0-dev' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 62.95 copying path '/nix/store/r9lif1a0naanr8kdapwnbnr39lr7d56a-patch-2.8' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 62.98 copying path '/nix/store/n09s57l86zxyjydkxagawxpkhh3d3dlh-gnutar-1.35' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.01 copying path '/nix/store/wd4i398mh329vhw93mvmamw3hrnhl257-gzip-1.14' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.02 copying path '/nix/store/77jyjqy2b9l2a0139im9ds28zkdv0ybc-xz-5.8.1-bin' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.15 copying path '/nix/store/6q57mnfak3q8ss656qgp245qzqvnniyr-gnugrep-3.12' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.31 copying path '/nix/store/3a7y8k7fh6xldnpvd3bx3ygnx5044xw6-sqlite-3.50.4-dev' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.40 copying path '/nix/store/3kasb92ri5cmp7gwxgj8jgk87pr83y7p-openssl-3.5.2-bin' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.40 copying path '/nix/store/78xkc7z5m21chq7p6awrzgznz83xyml0-gmp-with-cxx-6.3.0' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.40 copying path '/nix/store/hpyfq2n0qr4qj3z1f7d2diw8sql5m84f-icu4c-76.1' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.40 copying path '/nix/store/0032synbfqd0ylgf9szgp724nmw2fq89-patchelf-0.15.2' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.43 copying path '/nix/store/00bc157nm93q5fjz551fwk60ihlbilvj-coreutils-9.7' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.46 copying path '/nix/store/cz9k6nhxjppa1kmyf5npd0g8l89xzilw-openssl-3.5.2-dev' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.59 copying path '/nix/store/c7qlkpbivy2znqxd25prgh9pwjxdri6w-diffutils-3.12' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.59 copying path '/nix/store/k2y9xpcdqxma66kag80nhbv0pq2bznzf-perl-5.40.0' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.59 copying path '/nix/store/wq1cxh4s8rz8vs4ssp2z49v96m0nhxhj-findutils-4.10.0' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:26 #8 63.93 copying path '/nix/store/x1d0ad98h92lp5g59pfryjzk4ca84i3r-stdenv-linux' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:27 #8 64.05 copying path '/nix/store/zqkjn730gir222v3mkp82c1pmqfb2j0l-readline-8.3p1' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:27 #8 64.17 building '/nix/store/l53bwr725gp7k4831cygqrihvaxv36b9-libraries.drv'...
+2026-Sep-18 10:18:27
+2026-Sep-18 10:18:27 #8 64.25 copying path '/nix/store/zc7w3ii28j4kagmlznjdajf0nzd0z60a-icu4c-76.1-dev' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:27 #8 64.49 building '/nix/store/rnx340l87dgcfkzagwjqjbgdgyg1bi1b-31fb21469e34b6b5c7be77b9a35bae43d0c598e9-env.drv'...
+2026-Sep-18 10:18:27 #8 64.49 copying path '/nix/store/2j7r5np0vaz4cnqkymp1mqivmjj1x9xl-bash-interactive-5.3p3' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:27 #8 64.73 copying path '/nix/store/cwxxy2is6hb4dcqsx8rhnvwic3hfzpcd-nodejs-22.19.0' from 'https://cache.nixos.org'...
+2026-Sep-18 10:18:29 #8 66.89 building '/nix/store/3mdp9h3lm6n01ryvxq2snxs5vm2gnsr5-31fb21469e34b6b5c7be77b9a35bae43d0c598e9-env.drv'...
+2026-Sep-18 10:18:30 #8 67.02 created 5 symlinks in user environment
+2026-Sep-18 10:18:30 #8 67.22 building '/nix/store/qijllnn371ccj6c6mn2q1b6a8v2bvyhi-user-environment.drv'...
+2026-Sep-18 10:18:30 #8 67.45 removing old generations of profile /nix/var/nix/profiles/per-user/root/profile
+2026-Sep-18 10:18:30 #8 67.45 removing profile version 1
+2026-Sep-18 10:18:30 #8 67.45 removing old generations of profile /nix/var/nix/profiles/per-user/root/channels
+2026-Sep-18 10:18:30 #8 67.45 removing old generations of profile /nix/var/nix/profiles/per-user/root/profile
+2026-Sep-18 10:18:30 #8 67.45 removing old generations of profile /nix/var/nix/profiles/per-user/root/channels
+2026-Sep-18 10:18:30 #8 67.45 finding garbage collector roots...
+2026-Sep-18 10:18:30 #8 67.46 removing stale link from '/nix/var/nix/gcroots/auto/lzjbmb2ry0z7lma2fvpqprb12921pnb5' to '/nix/var/nix/profiles/per-user/root/profile-1-link'
+2026-Sep-18 10:18:30 #8 67.46 deleting garbage...
+2026-Sep-18 10:18:30 #8 67.47 deleting '/nix/store/a9qf4wwhympzs35ncp80r185j6a21w07-user-environment'
+2026-Sep-18 10:18:30 #8 67.47 deleting '/nix/store/253kwn1730vnay87xkjgxa2v97w3y079-user-environment.drv'
+2026-Sep-18 10:18:30 #8 67.47 deleting '/nix/store/hn5mrh362n52x8wwab9s1v6bgn4n5c94-env-manifest.nix'
+2026-Sep-18 10:18:30 #8 67.49 deleting '/nix/store/1dw13nzqf9v8w7jcy205hkp7s7ggi0cc-builder.pl'
+2026-Sep-18 10:18:30 #8 67.50 deleting '/nix/store/x1d0ad98h92lp5g59pfryjzk4ca84i3r-stdenv-linux'
+2026-Sep-18 10:18:30 #8 67.50 deleting '/nix/store/swbmnc2s8g2zxzxh62hx1vbbcg6i2r5b-gawk-5.3.2'
+2026-Sep-18 10:18:30 #8 67.50 deleting '/nix/store/6q57mnfak3q8ss656qgp245qzqvnniyr-gnugrep-3.12'
+2026-Sep-18 10:18:30 #8 67.51 deleting '/nix/store/wqlkv0cjacnm7arca156p3d3vh0kdbmk-pcre2-10.46'
+2026-Sep-18 10:18:30 #8 67.51 deleting '/nix/store/2w56d3yplcdfg19kddn8gd194yj4yzpp-source'
+2026-Sep-18 10:18:34 #8 71.66 deleting '/nix/store/wq1cxh4s8rz8vs4ssp2z49v96m0nhxhj-findutils-4.10.0'
+2026-Sep-18 10:18:34 #8 71.68 deleting '/nix/store/r9lif1a0naanr8kdapwnbnr39lr7d56a-patch-2.8'
+2026-Sep-18 10:18:34 #8 71.68 deleting '/nix/store/k2y9xpcdqxma66kag80nhbv0pq2bznzf-perl-5.40.0'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/nkn950vf2i29k4v3z6w9717pjrg483ng-libxcrypt-4.4.38'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/5qm0vivgc7lmiyfbf5d5a55s40d996bd-file-5.45'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/wd4i398mh329vhw93mvmamw3hrnhl257-gzip-1.14'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/xnd0ld68fzj1g1qr19gg0va486snwj22-bzip2-1.0.8-bin'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/j59qq0cqb364kzzrx2r32swfljwklxlq-bzip2-1.0.8'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/ka03rs4a3bybjhqpvg388sdszbybvbff-update-autotools-gnu-config-scripts-hook'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/2j08vib6rf81vwi6mv3s544wi8rj3xn7-gnu-config-2024-01-01'
+2026-Sep-18 10:18:34 #8 71.74 deleting '/nix/store/lmn1m0giq5bkgdqvdpiryb9a2ly28w6g-gnumake-4.4.1'
+2026-Sep-18 10:18:34 #8 71.75 deleting '/nix/store/77jyjqy2b9l2a0139im9ds28zkdv0ybc-xz-5.8.1-bin'
+2026-Sep-18 10:18:34 #8 71.75 deleting '/nix/store/i6c20krnakaiv6zbraxl2q60hn8rmjwq-exec.drv'
+2026-Sep-18 10:18:34 #8 71.75 deleting '/nix/store/0032synbfqd0ylgf9szgp724nmw2fq89-patchelf-0.15.2'
+2026-Sep-18 10:18:34 #8 71.75 deleting '/nix/store/2y05nxbrdp68cbbkaikfjxsjplbi788c-source'
+2026-Sep-18 10:18:34 #8 71.75 deleting '/nix/store/swqs30pymm3ymv2qnkzs353xmpgr80jr-xz-5.8.1'
+2026-Sep-18 10:18:34 #8 71.76 deleting '/nix/store/n09s57l86zxyjydkxagawxpkhh3d3dlh-gnutar-1.35'
+2026-Sep-18 10:18:34 #8 71.76 deleting '/nix/store/wgvx9p6h00aijb9jw95am7095wjzm9mv-ed-1.22.2'
+2026-Sep-18 10:18:34 #8 71.76 deleting '/nix/store/c7qlkpbivy2znqxd25prgh9pwjxdri6w-diffutils-3.12'
+2026-Sep-18 10:18:34 #8 71.77 deleting '/nix/store/7zy6jnnpqh16b18j6ar289vhwp17msh0-gnused-4.9'
+2026-Sep-18 10:18:34 #8 71.78 deleting '/nix/store/cvw5asqga7k27zb1jlippfrkqm084ml7-libraries'
+2026-Sep-18 10:18:34 #8 71.78 deleting unused links...
+2026-Sep-18 10:18:40 #8 77.67 note: currently hard linking saves -0.71 MiB
+2026-Sep-18 10:18:40 #8 77.68 30 store paths deleted, 244.84 MiB freed
+2026-Sep-18 10:18:40 #8 DONE 77.9s
+2026-Sep-18 10:18:41 #9 [stage-0 5/11] RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends curl wget
+2026-Sep-18 10:18:41 #9 1.114 Get:1 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+2026-Sep-18 10:18:42 #9 1.125 Get:2 http://archive.ubuntu.com/ubuntu noble InRelease [256 kB]
+2026-Sep-18 10:18:42 #9 1.970 Get:3 http://security.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1533 kB]
+2026-Sep-18 10:18:43 #9 2.210 Get:4 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+2026-Sep-18 10:18:43 #9 2.391 Get:5 http://archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+2026-Sep-18 10:18:43 #9 2.641 Get:6 http://archive.ubuntu.com/ubuntu noble/universe amd64 Packages [19.3 MB]
+2026-Sep-18 10:18:43 #9 2.758 Get:7 http://security.ubuntu.com/ubuntu noble-security/multiverse amd64 Packages [50.0 kB]
+2026-Sep-18 10:18:43 #9 2.763 Get:8 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [1245 kB]
+2026-Sep-18 10:18:44 #9 3.291 Get:9 http://security.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1801 kB]
+2026-Sep-18 10:18:46 #9 5.971 Get:10 http://archive.ubuntu.com/ubuntu noble/main amd64 Packages [1808 kB]
+2026-Sep-18 10:18:46 #9 6.092 Get:11 http://archive.ubuntu.com/ubuntu noble/restricted amd64 Packages [117 kB]
+2026-Sep-18 10:18:47 #9 6.097 Get:12 http://archive.ubuntu.com/ubuntu noble/multiverse amd64 Packages [331 kB]
+2026-Sep-18 10:18:47 #9 6.118 Get:13 http://archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [56.2 kB]
+2026-Sep-18 10:18:47 #9 6.121 Get:14 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [2149 kB]
+2026-Sep-18 10:18:47 #9 6.282 Get:15 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1580 kB]
+2026-Sep-18 10:18:47 #9 6.388 Get:16 http://archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1960 kB]
+2026-Sep-18 10:18:47 #9 6.521 Get:17 http://archive.ubuntu.com/ubuntu noble-backports/main amd64 Packages [78.5 kB]
+2026-Sep-18 10:18:47 #9 6.525 Get:18 http://archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Packages [671 B]
+2026-Sep-18 10:18:47 #9 6.526 Get:19 http://archive.ubuntu.com/ubuntu noble-backports/universe amd64 Packages [40.4 kB]
+2026-Sep-18 10:18:47 #9 6.988 Fetched 32.7 MB in 6s (5052 kB/s)
+2026-Sep-18 10:18:47 #9 6.988 Reading package lists...
+2026-Sep-18 10:18:49
+2026-Sep-18 10:18:49 #9 8.468 Reading package lists...
+2026-Sep-18 10:18:50
+2026-Sep-18 10:18:50 #9 9.862 Building dependency tree...
+2026-Sep-18 10:18:51 #9 10.36 Reading state information...
+2026-Sep-18 10:18:51
+2026-Sep-18 10:18:51 #9 10.97 The following additional packages will be installed:
+2026-Sep-18 10:18:52 #9 10.97 libcurl3t64-gnutls libcurl4t64
+2026-Sep-18 10:18:52 #9 11.04 The following NEW packages will be installed:
+2026-Sep-18 10:18:52 #9 11.04 wget
+2026-Sep-18 10:18:52 #9 11.04 The following packages will be upgraded:
+2026-Sep-18 10:18:52 #9 11.04 curl libcurl3t64-gnutls libcurl4t64
+2026-Sep-18 10:18:52 #9 11.72 3 upgraded, 1 newly installed, 0 to remove and 65 not upgraded.
+2026-Sep-18 10:18:52 #9 11.72 Need to get 1238 kB of archives.
+2026-Sep-18 10:18:52 #9 11.72 After this operation, 944 kB of additional disk space will be used.
+2026-Sep-18 10:18:52 #9 11.72 Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 wget amd64 1.21.4-1ubuntu4.5 [334 kB]
+2026-Sep-18 10:18:53 #9 12.34 Get:2 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 curl amd64 8.5.0-2ubuntu10.13 [226 kB]
+2026-Sep-18 10:18:53 #9 12.39 Get:3 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl4t64 amd64 8.5.0-2ubuntu10.13 [343 kB]
+2026-Sep-18 10:18:53 #9 12.48 Get:4 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl3t64-gnutls amd64 8.5.0-2ubuntu10.13 [335 kB]
+2026-Sep-18 10:18:53 #9 12.86 debconf: delaying package configuration, since apt-utils is not installed
+2026-Sep-18 10:18:53 #9 12.93 Fetched 1238 kB in 1s (848 kB/s)
+2026-Sep-18 10:18:53 #9 12.98 Selecting previously unselected package wget.
+2026-Sep-18 10:18:53 #9 12.98 (Reading database ...
+2026-Sep-18 10:18:53 (Reading database ... 5% (Reading database ... 10% (Reading database ... 15% (Reading database ... 20% (Reading database ... 25% (Reading database ... 30% (Reading database ... 35% (Reading database ... 40% (Reading database ... 45% (Reading database ... 50% (Reading database ... 55% (Reading database ... 60% (Reading database ... 65% (Reading database ... 70% (Reading database ... 75% (Reading database ... 80% (Reading database ... 85% (Reading database ... 90% (Reading database ... 95% (Reading database ... 100% (Reading database ... 9511 files and directories currently installed.)
+2026-Sep-18 10:18:53 #9 13.05 Preparing to unpack .../wget_1.21.4-1ubuntu4.5_amd64.deb ...
+2026-Sep-18 10:18:53 #9 13.05 Unpacking wget (1.21.4-1ubuntu4.5) ...
+2026-Sep-18 10:18:53 #9 13.11 Preparing to unpack .../curl_8.5.0-2ubuntu10.13_amd64.deb ...
+2026-Sep-18 10:18:54 #9 13.13 Unpacking curl (8.5.0-2ubuntu10.13) over (8.5.0-2ubuntu10.6) ...
+2026-Sep-18 10:18:54 #9 13.23 Preparing to unpack .../libcurl4t64_8.5.0-2ubuntu10.13_amd64.deb ...
+2026-Sep-18 10:18:54 #9 13.29 Unpacking libcurl4t64:amd64 (8.5.0-2ubuntu10.13) over (8.5.0-2ubuntu10.6) ...
+2026-Sep-18 10:18:54 #9 13.39 Preparing to unpack .../libcurl3t64-gnutls_8.5.0-2ubuntu10.13_amd64.deb ...
+2026-Sep-18 10:18:54 #9 13.40 Unpacking libcurl3t64-gnutls:amd64 (8.5.0-2ubuntu10.13) over (8.5.0-2ubuntu10.6) ...
+2026-Sep-18 10:18:54 #9 13.50 Setting up wget (1.21.4-1ubuntu4.5) ...
+2026-Sep-18 10:18:54 #9 13.52 Setting up libcurl4t64:amd64 (8.5.0-2ubuntu10.13) ...
+2026-Sep-18 10:18:54 #9 13.53 Setting up libcurl3t64-gnutls:amd64 (8.5.0-2ubuntu10.13) ...
+2026-Sep-18 10:18:54 #9 13.54 Setting up curl (8.5.0-2ubuntu10.13) ...
+2026-Sep-18 10:18:54 #9 13.56 Processing triggers for libc-bin (2.39-0ubuntu8.4) ...
+2026-Sep-18 10:18:54 #9 DONE 13.9s
+2026-Sep-18 10:18:54
+2026-Sep-18 10:18:54 #10 [stage-0 6/11] COPY . /app/.
+2026-Sep-18 10:18:55 #10 DONE 0.4s
+2026-Sep-18 10:18:55 #11 [stage-0 7/11] RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-/root/bun,target=/root/.bun npm ci
+2026-Sep-18 10:18:55 #11 0.342 npm warn config production Use `--omit=dev` instead.
+2026-Sep-18 10:19:49 #11 54.78
+2026-Sep-18 10:19:49 #11 54.78 > luffy-tv@0.2.0 postinstall
+2026-Sep-18 10:19:49 #11 54.78 > prisma generate || echo 'Prisma generate skipped (no DATABASE_URL)'
+2026-Sep-18 10:19:49 #11 54.78
+2026-Sep-18 10:19:51 #11 56.34 Prisma schema loaded from prisma/schema.prisma
+2026-Sep-18 10:19:51 #11 56.83
+2026-Sep-18 10:19:51 #11 56.83 ✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 281ms
+2026-Sep-18 10:19:51 #11 56.83
+2026-Sep-18 10:19:51 #11 56.83 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-Sep-18 10:19:51 #11 56.83
+2026-Sep-18 10:19:51 #11 56.83 Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+2026-Sep-18 10:19:51 #11 56.83
+2026-Sep-18 10:19:52 #11 56.84 ┌─────────────────────────────────────────────────────────┐
+2026-Sep-18 10:19:52 #11 56.84 │ Update available 6.19.3 -> 8.0.0-rc.15 │
+2026-Sep-18 10:19:52 #11 56.84 │ │
+2026-Sep-18 10:19:52 #11 56.84 │ This is a major update - please follow the guide at │
+2026-Sep-18 10:19:52 #11 56.84 │ https://pris.ly/d/major-version-upgrade │
+2026-Sep-18 10:19:52 #11 56.84 │ │
+2026-Sep-18 10:19:52 #11 56.84 │ Run the following to update │
+2026-Sep-18 10:19:52 #11 56.84 │ npm i --save-dev prisma@latest │
+2026-Sep-18 10:19:52 #11 56.84 │ npm i @prisma/client@latest │
+2026-Sep-18 10:19:52 #11 56.84 └─────────────────────────────────────────────────────────┘
+2026-Sep-18 10:19:52 #11 56.94
+2026-Sep-18 10:19:52 #11 56.94 added 852 packages, and audited 853 packages in 57s
+2026-Sep-18 10:19:52 #11 56.94
+2026-Sep-18 10:19:52 #11 56.94 279 packages are looking for funding
+2026-Sep-18 10:19:52 #11 56.94 run `npm fund` for details
+2026-Sep-18 10:19:52 #11 57.31
+2026-Sep-18 10:19:52 #11 57.31 27 vulnerabilities (2 low, 8 moderate, 15 high, 2 critical)
+2026-Sep-18 10:19:52 #11 57.31
+2026-Sep-18 10:19:52 #11 57.31 To address issues that do not require attention, run:
+2026-Sep-18 10:19:52 #11 57.31 npm audit fix
+2026-Sep-18 10:19:52 #11 57.31
+2026-Sep-18 10:19:52 #11 57.31 To address all issues (including breaking changes), run:
+2026-Sep-18 10:19:52 #11 57.31 npm audit fix --force
+2026-Sep-18 10:19:52 #11 57.31
+2026-Sep-18 10:19:52 #11 57.31 Run `npm audit` for details.
+2026-Sep-18 10:19:53 #11 DONE 58.1s
+2026-Sep-18 10:19:53 #12 [stage-0 8/11] COPY . /app/.
+2026-Sep-18 10:19:56 #12 DONE 3.6s
+2026-Sep-18 10:19:57 #13 [stage-0 9/11] RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-next/cache,target=/app/.next/cache --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-node_modules/cache,target=/app/node_modules/.cache bun run build
+2026-Sep-18 10:19:57 #13 0.450 /bin/bash: line 1: bun: command not found
+2026-Sep-18 10:19:57 #13 ERROR: process "/bin/bash -ol pipefail -c bun run build" did not complete successfully: exit code: 127
+2026-Sep-18 10:19:57 ------
+2026-Sep-18 10:19:57 > [stage-0 9/11] RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-next/cache,target=/app/.next/cache --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-node_modules/cache,target=/app/node_modules/.cache bun run build:
+2026-Sep-18 10:19:57 0.450 /bin/bash: line 1: bun: command not found
+2026-Sep-18 10:19:57 ------
+2026-Sep-18 10:19:57 15 warnings found (use docker --debug to expand):
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "ADMIN_PASSWORD") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "KLIPY_API_KEY") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_READ_ACCESS_TOKEN") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "XOR_KEY") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "KLIPY_API_KEY") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "MAL_CLIENT_SECRET") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_API_KEY") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "ADMIN_PASSWORD") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "ANILIST_CLIENT_SECRET") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_API_KEY") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "ANILIST_CLIENT_SECRET") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_READ_ACCESS_TOKEN") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "XOR_KEY") (line 11)
+2026-Sep-18 10:19:57 - UndefinedVar: Usage of undefined variable '$NIXPACKS_PATH' (line 18)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "MAL_CLIENT_SECRET") (line 11)
+2026-Sep-18 10:19:57 Dockerfile:24
+2026-Sep-18 10:19:57 --------------------
+2026-Sep-18 10:19:57 22 | # build phase
+2026-Sep-18 10:19:57 23 | COPY . /app/.
+2026-Sep-18 10:19:57 24 | >>> RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-next/cache,target=/app/.next/cache --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-node_modules/cache,target=/app/node_modules/.cache bun run build
+2026-Sep-18 10:19:57 25 |
+2026-Sep-18 10:19:57 26 |
+2026-Sep-18 10:19:57 --------------------
+2026-Sep-18 10:19:57 ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c bun run build" did not complete successfully: exit code: 127
+2026-Sep-18 10:19:57 ========================================
+2026-Sep-18 10:19:57 Deployment failed: Command execution failed (exit code 1): docker exec jw79wpg6cwhx2phulvm2ebi5 bash -c 'bash /artifacts/build.sh'
+2026-Sep-18 10:19:57 Error: #0 building with "default" instance using docker driver
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #1 [internal] load build definition from Dockerfile
+2026-Sep-18 10:19:57 #1 transferring dockerfile: 2.53kB 0.0s done
+2026-Sep-18 10:19:57 #1 DONE 0.1s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #2 [internal] load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+2026-Sep-18 10:19:57 #2 DONE 0.5s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #3 [internal] load .dockerignore
+2026-Sep-18 10:19:57 #3 transferring context: 2B done
+2026-Sep-18 10:19:57 #3 DONE 0.0s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #4 [internal] load build context
+2026-Sep-18 10:19:57 #4 ...
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #5 [stage-0 1/11] FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+2026-Sep-18 10:19:57 #5 resolve ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de 0.1s done
+2026-Sep-18 10:19:57 #5 CACHED
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #6 [stage-0 2/11] WORKDIR /app/
+2026-Sep-18 10:19:57 #6 DONE 0.1s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #4 [internal] load build context
+2026-Sep-18 10:19:57 #4 transferring context: 101.95MB 1.4s done
+2026-Sep-18 10:19:57 #4 DONE 1.5s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #7 [stage-0 3/11] COPY .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix
+2026-Sep-18 10:19:57 #7 DONE 0.1s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #8 [stage-0 4/11] RUN nix-env -if .nixpacks/nixpkgs-31fb21469e34b6b5c7be77b9a35bae43d0c598e9.nix && nix-collect-garbage -d
+2026-Sep-18 10:19:57 #8 0.940 unpacking 'https://github.com/NixOS/nixpkgs/archive/31fb21469e34b6b5c7be77b9a35bae43d0c598e9.tar.gz' into the Git cache...
+2026-Sep-18 10:19:57 #8 59.31 unpacking 'https:<REDACTED>@0.2.0 postinstall
+2026-Sep-18 10:19:57 #11 54.78 > prisma generate || echo 'Prisma generate skipped (no DATABASE_URL)'
+2026-Sep-18 10:19:57 #11 54.78
+2026-Sep-18 10:19:57 #11 56.34 Prisma schema loaded from prisma/schema.prisma
+2026-Sep-18 10:19:57 #11 56.83
+2026-Sep-18 10:19:57 #11 56.83 ✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 281ms
+2026-Sep-18 10:19:57 #11 56.83
+2026-Sep-18 10:19:57 #11 56.83 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+2026-Sep-18 10:19:57 #11 56.83
+2026-Sep-18 10:19:57 #11 56.83 Tip:<REDACTED>@latest │
+2026-Sep-18 10:19:57 #11 56.84 │ npm i @prisma/client@latest │
+2026-Sep-18 10:19:57 #11 56.84 └─────────────────────────────────────────────────────────┘
+2026-Sep-18 10:19:57 #11 56.94
+2026-Sep-18 10:19:57 #11 56.94 added 852 packages, and audited 853 packages in 57s
+2026-Sep-18 10:19:57 #11 56.94
+2026-Sep-18 10:19:57 #11 56.94 279 packages are looking for funding
+2026-Sep-18 10:19:57 #11 56.94 run `npm fund` for details
+2026-Sep-18 10:19:57 #11 57.31
+2026-Sep-18 10:19:57 #11 57.31 27 vulnerabilities (2 low, 8 moderate, 15 high, 2 critical)
+2026-Sep-18 10:19:57 #11 57.31
+2026-Sep-18 10:19:57 #11 57.31 To address issues that do not require attention, run:
+2026-Sep-18 10:19:57 #11 57.31 npm audit fix
+2026-Sep-18 10:19:57 #11 57.31
+2026-Sep-18 10:19:57 #11 57.31 To address all issues (including breaking changes), run:
+2026-Sep-18 10:19:57 #11 57.31 npm audit fix --force
+2026-Sep-18 10:19:57 #11 57.31
+2026-Sep-18 10:19:57 #11 57.31 Run `npm audit` for details.
+2026-Sep-18 10:19:57 #11 DONE 58.1s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #12 [stage-0 8/11] COPY . /app/.
+2026-Sep-18 10:19:57 #12 DONE 3.6s
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 #13 [stage-0 9/11] RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-next/cache,target=/app/.next/cache --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-node_modules/cache,target=/app/node_modules/.cache bun run build
+2026-Sep-18 10:19:57 #13 0.450 /bin/bash: line 1: bun: command not found
+2026-Sep-18 10:19:57 #13 ERROR: process "/bin/bash -ol pipefail -c bun run build" did not complete successfully: exit code: 127
+2026-Sep-18 10:19:57 ------
+2026-Sep-18 10:19:57 > [stage-0 9/11] RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-next/cache,target=/app/.next/cache --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-node_modules/cache,target=/app/node_modules/.cache bun run build:
+2026-Sep-18 10:19:57 0.450 /bin/bash: line 1: bun: command not found
+2026-Sep-18 10:19:57 ------
+2026-Sep-18 10:19:57
+2026-Sep-18 10:19:57 15 warnings found (use docker --debug to expand):
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "ADMIN_PASSWORD") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "KLIPY_API_KEY") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_READ_ACCESS_TOKEN") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "XOR_KEY") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "KLIPY_API_KEY") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "MAL_CLIENT_SECRET") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "TMDB_API_KEY") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "ADMIN_PASSWORD") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "ANILIST_CLIENT_SECRET") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_API_KEY") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "ANILIST_CLIENT_SECRET") (line 12)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "TMDB_READ_ACCESS_TOKEN") (line 11)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "XOR_KEY") (line 11)
+2026-Sep-18 10:19:57 - UndefinedVar: Usage of undefined variable '$NIXPACKS_PATH' (line 18)
+2026-Sep-18 10:19:57 - SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "MAL_CLIENT_SECRET") (line 11)
+2026-Sep-18 10:19:57 Dockerfile:24
+2026-Sep-18 10:19:57 --------------------
+2026-Sep-18 10:19:57 22 | # build phase
+2026-Sep-18 10:19:57 23 | COPY . /app/.
+2026-Sep-18 10:19:57 24 | >>> RUN --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-next/cache,target=/app/.next/cache --mount=type=cache,id=d953gxrfmjdyjqxcv8lwpmve-node_modules/cache,target=/app/node_modules/.cache bun run build
+2026-Sep-18 10:19:57 25 |
+2026-Sep-18 10:19:57 26 |
+2026-Sep-18 10:19:57 --------------------
+2026-Sep-18 10:19:57 ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c bun run build" did not complete successfully: exit code: 127
+2026-Sep-18 10:19:57 Error type: App\Exceptions\DeploymentException
+2026-Sep-18 10:19:57 Error code: 0
+2026-Sep-18 10:19:57 Location: /var/www/html/app/Traits/ExecuteRemoteCommand.php:243
+2026-Sep-18 10:19:58 Stack trace (first 5 lines):
+2026-Sep-18 10:19:58 #0 /var/www/html/app/Traits/ExecuteRemoteCommand.php(107): App\Jobs\ApplicationDeploymentJob->executeCommandWithProcess()
+2026-Sep-18 10:19:58 #1 /var/www/html/vendor/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php(275): App\Jobs\ApplicationDeploymentJob->{closure:App\Traits\ExecuteRemoteCommand::execute_remote_command():72}()
+2026-Sep-18 10:19:58 #2 /var/www/html/app/Traits/ExecuteRemoteCommand.php(72): Illuminate\Support\Collection->each()
+2026-Sep-18 10:19:58 #3 /var/www/html/app/Jobs/ApplicationDeploymentJob.php(4054): App\Jobs\ApplicationDeploymentJob->execute_remote_command()
+2026-Sep-18 10:19:58 #4 /var/www/html/app/Jobs/ApplicationDeploymentJob.php(997): App\Jobs\ApplicationDeploymentJob->build_image()
+2026-Sep-18 10:19:58 ========================================
+2026-Sep-18 10:19:58 Deployment failed. Removing the new version of your application.
+2026-Sep-18 10:19:58 [CMD]: bash -c 'if command -v timeout >/dev/null 2>&1; then output=$(timeout -k 10s 60s docker rm -f '\''d953gxrfmjdyjqxcv8lwpmve-101422416564'\'' 2>&1); exit_code=$?; else output='\'''\''; exit_code=124; fi; if [ "$exit_code" -eq 124 ]; then echo '\''__COOLIFY_CONTAINER_REMOVE_TIMEOUT__'\''; elif [ "$exit_code" -ne 0 ] && printf '\''%s'\'' "$output" | grep -q '\''No such container:'\''; then exit 0; elif [ "$exit_code" -ne 0 ]; then printf '\''%s\n'\'' "$output" >&2; else printf '\''%s\n'\'' "$output"; fi; exit $exit_code'
+2026-Sep-18 10:19:58
+2026-Sep-18 10:19:58 Gracefully shutting down build container: jw79wpg6cwhx2phulvm2ebi5
+2026-Sep-18 10:19:59 [CMD]: docker stop --timeout=30 jw79wpg6cwhx2phulvm2ebi5
+2026-Sep-18 10:19:59 jw79wpg6cwhx2phulvm2ebi5
