@@ -494,8 +494,8 @@ export default function MainPageClient() {
       {/* Main Content — offset right by the 64px sidebar on lg. Background stays
           pure black; the topbar floats transparently over the hero. */}
       <ErrorBoundary>
-      <div className={`min-h-screen flex flex-col content-reveal bg-[#000000] ${showSidebar ? "lg:pl-[52px]" : ""}`}>
-        <main className={`${isWatchPage ? 'w-full px-0 lg:px-0 pt-[48px] pb-16 lg:pb-0' : isMangaReader ? 'w-full' : isHomeFullBleed ? 'w-full' : isBrowseFullBleed ? 'w-full pt-[0px]' : showNavAndFooter ? 'w-full pt-[48px] px-4 lg:px-8' : isFullWidth ? 'w-full pt-4' : 'max-w-[1400px] mx-auto px-4 lg:px-8 pt-4'} ${isWatchPage || isMangaReader || isBrowseFullBleed || isStandalonePage || isAuthPage ? "" : "pb-28 lg:pb-12"} flex-1`}>
+      <div className={`min-h-screen flex flex-col content-reveal bg-[#000000] ${showSidebar ? "lg:pl-[48px]" : ""}`}>
+        <main className={`${isWatchPage ? 'w-full px-0 lg:px-0 pt-[44px] pb-16 lg:pb-0' : isMangaReader ? 'w-full' : isHomeFullBleed ? 'w-full' : isBrowseFullBleed ? 'w-full pt-[0px]' : showNavAndFooter ? 'w-full pt-[44px] px-4 lg:px-8' : isFullWidth ? 'w-full pt-4' : 'max-w-[1400px] mx-auto px-4 lg:px-8 pt-4'} ${isWatchPage || isMangaReader || isBrowseFullBleed || isStandalonePage || isAuthPage ? "" : "pb-28 lg:pb-12"} flex-1`}>
           {renderPage()}
         </main>
       </div>
@@ -513,7 +513,7 @@ export default function MainPageClient() {
             // with padding its solid black background painted straight over the
             // bottom of the sidebar. A margin keeps the footer's box — and
             // therefore its background — clear of the rail entirely.
-            className={`relative z-[9999] border-t border-white/[0.06] mt-10 ${showSidebar ? "lg:ml-[52px]" : ""}`}
+            className={`relative z-[9999] border-t border-white/[0.06] mt-10 ${showSidebar ? "lg:ml-[48px]" : ""}`}
           >
             <div className="max-w-[1200px] mx-auto px-6 py-8">
               <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-8">

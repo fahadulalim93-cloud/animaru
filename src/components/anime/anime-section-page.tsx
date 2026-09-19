@@ -160,7 +160,7 @@ function HeroCarousel({ items, navigate }: { items: FeaturedAnime[]; navigate: (
 
   if (items.length === 0) {
     return (
-      <div className="relative w-full h-[100dvh] bg-[#000000] flex items-center justify-center">
+      <div className="relative w-full h-[60dvh] bg-[#000000] flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-white/10 border-t-white rounded-full animate-spin" />
       </div>
     );
@@ -177,7 +177,7 @@ function HeroCarousel({ items, navigate }: { items: FeaturedAnime[]; navigate: (
 
   return (
     <div
-      className="relative w-full h-[85dvh] md:h-[100dvh] min-h-[480px] md:min-h-[560px] overflow-hidden bg-[#000000]"
+      className="relative w-full h-[55dvh] md:h-[62dvh] min-h-[380px] md:min-h-[440px] overflow-hidden bg-[#000000]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -210,86 +210,86 @@ function HeroCarousel({ items, navigate }: { items: FeaturedAnime[]; navigate: (
       {/* 4) Top fade — strong darkening under header */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 18%)" }} />
       {/* 5) Bottom fade — solid black at bottom edge to blend into section below */}
-      <div className="absolute inset-x-0 bottom-0 h-28 md:h-64 bg-gradient-to-t from-black to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-20 md:h-32 bg-gradient-to-t from-black to-transparent" />
 
       {/* ── Content — bottom-left anchored, shiroko-style ── */}
       <div
-        className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-16 pb-6 sm:pb-12 lg:pb-24 pt-3 sm:pt-6"
+        className="absolute inset-x-0 bottom-0 px-4 sm:px-6 lg:px-12 pb-4 sm:pb-8 lg:pb-10 pt-2 sm:pt-4"
         key={`content-${current}`}
         style={{ animation: "ltv-hero-content-slide 1.2s ease-out" }}
       >
-        <div className="flex flex-col items-start gap-1.5 sm:gap-2 lg:w-[45%] text-white">
+        <div className="flex flex-col items-start gap-1 sm:gap-1.5 lg:w-[45%] text-white">
           {/* Trending badge */}
-          <div className="capitalize font-karla flex items-center gap-2" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))" }}>
-            <Flame size={16} strokeWidth={1} className="text-red-500 fill-red-500 sm:text-[20px]" />
-            <p className="text-xs sm:text-sm font-semibold tracking-wide">{ordinal(current + 1)} on trend</p>
+          <div className="capitalize font-karla flex items-center gap-1.5" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))" }}>
+            <Flame size={14} strokeWidth={1} className="text-red-500 fill-red-500 sm:text-[16px]" />
+            <p className="text-[11px] sm:text-xs font-semibold tracking-wide">{ordinal(current + 1)} on trend</p>
           </div>
 
           {/* TITLE → logo art or plain text */}
-          <div className="font-karla text-balance font-extrabold leading-8 sm:leading-10 xl:leading-14">
+          <div className="font-karla text-balance font-extrabold leading-6 sm:leading-8 xl:leading-10">
             {logoUrl ? (
               <img
                 key={anime.id}
                 src={logoUrl}
                 alt={title}
-                className="max-w-[160px] sm:max-w-[220px] lg:max-w-[320px] xl:max-w-[400px] max-h-[60px] sm:max-h-[80px] lg:max-h-[110px] w-auto h-auto object-contain"
+                className="max-w-[120px] sm:max-w-[180px] lg:max-w-[240px] xl:max-w-[300px] max-h-[44px] sm:max-h-[60px] lg:max-h-[80px] w-auto h-auto object-contain"
                 style={{ objectPosition: "left", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.9))" }}
                 draggable={false}
                 onError={() => setLogos((prev) => { const n = { ...prev }; delete n[anime.id]; return n; })}
               />
             ) : (
-              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-extrabold text-white leading-tight" style={{ textShadow: "0 4px 16px rgba(0,0,0,0.9)" }}>
+              <h1 className="text-base sm:text-xl lg:text-2xl xl:text-3xl font-extrabold text-white leading-tight" style={{ textShadow: "0 4px 16px rgba(0,0,0,0.9)" }}>
                 {title}
               </h1>
             )}
           </div>
 
           {/* Genre pills */}
-          <div className="flex py-1 sm:py-1.5 gap-1.5 sm:gap-2 flex-wrap w-full text-white" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.8))" }}>
+          <div className="flex py-0.5 sm:py-1 gap-1 sm:gap-1.5 flex-wrap w-full text-white" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.8))" }}>
             {anime.seasonYear && (
-              <span className="border border-white/10 bg-[#ceced1]/10 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full backdrop-blur-sm">{anime.seasonYear}</span>
+              <span className="border border-white/10 bg-[#ceced1]/10 text-[10px] sm:text-[11px] px-1.5 sm:px-2.5 py-0.5 rounded-full backdrop-blur-sm">{anime.seasonYear}</span>
             )}
             {anime.genres?.slice(0, 3).map(g => (
-              <span key={g} className="border border-white/10 bg-[#ceced1]/10 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full backdrop-blur-sm">{g}</span>
+              <span key={g} className="border border-white/10 bg-[#ceced1]/10 text-[10px] sm:text-[11px] px-1.5 sm:px-2.5 py-0.5 rounded-full backdrop-blur-sm">{g}</span>
             ))}
           </div>
 
           {/* Description */}
           {description && (
-            <div className="w-full max-w-lg relative font-karla font-light line-clamp-2 leading-5 sm:leading-6 text-white/70 text-xs sm:text-sm sm:line-clamp-3" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}>
+            <div className="w-full max-w-lg relative font-karla font-light line-clamp-2 leading-4 sm:leading-5 text-white/70 text-[11px] sm:text-xs" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}>
               {description}
             </div>
           )}
 
-          {/* Buttons */}
-          <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
+          {/* Buttons — Watch Now + Add-to-list, consistent heights */}
+          <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
             <button
               onClick={() => navigate({ page: "anime", id: String(anime.id) })}
-              className="inline-flex items-center justify-center gap-1 whitespace-nowrap transition-all shrink-0 outline-none bg-white/95 text-slate-900 shadow-sm border border-slate-200/70 hover:bg-white h-8 sm:h-9 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-semibold text-xs sm:text-sm"
+              className="inline-flex items-center justify-center gap-1 whitespace-nowrap transition-all shrink-0 outline-none bg-white/95 text-slate-900 shadow-sm border border-slate-200/70 hover:bg-white h-7 sm:h-8 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full font-semibold text-[11px] sm:text-xs"
             >
-              <Play size={12} strokeWidth={1} fill="currentColor" className="sm:text-[14px]" />
+              <Play size={11} strokeWidth={1} fill="currentColor" className="sm:text-[13px]" />
               Watch Now
             </button>
 
             <button
               onClick={(e) => handleAddToList(e, { id: anime.id, title, cover: getCover(anime) })}
-              className="inline-flex items-center justify-center transition-all shrink-0 outline-none shadow-sm h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/15"
+              className="inline-flex items-center justify-center transition-all shrink-0 outline-none shadow-sm h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/15"
               title="Add to list"
               aria-label="Add to list"
             >
-              <Plus size={16} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" />
+              <Plus size={14} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" />
             </button>
           </div>
         </div>
       </div>
 
       {/* Navigation dots — hidden on mobile (overlaps button), visible sm+ */}
-      <div className="hidden sm:flex absolute bottom-6 right-6 lg:right-16 items-center gap-2 z-30">
+      <div className="hidden sm:flex absolute bottom-4 right-4 lg:right-12 items-center gap-1.5 z-30">
         {items.slice(0, 6).map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className={`h-1 rounded-full transition-all ${i === current ? "w-8 bg-white/90" : "w-1.5 bg-white/25 hover:bg-white/40"}`}
+            className={`h-0.5 rounded-full transition-all ${i === current ? "w-6 bg-white/90" : "w-1.5 bg-white/25 hover:bg-white/40"}`}
           />
         ))}
       </div>

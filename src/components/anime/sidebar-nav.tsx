@@ -17,12 +17,12 @@ import {
    ═══════════════════════════════════════════════════════════════ */
 
 const SIDEBAR_BG = "#000000";
-const SIDEBAR_WIDTH = "52px";
-const TOPBAR_HEIGHT = "48px";
-const SIDEBAR_DIVIDER = "w-7 h-px bg-white/[0.10] shrink-0";
+const SIDEBAR_WIDTH = "48px";
+const TOPBAR_HEIGHT = "44px";
+const SIDEBAR_DIVIDER = "w-6 h-px bg-white/[0.10] shrink-0";
 
 const I = ({ Comp }: { Comp: React.ComponentType<any> }) => (
-  <Comp size={20} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" />
+  <Comp size={18} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" />
 );
 
 interface NavItem {
@@ -151,24 +151,24 @@ export default function SidebarNav() {
         className={`fixed left-0 top-0 bottom-0 z-[70] flex-col items-center transition-transform duration-300 lg:translate-x-0 lg:flex ${mobileSidebarOpen ? "translate-x-0 flex" : "-translate-x-full hidden"}`}
         style={{ width: SIDEBAR_WIDTH, background: SIDEBAR_BG }}
       >
-        {/* Logo */}
+        {/* Logo — smaller for compact Shiroko-style rail */}
         <button
           onClick={() => { navigate({ page: "home" }); setSectionSubPage("home"); setMobileSidebarOpen(false); }}
-          className="w-9 h-9 flex items-center justify-center mt-3 mb-2.5 hover:opacity-80 transition-opacity shrink-0"
+          className="w-8 h-8 flex items-center justify-center mt-2.5 mb-2 hover:opacity-80 transition-opacity shrink-0"
           title="LuffyTV"
           aria-label="LuffyTV home"
         >
-          <img src="/logo-sidebar.png" alt="LuffyTV" className="w-8 h-8 object-contain" draggable={false} />
+          <img src="/logo-sidebar.png" alt="LuffyTV" className="w-5 h-5 object-contain" draggable={false} />
         </button>
 
         <div className={SIDEBAR_DIVIDER} />
 
-        <nav className="flex flex-col gap-1.5 flex-1 items-center pt-3">
+        <nav className="flex flex-col gap-1 flex-1 items-center pt-2">
           {navItems.map((item) => (
             <button
               key={item.label}
               onClick={() => { item.action(); setMobileSidebarOpen(false); }}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 group relative ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 group relative ${
                 item.active
                   ? "bg-[#ededed] text-black shadow-sm"
                   : item.accent
@@ -178,7 +178,7 @@ export default function SidebarNav() {
               title={item.label}
             >
               {item.icon}
-              <span className="absolute left-12 px-2 py-1 rounded-md text-[10px] font-medium bg-black/90 text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-white/[0.03]">
+              <span className="absolute left-11 px-2 py-1 rounded-md text-[10px] font-medium bg-black/90 text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-white/[0.03]">
                 {item.label}
               </span>
             </button>
@@ -188,10 +188,10 @@ export default function SidebarNav() {
         <div className={SIDEBAR_DIVIDER} />
 
         {/* Bottom: Settings + Profile */}
-        <div className="flex flex-col gap-1.5 items-center pt-3 pb-3">
+        <div className="flex flex-col gap-1.5 items-center pt-2 pb-2.5">
           <button
             onClick={() => navigate({ page: "settings" })}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 ${page === "settings" ? "bg-[#ededed] text-black shadow-sm" : "text-gray-400 hover:text-white hover:bg-white/[0.07]"}`}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${page === "settings" ? "bg-[#ededed] text-black shadow-sm" : "text-gray-400 hover:text-white hover:bg-white/[0.07]"}`}
             title="Settings"
           >
             <I Comp={Settings} />
@@ -201,7 +201,7 @@ export default function SidebarNav() {
             <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setProfileMenuOpen((prev) => !prev)}
-                className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
                 title={user.name}
               >
                 <div className="relative w-7 h-7">
@@ -236,37 +236,37 @@ export default function SidebarNav() {
           ) : (
             <button
               onClick={() => openAuthModal("signin")}
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
               title="Sign in"
             >
-              <LogIn size={20} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" />
+              <LogIn size={18} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" />
             </button>
           )}
         </div>
       </aside>
 
-      {/* ═══ TOPBAR ═══ */}
+      {/* ═══ TOPBAR — compact 44px strip with centered search + Sign In ═══ */}
       <header
-        className="fixed top-0 right-0 z-[65] grid grid-cols-[auto_1fr_auto] items-center justify-between px-3 md:px-4 left-0 lg:left-[52px]"
+        className="fixed top-0 right-0 z-[65] grid grid-cols-[auto_1fr_auto] items-center justify-between px-2 md:px-3 left-0 lg:left-[48px]"
         style={{ height: TOPBAR_HEIGHT, background: "transparent" }}
       >
         <div className="flex items-center">
           {/* Desktop: back/forward buttons. Mobile: hamburger is gone (bottom tab bar handles it) */}
-          <div className="hidden lg:flex items-center">
-            <button onClick={goBack} className="hover:bg-white/10 p-1.5 rounded text-gray-400 hover:text-white transition-colors" title="Back">
-              <ChevronLeft size={20} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <div className="hidden lg:flex items-center gap-0.5">
+            <button onClick={goBack} className="hover:bg-white/10 p-1 rounded text-gray-400 hover:text-white transition-colors" title="Back">
+              <ChevronLeft size={18} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </button>
-            <button onClick={goForward} className="hover:bg-white/10 p-1.5 rounded text-gray-400 hover:text-white transition-colors" title="Forward">
-              <ChevronRight size={20} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <button onClick={goForward} className="hover:bg-white/10 p-1 rounded text-gray-400 hover:text-white transition-colors" title="Forward">
+              <ChevronRight size={18} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </button>
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search — slimmer 28px pill */}
         <div className="flex items-center justify-center flex-1 size-full relative">
-          <div className="group flex items-center justify-between relative w-full max-w-sm h-8 px-1 gap-1 min-w-0 rounded bg-[#000000] border border-[rgba(206,206,209,0.15)] shadow-xs transition-all duration-200 hover:border-[rgba(206,206,209,0.5)]">
-            <div className="flex items-center gap-2 min-w-0 ml-1 flex-1">
-              <Search size={12} strokeWidth={2} strokeLinecap="round" className="shrink-0 text-[#a1a1aa]" />
+          <div className="group flex items-center justify-between relative w-full max-w-sm h-7 px-1.5 gap-1 min-w-0 rounded bg-[#000000] border border-[rgba(206,206,209,0.15)] shadow-xs transition-all duration-200 hover:border-[rgba(206,206,209,0.5)]">
+            <div className="flex items-center gap-1.5 min-w-0 ml-0.5 flex-1">
+              <Search size={11} strokeWidth={2} strokeLinecap="round" className="shrink-0 text-[#a1a1aa]" />
               <input
                 ref={searchInputRef}
                 value={searchQuery}
@@ -274,10 +274,10 @@ export default function SidebarNav() {
                 onFocus={() => setShowSearchResults(true)}
                 onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
                 placeholder="Find Anime, Manga, and More"
-                className="flex-1 min-w-0 bg-transparent border-0 outline-none text-xs text-[#fafafa] placeholder-[#a1a1aa]"
+                className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[11px] text-[#fafafa] placeholder-[#a1a1aa]"
               />
             </div>
-            <kbd className="bg-[#27272a] hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border border-[rgba(255,255,255,0.03)] px-1.5 font-mono text-[10px] font-medium text-[#a1a1aa] shrink-0">Ctrl+S</kbd>
+            <kbd className="bg-[#27272a] hidden lg:inline-flex h-4 select-none items-center gap-0.5 rounded border border-[rgba(255,255,255,0.03)] px-1 font-mono text-[9px] font-medium text-[#a1a1aa] shrink-0">⌘S</kbd>
           </div>
 
           {showSearchResults && searchQuery.trim() && (
@@ -302,23 +302,23 @@ export default function SidebarNav() {
           )}
         </div>
 
-        <div className="flex justify-end items-center gap-1.5">
+        <div className="flex justify-end items-center gap-1">
           {!user && (
             <button
               onClick={() => openAuthModal("signin")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white text-black text-xs sm:text-sm font-semibold hover:bg-white/90 transition-colors"
+              className="flex items-center gap-1 h-7 px-3 rounded-full bg-white text-black text-[11px] font-semibold hover:bg-white/90 transition-colors"
             >
-              <LogIn size={14} strokeWidth={2} className="hidden sm:block" />
+              <LogIn size={12} strokeWidth={2} className="hidden sm:block" />
               <span className="hidden sm:inline">Sign In</span>
               <span className="sm:hidden">Login</span>
             </button>
           )}
           <button
             onClick={() => navigate({ page: "settings" })}
-            className="hover:bg-white/10 p-1.5 rounded text-gray-400 hover:text-white transition-colors relative group"
+            className="hover:bg-white/10 p-1 rounded text-gray-400 hover:text-white transition-colors relative group"
             title="Notifications"
           >
-            <BellRing size={20} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <BellRing size={18} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           </button>
         </div>
       </header>
